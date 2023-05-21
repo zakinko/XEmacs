@@ -1,3 +1,7 @@
+2023-05-21  Richard Hopkins  <xemacs@unbit.co.uk>
+
+	* Makefile.in.in: $^ isn't always available so use $< instead.
+
 2023-05-14  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* CHANGES-beta:
