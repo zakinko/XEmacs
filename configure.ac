@@ -2155,7 +2155,7 @@ dnl Inform compiler that certain flags are meant for the linker
 XE_PROTECT_LINKER_FLAGS(ld_switch_system)
 XE_PROTECT_LINKER_FLAGS(ld_switch_machine)
 XE_PROTECT_LINKER_FLAGS(ld_switch_site)
-XE_PROTECT_LINKER_FLAGS(LDFLAGS)
+dnl XE_PROTECT_LINKER_FLAGS(LDFLAGS)
 XE_PROTECT_LINKER_FLAGS(ld_call_shared)
 
 dnl Add s&m-determined objects to link line

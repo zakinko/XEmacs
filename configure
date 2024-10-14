@@ -10656,20 +10656,6 @@ if test "$GCC" = "yes"; then
 fi
 
 if test "$GCC" = "yes"; then
-  set x $LDFLAGS; shift; LDFLAGS=""
-  while test -n "$1"; do
-    case $1 in
-      -L  | -l  | -u                     ) LDFLAGS="$LDFLAGS $1 $2"; shift ;;
-      -f                                 ) LDFLAGS="$LDFLAGS -Xlinker $1" ;;
-      -L* | -l* | -u* | -Wl* | -f* | -pg ) LDFLAGS="$LDFLAGS $1" ;;
-      -Xlinker*                          ) ;;
-      *                                  ) LDFLAGS="$LDFLAGS -Xlinker $1" ;;
-    esac
-    shift
-  done
-fi
-
-if test "$GCC" = "yes"; then
   set x $ld_call_shared; shift; ld_call_shared=""
   while test -n "$1"; do
     case $1 in
