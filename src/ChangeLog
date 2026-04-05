@@ -1,3 +1,10 @@
+2026-04-05  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* search.c (Fregexp_quote):
+	Synch this with current GNU; no longer quote ], return the
+	original string if nothing needs quoting.
+	Update the docstring to advise of the latter.
+
 2026-03-30  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Call a new #'wrong-subtype-argument when supplied consoles,

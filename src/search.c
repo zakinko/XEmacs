@@ -4211,11 +4211,14 @@ true of GNU Emacs, nor of older XEmacs.  See also the macro `save-match-data'.
 
 DEFUN ("regexp-quote", Fregexp_quote, 1, 1, 0, /*
 Return a regexp string which matches exactly STRING and nothing else.
+
+This may return STRING itself if no characters need quoting.
 */
        (string))
 {
-  REGISTER Ibyte *in, *out, *end;
-  REGISTER Ibyte *temp;
+  REGISTER const Ibyte *in, *end;
+  REGISTER Ibyte *temp, *out;
+  Boolint backslashes_added = 0;
 
   CHECK_STRING (string);
 
@@ -4231,16 +4234,24 @@ Return a regexp string which matches exactly STRING and nothing else.
     {
       Ichar c = itext_ichar (in);
 
-      if (c == '[' || c == ']'
+      if (c == '['
 	  || c == '*' || c == '.' || c == '\\'
 	  || c == '?' || c == '+'
 	  || c == '^' || c == '$')
-	*out++ = '\\';
+        {
+          out += set_itext_ichar (out, '\\');
+          backslashes_added = 1;
+        }
       out += set_itext_ichar (out, c);
       INC_IBYTEPTR (in);
     }
 
-  return make_string (temp, out - temp);
+  if (backslashes_added)
+    {
+      return make_string (temp, out - temp);
+    }
+
+  return string;
 }
 
 DEFUN ("set-word-regexp", Fset_word_regexp, 1, 1, 0, /*

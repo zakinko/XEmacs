@@ -1,3 +1,8 @@
+2026-04-05  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* lispref/searching.texi (Syntax of Regexps):
+	Document that #'regexp-quote may return the supplied string.
+
 2026-03-19  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* lispref/mule.texi (Internationalization Terminology):

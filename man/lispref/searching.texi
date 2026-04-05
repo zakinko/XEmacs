@@ -645,6 +645,9 @@ whitespace:
  (concat "\\s-" (regexp-quote string) "\\s-"))
 @end group
 @end example
+
+@code{regexp-quote} may return @code{string} itself, if nothing needs
+quoting within the string.
 @end defun
 
 @node Char Classes, Regexp Example, Syntax of Regexps, Regular Expressions
