@@ -1452,14 +1452,5 @@ vento")
   (modify-syntax-entry 'ascii "<")
   (Assert (null (re-search-forward "[[:alnum:]]" nil t))
           "checking that a bug with dirty syntax table caches has been fixed"))
-  
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;     Tests of `regexp-opt'                         ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(Assert (equal (regexp-opt '("foo" "bar")) "bar\\|foo"))
-(Assert (equal (regexp-opt '("foo" "bar") t) "\\(bar\\|foo\\)"))
-(Assert (equal (regexp-opt '("foo" "bar") 'words) "\\<\\(bar\\|foo\\)\\>"))
-(Assert (equal (regexp-opt '("foo" "bar") 'symbols) "\\_<\\(bar\\|foo\\)\\_>"))
 
 ;;; end of regexp-tests.el

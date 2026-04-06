@@ -1,5 +1,14 @@
 2026-04-06  Aidan Kehoe  <kehoea@parhasard.net>
 
+	* automated/regexp-tests.el:
+	* automated/regexp-opt-tests.el:
+	Move Alan Mackenzie's regexp-opt tests from regexp-tests to this
+	file.
+	Add a new test that checks that #'regexp-opt-depth returns
+	something sensible for a trivial number of groups.
+
+2026-04-06  Aidan Kehoe  <kehoea@parhasard.net>
+
 	* automated/regexp-opt-tests.el:
 	Port the GNU-style tests to our test infrastructure.
 
