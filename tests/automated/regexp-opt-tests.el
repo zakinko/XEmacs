@@ -1,4 +1,4 @@
-;;; regexp-opt-tests.el --- Tests for regexp-opt.el  -*- lexical-binding: t -*-
+;;; regexp-opt-tests.el --- Tests for regexp-opt.el
 
 ;; Copyright (C) 2013-2026 Free Software Foundation, Inc.
 
@@ -24,46 +24,53 @@
 ;;; Code:
 
 (require 'regexp-opt)
+(require 'test-harness)
 
-(defun regexp-opt-test--permutations (l)
-  "All permutations of L, assuming no duplicates."
-  (if (cdr l)
-      (mapcan (lambda (x)
-                (mapcar (lambda (p) (cons x p))
-                        (regexp-opt-test--permutations (remove x l))))
-              l)
-    (list l)))
+(eval-when (:compile-toplevel :execute)
+  (defun regexp-opt-test--permutations (l)
+    "All permutations of L, assuming no duplicates."
+    (if (cdr l)
+	(mapcan (lambda (x)
+		  (mapcar (lambda (p) (cons x p))
+			  (regexp-opt-test--permutations (remove x l))))
+		l)
+      (list l))))
 
-(ert-deftest regexp-opt-longest-match ()
-  "Check that the regexp always matches as much as possible."
-  (let ((s "abcd"))
-    (dolist (perm (regexp-opt-test--permutations '("a" "ab" "ac" "abc")))
-      (should (equal (and (string-match (regexp-opt perm) s)
-                          (match-string 0 s))
-                     "abc")))))
+(macrolet
+    ((regexp-opt-longest-match (search match &rest strings)
+       (cons
+	'progn
+	(mapcar
+	 #'(lambda (perm)
+	     `(Assert (equal (and (string-match (regexp-opt ',perm)
+						,search)
+				  (match-string 0 ,search))
+			     ,match)))
+	 (regexp-opt-test--permutations strings)))))
+  (regexp-opt-longest-match "abcd" "abc"
+                            "a" "ab" "ac" "abc"))
 
-(ert-deftest regexp-opt-charset ()
-  (should (equal (regexp-opt-charset '(?a ?b ?a)) "[ab]"))
-  (should (equal (regexp-opt-charset '(?D ?d ?B ?a ?b ?C ?7 ?a ?c ?A))
-                 "[7A-Da-d]"))
-  (should (equal (regexp-opt-charset '(?a)) "a"))
+(Assert (equal (regexp-opt-charset '(?a ?b ?a)) "[a-b]"))
+(Assert (equal (regexp-opt-charset '(?D ?d ?B ?a ?b ?C ?7 ?a ?c ?A))
+               "[a-dA-D7]"))
+(Assert (equal (regexp-opt-charset '(?a)) "a"))
 
-  (should (equal (regexp-opt-charset '(?^)) "\\^"))
-  (should (equal (regexp-opt-charset '(?-)) "-"))
-  (should (equal (regexp-opt-charset '(?\])) "]"))
-  (should (equal (regexp-opt-charset '(?^ ?\])) "[]^]"))
-  (should (equal (regexp-opt-charset '(?^ ?-)) "[-^]"))
-  (should (equal (regexp-opt-charset '(?- ?\])) "[]-]"))
-  (should (equal (regexp-opt-charset '(?- ?\] ?^)) "[]^-]"))
+(Assert (equal (regexp-opt-charset '(?^)) "\\^"))
+(Assert (equal (regexp-opt-charset '(?-)) "-"))
+(Assert (equal (regexp-opt-charset '(?\])) "]"))
+(Assert (equal (regexp-opt-charset '(?^ ?\])) "[]^]"))
+(Assert (equal (regexp-opt-charset '(?^ ?-)) "[-^]"))
+(Assert (equal (regexp-opt-charset '(?- ?\])) "[]-]"))
+(Assert (equal (regexp-opt-charset '(?- ?\] ?^)) "[]^-]"))
 
-  (should (equal (regexp-opt-charset '(?^ ?a)) "[a^]"))
-  (should (equal (regexp-opt-charset '(?- ?a)) "[a-]"))
-  (should (equal (regexp-opt-charset '(?\] ?a)) "[]a]"))
-  (should (equal (regexp-opt-charset '(?^ ?\] ?a)) "[]a^]"))
-  (should (equal (regexp-opt-charset '(?^ ?- ?a)) "[a^-]"))
-  (should (equal (regexp-opt-charset '(?- ?\] ?a)) "[]a-]"))
-  (should (equal (regexp-opt-charset '(?- ?\] ?^ ?a)) "[]a^-]"))
+(Assert (equal (regexp-opt-charset '(?^ ?a)) "[a^]"))
+(Assert (equal (regexp-opt-charset '(?- ?a)) "[a-]"))
+(Assert (equal (regexp-opt-charset '(?\] ?a)) "[]a]"))
+(Assert (equal (regexp-opt-charset '(?^ ?\] ?a)) "[]a^]"))
+(Assert (equal (regexp-opt-charset '(?^ ?- ?a)) "[a^-]"))
+(Assert (equal (regexp-opt-charset '(?- ?\] ?a)) "[]a-]"))
+(Assert (equal (regexp-opt-charset '(?- ?\] ?^ ?a)) "[]a^-]"))
 
-  (should (equal (regexp-opt-charset '()) regexp-unmatchable)))
+(Assert (equal (regexp-opt-charset '()) "\\`a\\`"))
 
 ;;; regexp-opt-tests.el ends here

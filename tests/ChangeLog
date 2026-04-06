@@ -1,5 +1,10 @@
 2026-04-06  Aidan Kehoe  <kehoea@parhasard.net>
 
+	* automated/regexp-opt-tests.el:
+	Port the GNU-style tests to our test infrastructure.
+
+2026-04-06  Aidan Kehoe  <kehoea@parhasard.net>
+
 	* automated/regexp-opt-tests.el: Import this file from GNU
 	tip. Doesn't currently work with our test infrastructure, but best
 	to have the original file in our version control.
