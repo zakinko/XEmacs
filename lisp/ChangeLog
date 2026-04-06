@@ -1,3 +1,12 @@
+2026-04-06  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* dumped-lisp.el (preloaded-file-list):
+	Add regexp-opt to this temporarily to make sure any package
+	version of the file is not picked up; can be removed once
+	xemacs-base packages without regexp-opt.el are widely deployed.
+	The other file for which this might be an issue, easy-mmode.el, is
+	already dumped.
+
 2026-04-05  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* regexp-opt.el (regexp-opt):

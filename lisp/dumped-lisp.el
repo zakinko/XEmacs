@@ -138,6 +138,10 @@ in dumped-lisp.el and is not itself listed.")
        "behavior"
        "behavior-defs"
        "diagnose"
+
+       ;; Dumped temporarily as of 2026-04-06, to have it override version of
+       ;; this in old package releases.
+       "regexp-opt"
        
 	;;;;;;;;;;;;;;;;;; GUI support
        (if (featurep 'window-system)
