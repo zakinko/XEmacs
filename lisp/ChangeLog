@@ -1,3 +1,30 @@
+2026-04-05  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* regexp-opt.el (regexp-opt):
+	Synch API, doc string with GNU.
+	Bind max-specpdl-size as we did previously and is still relevant
+	pending lexical scope.
+	* regexp-opt.el (regexp-opt-not-groupie*-re): Removed.
+	* regexp-opt.el (subregexp-context-p): New. From GNU's subr.el;
+	had previously been in the package copy of regexp-opt.el, which we
+	never used in 21.5 because of the package-suppress infrastructure,
+	which infrastructure is now gone. No further need for
+	regexp-opt-not-groupie*-re.
+	* regexp-opt.el (regexp-opt-depth):
+	Use #'subregexp-context-p here.
+	* regexp-opt.el (regexp-opt-group):
+	Synch with GNU and with the packages copy of this code. Find
+	shared suffixes as well as shared prefixes, recurse on both. Use
+	(member* 1 (cdr strings) :key #'length) instead of GNU's #'any,
+	which is an alias for #'member-if and does not accept a :key
+	argument.
+	* regexp-opt.el (regexp-opt-charset):
+	Revise and simplify this drastically. The char-table
+	implementation already finds the ranges for us, use that. Take a
+	list of characters rather than a list strings of length one as the
+	argument. Return a regexp that matches nothing if the argument is
+	zero in length. 
+
 2026-03-30  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* coding.el:
