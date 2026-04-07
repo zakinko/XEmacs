@@ -1862,17 +1862,21 @@ Pass in the name (a symbol) of the argument used in the lambda function
 that specifies the handler, and make sure the argument name is unique, and
 this function generates a backtrace and strips off the part above where the
 error occurred (i.e. the handler itself)."
-  (let* ((bt (with-output-to-string (backtrace nil t)))
-	 (bt (save-match-data
-	       ;; Try to eliminate the part of the backtrace
-	       ;; above where the error occurred.
-	       (if (string-match
-		    (concat "bind (\\(?:.*? \\)?" (symbol-name handler-arg-name)
-			    "\\(?:.*? \\)?)[ \t\n]*\\(?:(lambda \\|#<compiled-function \\)("
-			    (symbol-name handler-arg-name)
-			    ").*\n\\(\\(?:.\\|\n\\)*\\)$")
-		    bt) (match-string 1 bt) bt))))
-    bt))
+  (let* ((stream (make-string-output-stream))
+         (backtrace (get-output-stream-string
+                     (prog1 stream (backtrace stream t))))
+         (string (regexp-quote (prin1-to-string handler-arg-name))))
+    (check-type handler-arg-name symbol)
+    (save-match-data
+      ;; Try to eliminate the part of the backtrace above where the error
+      ;; occurred.
+      (if (string-match (concat "bind (\\(?:.*? \\)?" string
+                                "\\(?:.*? \\)?)[ \t\n]*"
+                                "\\(?:(lambda \\|#<compiled-function \\)"
+                                "(" string ").*\n\\(\\(?:.\\|\n\\)*\\)$")
+                        backtrace)
+          (match-string 1 backtrace)
+        backtrace))))
 
 (defmacro with-trapping-errors (&rest rest)
   "Trap errors in BODY, outputting a warning and a backtrace.

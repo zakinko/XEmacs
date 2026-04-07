@@ -1,3 +1,11 @@
+2026-04-07  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* subr.el (backtrace-in-condition-handler-eliminating-handler):
+	This has never worked when HANDLER-ARG-NAME is an uninterned
+	symbol, fix that. In passing write the backtrace to a stream made
+	#'with make-string-output-stream rather than a buffer as
+	#'with-output-to-string requires.
+
 2026-04-06  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* dumped-lisp.el (preloaded-file-list):
