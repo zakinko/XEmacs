@@ -1064,6 +1064,10 @@ void tick_lrecord_stats (const struct lrecord_header *h,
 
   Bytecount value.  Used for counts.
 
+    XD_BYTECOUNT_RESET
+
+  A Bytecount which will be reset to a given value in the dump file.
+
     XD_HASHCODE
 
   Hashcode value.  Used for the results of hashing functions.
@@ -1088,10 +1092,15 @@ void tick_lrecord_stats (const struct lrecord_header *h,
   Special macros:
 
     XD_INDIRECT (line, delta)
+
   Usable where a count, size, offset or union constant is requested.  Gives
   the value of the element which is at line number 'line' in the
   description (count starts at zero) and adds delta to it, which must
   (currently) be positive.
+
+   XD_POINTER_RESET_TO_NULL (offset)
+
+  Usable where a pointer should be reset to NULL at dump time. 
 */
 
 enum memory_description_type
@@ -1121,6 +1130,9 @@ enum memory_description_type
   XD_LONG,
   XD_END
 };
+
+/* These can be implemented identically without problems. */
+#define XD_BYTECOUNT_RESET XD_ELEMCOUNT_RESET
 
 enum data_description_entry_flags
 {
@@ -1240,6 +1252,10 @@ extern MODULE_API void init_memory_usage_stats (int type,
 #define XD_IS_INDIRECT(code) ((code) < 0)
 #define XD_INDIRECT_VAL(code) ((-1 - (code)) & 255)
 #define XD_INDIRECT_DELTA(code) ((-1 - (code)) >> 8)
+
+/* Works because Elemcount and EMACS_INT are the same size as a pointer. */
+#define XD_POINTER_RESET_TO_NULL(offset) \
+  XD_ELEMCOUNT_RESET, (offset), (EMACS_INT) NULL
 
 /* DEFINE_*_LISP_OBJECT is for objects with constant size. (Either
    DEFINE_DUMPABLE_LISP_OBJECT for objects that can be saved in a dumped

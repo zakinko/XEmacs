@@ -1917,7 +1917,7 @@ do {									\
 /* Macros for outputting the compiled pattern into `buffer'.  */
 
 /* If the buffer isn't allocated when it comes in, use this.  */
-#define INIT_BUF_SIZE  32
+#define INIT_BUF_SIZE  100
 
 /* Make sure we have at least N more bytes of space in buffer.  */
 #define GET_BUFFER_SPACE(n)						\

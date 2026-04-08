@@ -1,5 +1,48 @@
 2026-04-08  Aidan Kehoe  <kehoea@parhasard.net>
 
+	Dump the regexp_cache structures, avoid need to initialize them
+	explicitly at startup.
+
+	* lrecord.h:
+	New XD_BYTECOUNT_REST, implemented as XD_ELEMCOUNT.
+	New XD_POINTER_RESET_TO_NULL(), also implemented as XD_ELEMCOUNT.
+
+	* regex.c (INIT_BUF_SIZE): Increase this to 100 to match what
+	search.c did.
+
+	* search.c:
+	* search.c (struct regexp_cache):
+	Remove FASTMAP from this structure, use a dumped 256 char array
+	reachable via buf.fastmap.
+	Update the type of POSIX to Boolint.
+
+	* search.c (const struct sized_memory_description
+	regexp_cache_description): New. Description for
+	struct_regexp_cache.
+	* search.c (static const struct memory_description
+	regexp_cache_description_1[]): New. Description for the fields of
+	struct regexp_cache.
+	Use XD_POINTER_RESET_TO_NULL(), XD_BYTECOUNT_RESET,
+	XD_ELEMCOUNT_RESET within it for those fields that regex.c will
+	initialize if they are NULL or if a Bytecount or Elemcount are
+	zero.
+
+	* search.c (compile_pattern):
+	Take POSIX as a Boolint.
+	* search.c (reinit_vars_of_search):
+	Remove initialization of searchbufs, searchbuf_head from this.
+	* search.c (vars_of_search):
+	Initialize searchbuf_head using xnew_and_zero() and the other
+	elements in the linked list in the same way. Do a
+	staticpro_dump_nil() on both REGEXP and BUF.TRANSLATE with struct
+	regexp_cache, motivate this.
+	Dump the linked list using a dump_add_root_block_ptr on
+	&searchbuf_head.
+	Leave lazy initialization of BUF.BUFFER to regex.c, as was already
+	the case for BUF.EXTERNAL_TO_INTERNAL_REGISTER.
+
+2026-04-08  Aidan Kehoe  <kehoea@parhasard.net>
+
 	Rename XD_INT_RESET to XD_ELEMCOUNT_RESET, treat it as an
 	EMACS_INT within the dumper. Previously it was treated as an int
 	which worked OK on little-endian architectures for the extant uses

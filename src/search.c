@@ -68,17 +68,50 @@ struct regexp_cache
   struct regexp_cache *next;
   Lisp_Object regexp;
   struct re_pattern_buffer buf;
-  char fastmap[256];
   /* Nonzero means regexp was compiled to do full POSIX backtracking.  */
-  char posix;
+  Boolint posix;
 };
 
-/* The instances of that struct.  */
-static struct regexp_cache searchbufs[REGEXP_CACHE_SIZE];
-
-/* The head of the linked list; points to the most recently used buffer.  */
+/* The head of a linked list of them; points to the most recently used
+   buffer. */
 static struct regexp_cache *searchbuf_head;
 
+/* Can't do a forward declaration of a static variable in C++, annoyingly. */
+extern const struct sized_memory_description regexp_cache_description;
+
+static const struct memory_description regexp_cache_description_1[] = {
+  { XD_BLOCK_PTR, offsetof (struct regexp_cache, next), 1,
+    { &regexp_cache_description }},
+  { XD_LISP_OBJECT, offsetof (struct regexp_cache, regexp) },
+
+  { XD_POINTER_RESET_TO_NULL (offsetof (struct regexp_cache, buf)
+			      + offsetof (struct re_pattern_buffer,
+					  buffer)) },
+  { XD_BYTECOUNT_RESET, offsetof (struct regexp_cache, buf)
+    + offsetof (struct re_pattern_buffer, allocated), 0 },
+  { XD_BYTECOUNT_RESET, offsetof (struct regexp_cache, buf)
+    + offsetof (struct re_pattern_buffer, used), 0 },
+
+  { XD_LISP_OBJECT, offsetof (struct regexp_cache, buf)
+     + offsetof (struct re_pattern_buffer, translate) },
+  { XD_BLOCK_PTR, offsetof (struct regexp_cache, buf)
+    + offsetof (struct re_pattern_buffer, fastmap), 256,
+    { &unsigned_char_description } },
+
+  { XD_POINTER_RESET_TO_NULL (offsetof (struct regexp_cache, buf)
+			      + offsetof
+			      (struct re_pattern_buffer,
+			       external_to_internal_register)) },
+  { XD_ELEMCOUNT_RESET, offsetof (struct regexp_cache, buf)
+    + offsetof (struct re_pattern_buffer,
+		external_to_internal_register_size), 0 },
+
+  { XD_END }
+};
+
+const struct sized_memory_description regexp_cache_description = {
+  sizeof (struct regexp_cache), regexp_cache_description_1
+};
 
 /* Every call to re_match, etc., must pass &search_regs as the regs
    argument unless you can show it is unnecessary (i.e., if re_match
@@ -245,7 +278,7 @@ compile_pattern_1 (struct regexp_cache *cp, Lisp_Object pattern,
 struct re_pattern_buffer *
 compile_pattern (Lisp_Object pattern, struct re_registers *regp,
 		 Lisp_Object translate, Lisp_Object UNUSED (searchobj),
-		 struct buffer *UNUSED (searchbuf), int posix,
+		 struct buffer *UNUSED (searchbuf), Boolint posix,
 		 Error_Behavior errb)
 {
   struct regexp_cache *cp, **cpp;
@@ -4338,19 +4371,6 @@ syms_of_search (void)
 void
 reinit_vars_of_search (void)
 {
-  int i;
-
-  for (i = 0; i < REGEXP_CACHE_SIZE; ++i)
-    {
-      searchbufs[i].buf.allocated = 100;
-      searchbufs[i].buf.buffer = (unsigned char *) xmalloc (100);
-      searchbufs[i].buf.fastmap = searchbufs[i].fastmap;
-      searchbufs[i].next = (i == REGEXP_CACHE_SIZE-1 ? 0 : &searchbufs[i+1]);
-      /* See vars_of_search() for the initialization and GC protection of
-         SEARCHBUFS[i].regexp. */
-    }
-  searchbuf_head = &searchbufs[0];
-
   search_regs.start = xnew_array (regoff_t, RE_NREGS);
   search_regs.end   = xnew_array (regoff_t, RE_NREGS);
   search_regs.num_regs = RE_NREGS;
@@ -4438,11 +4458,39 @@ The following areas are recognized:
 #endif /* DEBUG_XEMACS */
 
   {
-    int ii;
-    for (ii = 0; ii < REGEXP_CACHE_SIZE; ++ii)
+    struct regexp_cache *searchbuf
+      = searchbuf_head = xnew_and_zero (struct regexp_cache);
+    int ii = REGEXP_CACHE_SIZE;
+    while (--ii)
       {
-	searchbufs[ii].regexp = Qnil;
-	staticpro_dump_nil (&searchbufs[ii].regexp);
+	searchbuf->regexp = Qnil;
+	staticpro_dump_nil (&searchbuf->regexp);
+
+	searchbuf->buf.translate = Qnil;
+
+	/* TRANSLATE was never previously marked for GC. This has not provoked
+	   any visible bugs so far, since it was only code in regex.c that
+	   examined it.
+
+	   However the regex matching routines can be entered recursively, and
+	   if the Lisp code after entry to matching but before the recursive
+	   call alters the case table of the relevant buffer and provokes a GC,
+	   the regex code will end up looking up a freed char table. The safe
+	   thing is to mark it for GC, anything that needs to be freed will
+	   eventually be evicted from the regexp cache. */
+	staticpro_dump_nil (&searchbuf->buf.translate);
+
+	searchbuf->buf.fastmap = xnew_array_and_zero (char, 256);
+
+	if (ii > 1)
+	  {
+	    searchbuf->next = xnew_and_zero (struct regexp_cache);
+	    searchbuf = searchbuf->next;
+	  }
       }
+
+    dump_add_root_block_ptr (&searchbuf_head, &regexp_cache_description);
   }
 }
+
+/* search.c ends here */
