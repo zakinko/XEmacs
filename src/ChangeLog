@@ -1,3 +1,31 @@
+2026-04-08  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Rename XD_INT_RESET to XD_ELEMCOUNT_RESET, treat it as an
+	EMACS_INT within the dumper. Previously it was treated as an int
+	which worked OK on little-endian architectures for the extant uses
+	but cannot work on a big-endian architecture, not that there are
+	many of them left.
+
+	* array.h:
+	* array.h (XD_DYNARR_DESC):
+	Use XD_ELEMCOUNT_RESET here.
+	* dumper.c (pdump_register_sub):
+	Ditto.
+	* dumper.c (pdump_store_new_pointer_offsets):
+	Declare VAL as Elemcount. Cast RDATA to an Elemcount pointer
+	before writing to it.
+	* dumper.c (pdump_reloc_one):
+	Use XD_ELEMCOUNT_RESET here.
+	* gc.c (lispdesc_one_description_line_size):
+	Move XD_ELEMCOUNT_RESET beside XD_ELEMCOUNT, return sizeof
+	(Elemcount) for both.
+	* gc.c (kkcc_marking):
+	Use XD_ELEMCOUNT_RESET here.
+	* lrecord.h:
+	Document XD_ELEMCOUNT_RESET. Give some context for its use.
+	* lrecord.h (enum memory_description_type):
+	Update its entry here. Put it just after XD_ELEMCOUNT.
+
 2026-04-05  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* search.c (Fregexp_quote):

@@ -814,7 +814,7 @@ pdump_register_sub (const void *data, const struct memory_description *desc)
 	case XD_HASHCODE:
 	case XD_INT:
 	case XD_LONG:
-	case XD_INT_RESET:
+	case XD_ELEMCOUNT_RESET:
 	case XD_LO_LINK:
 	case XD_FUNCTION_POINTER:
 	case XD_MEMORY_DESCRIPTION:
@@ -1122,11 +1122,11 @@ pdump_store_new_pointer_offsets (Elemcount count, void *data,
 	    case XD_INT:
 	    case XD_LONG:
 	      break;
-	    case XD_INT_RESET:
+	    case XD_ELEMCOUNT_RESET:
 	      {
-		EMACS_INT val = lispdesc_indirect_count (desc1->data1, desc,
+		Elemcount val = lispdesc_indirect_count (desc1->data1, desc,
 							 orig_data);
-		* (int *) rdata = (int) val;
+		* (Elemcount *) rdata = val;
 		break;
 	      }
 	    case XD_OPAQUE_DATA_PTR:
@@ -1399,7 +1399,7 @@ pdump_reloc_one (void *data, const struct memory_description *desc)
 	case XD_HASHCODE:
 	case XD_INT:
 	case XD_LONG:
-	case XD_INT_RESET:
+	case XD_ELEMCOUNT_RESET:
 	  break;
 	case XD_OPAQUE_DATA_PTR:
 	case XD_ASCII_STRING:

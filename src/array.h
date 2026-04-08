@@ -60,8 +60,10 @@ typedef struct dynarr
   { XD_BLOCK_PTR, offsetof (base_type, base),				\
     XD_INDIRECT(1, 0), {sub_desc} },					\
   { XD_ELEMCOUNT,  offsetof (base_type, len_) },			\
-  { XD_INT_RESET,  offsetof (base_type, largest_), XD_INDIRECT(1, 0) },	\
-  { XD_INT_RESET,  offsetof (base_type, max_), XD_INDIRECT(1, 0) }
+  { XD_ELEMCOUNT_RESET, offsetof (base_type,				\
+				  largest_), XD_INDIRECT(1, 0) },	\
+  { XD_ELEMCOUNT_RESET, offsetof (base_type,				\
+				  max_), XD_INDIRECT(1, 0) }
 
 
 /************* Dynarr verification *************/

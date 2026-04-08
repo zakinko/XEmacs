@@ -321,11 +321,10 @@ lispdesc_one_description_line_size (void *rdata,
       }
     case XD_ASCII_STRING:
       return sizeof (void *);
-    case XD_INT_RESET:
-      return sizeof (int);
     case XD_BYTECOUNT:
       return sizeof (Bytecount);
     case XD_ELEMCOUNT:
+    case XD_ELEMCOUNT_RESET:
       return sizeof (Elemcount);
     case XD_HASHCODE:
       return sizeof (Hashcode);
@@ -879,7 +878,7 @@ kkcc_marking (void)
 	    case XD_HASHCODE:
 	    case XD_INT:
 	    case XD_LONG:
-	    case XD_INT_RESET:
+	    case XD_ELEMCOUNT_RESET:
 	    case XD_LO_LINK:
 	    case XD_OPAQUE_PTR:
 	    case XD_OPAQUE_DATA_PTR:

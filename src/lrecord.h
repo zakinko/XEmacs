@@ -1051,13 +1051,14 @@ void tick_lrecord_stats (const struct lrecord_header *h,
 
   Pointer to a C string, purely ASCII.
 
-    XD_INT_RESET
-
-  An integer which will be reset to a given value in the dump file.
-
     XD_ELEMCOUNT
 
   Elemcount value.  Used for counts.
+
+    XD_ELEMCOUNT_RESET
+
+  An Elemcount which will be reset to a given value in the dump file.  Used for
+  adjusting Dynarrs at dump time to have no unused entries.
 
     XD_BYTECOUNT
 
@@ -1112,9 +1113,9 @@ enum memory_description_type
   XD_MEMORY_DESCRIPTION,
   XD_SIZED_MEMORY_DESCRIPTION,
   XD_ASCII_STRING,
-  XD_INT_RESET,
-  XD_BYTECOUNT,
   XD_ELEMCOUNT,
+  XD_ELEMCOUNT_RESET,
+  XD_BYTECOUNT,
   XD_HASHCODE,
   XD_INT,
   XD_LONG,
