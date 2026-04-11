@@ -880,6 +880,879 @@ check_compatible_window_system (const Ascbyte *must)
 /*                   main and friends: XEmacs startup                   */
 /************************************************************************/
 
+static void
+initialize_temacs (void)
+{
+  /* Initialize things so that new Lisp objects can be created and objects can
+     be staticpro'd.  Must be basically the very first thing done because
+     pretty much all of the initialization routines below create new
+     objects. */
+  init_alloc_once_early ();
+
+  /* Make sure that hash tables (and packages) can be created.  Create
+     obarray. */
+  init_elhash_once_early ();
+
+  /* Make sure that opaque pointers can be created. Create Qunbound. */
+  init_opaque_once_early ();
+
+  /* Initialize Qnil and Qt.  After this, symbols can be interned.  This
+     depends on init_alloc_once_early(), init_elhash_once_early(), and
+     init_opaque_once_early(). */
+  init_symbols_once_early ();
+
+  /* Declare the basic symbols pertaining to errors, So that DEFERROR*() can
+     be called. */
+  init_errors_once_early ();
+
+  /* Now declare all the symbols and define all the Lisp primitives.
+
+     The *only* thing that the syms_of_*() functions are allowed to do is call
+     one of the following:
+
+     defsymbol(), DEFSYMBOL(), or DEFSYMBOL_MULTIWORD_PREDICATE() defsubr()
+     (i.e. DEFSUBR) deferror(), DEFERROR(), or DEFERROR_STANDARD()
+     defkeyword() or DEFKEYWORD() Fput() DEFINE_.*_LISP_OBJECT()
+     OBJECT_HAS_METHOD ()
+
+     syms_of_eval() needs to come first to make the Lisp_Subr object available
+     to DEFSUBR(). Otherwise order does not matter in these functions. Calling
+     syms_of_lstream() and syms_of_print() next is helpful avoiding recursive
+     crashes in early error messages, should they be necessary. */
+  syms_of_eval ();
+  syms_of_lstream ();
+  syms_of_print ();
+
+  syms_of_abbrev ();
+  syms_of_alloc ();
+  syms_of_gc ();
+  syms_of_array ();
+  syms_of_buffer ();
+  syms_of_bytecode ();
+  syms_of_callint ();
+  syms_of_casefiddle ();
+  syms_of_casetab ();
+  syms_of_chartab ();
+  syms_of_cmdloop ();
+  syms_of_cmds ();
+  syms_of_console ();
+  syms_of_data ();
+#ifdef DEBUG_XEMACS
+  syms_of_tests ();
+#endif /* DEBUG_XEMACS */
+  syms_of_device ();
+#ifdef HAVE_DIALOGS
+  syms_of_dialog ();
+#endif
+  syms_of_dired ();
+  syms_of_doc ();
+  syms_of_doprnt ();
+  syms_of_editfns ();
+  syms_of_elhash ();
+  syms_of_emacs ();
+#ifdef HAVE_X_WINDOWS
+  syms_of_event_Xt ();
+#endif
+#ifdef HAVE_GTK
+  syms_of_event_gtk ();
+#endif
+#ifdef HAVE_DRAGNDROP
+  syms_of_dragdrop ();
+#endif
+  syms_of_event_stream ();
+  syms_of_events ();
+  syms_of_extents ();
+  syms_of_faces ();
+  syms_of_fileio ();
+#ifdef CLASH_DETECTION
+  syms_of_filelock ();
+#endif /* CLASH_DETECTION */
+  syms_of_floatfns ();
+  syms_of_fns ();
+  syms_of_sequence ();
+#ifdef USE_C_FONT_LOCK
+  syms_of_font_lock ();
+#endif /* USE_C_FONT_LOCK */
+  syms_of_frame ();
+  syms_of_general ();
+  syms_of_glyphs ();
+#ifdef HAVE_WINDOW_SYSTEM
+  syms_of_glyphs_eimage ();
+  syms_of_glyphs_shared ();
+#endif
+  syms_of_glyphs_widget ();
+  syms_of_gui ();
+  syms_of_gutter ();
+  syms_of_indent ();
+  syms_of_intl ();
+  syms_of_keymap ();
+  syms_of_lread ();
+  syms_of_macros ();
+  syms_of_marker ();
+  syms_of_md5 ();
+#ifdef HAVE_DATABASE
+  syms_of_database ();
+#endif
+#ifdef HAVE_MENUBARS
+  syms_of_menubar ();
+#endif
+  syms_of_minibuf ();
+#ifdef HAVE_SHLIB
+  syms_of_module ();
+#endif
+#ifdef WITH_NUMBER_TYPES
+  syms_of_number ();
+#endif
+  syms_of_fontcolor ();
+  syms_of_process ();
+#ifdef HAVE_WIN32_PROCESSES
+  syms_of_process_nt ();
+#endif
+  syms_of_profile ();
+#ifdef REL_ALLOC
+  syms_of_ralloc ();
+#endif /* HAVE_MMAP && REL_ALLOC */
+  syms_of_rangetab ();
+  syms_of_redisplay ();
+  syms_of_search ();
+  syms_of_select ();
+  syms_of_signal ();
+  syms_of_sound ();
+  syms_of_specifier ();
+  syms_of_symbols ();
+  syms_of_syntax ();
+#ifdef HAVE_SCROLLBARS
+  syms_of_scrollbar ();
+#endif
+  syms_of_text ();
+#ifdef WITH_TLS
+  syms_of_tls ();
+#endif
+#ifdef HAVE_TOOLBARS
+  syms_of_toolbar ();
+#endif
+  syms_of_undo ();
+  syms_of_widget ();
+  syms_of_window ();
+
+#ifdef HAVE_TTY
+  syms_of_console_tty ();
+  syms_of_device_tty ();
+  syms_of_frame_tty ();
+  syms_of_fontcolor_tty ();
+#endif
+
+#ifdef HAVE_GTK
+  syms_of_device_gtk ();
+  syms_of_event_gtk ();
+  syms_of_frame_gtk ();
+  syms_of_glyphs_gtk ();
+  syms_of_fontcolor_gtk ();
+  syms_of_ui_gtk ();
+  syms_of_select_gtk ();
+#ifdef HAVE_DIALOGS
+  syms_of_dialog_gtk ();
+#endif
+#ifdef HAVE_MENUBARS
+  syms_of_menubar_gtk ();
+#endif
+  syms_of_select_gtk ();
+
+#ifdef HAVE_GUI_OBJECTS
+  syms_of_gui_gtk ();
+#endif
+#endif /* HAVE_GTK */
+
+#ifdef HAVE_X_WINDOWS
+#ifdef HAVE_BALLOON_HELP
+  syms_of_balloon_x ();
+#endif
+  syms_of_device_x ();
+#ifdef HAVE_X_DIALOGS
+  syms_of_dialog_x ();
+#endif
+  syms_of_frame_x ();
+  syms_of_glyphs_x ();
+  syms_of_fontcolor_x ();
+#ifdef HAVE_MENUBARS
+  syms_of_menubar_x ();
+#endif
+  syms_of_select_x ();
+#ifdef HAVE_GUI_OBJECTS
+  syms_of_gui_x ();
+#endif
+  syms_of_intl_x ();
+#ifdef HAVE_XIM
+#ifdef XIM_XLIB
+  syms_of_input_method_xlib ();
+#endif
+#endif /* HAVE_XIM */
+
+#ifdef HAVE_XFT
+  syms_of_font_mgr();
+#endif
+
+#endif /* HAVE_X_WINDOWS */
+
+#ifdef HAVE_MS_WINDOWS
+  syms_of_console_mswindows ();
+  syms_of_device_mswindows ();
+  syms_of_event_mswindows ();
+#ifdef HAVE_DIALOGS
+  syms_of_dialog_mswindows ();
+#endif
+  syms_of_frame_mswindows ();
+  syms_of_fontcolor_mswindows ();
+  syms_of_select_mswindows ();
+  syms_of_glyphs_mswindows ();
+#ifdef HAVE_GUI_OBJECTS
+  syms_of_gui_mswindows ();
+#endif
+#ifdef HAVE_MENUBARS
+  syms_of_menubar_mswindows ();
+#endif
+#ifdef HAVE_SCROLLBARS
+  syms_of_scrollbar_mswindows ();
+#endif
+#endif	/* HAVE_MS_WINDOWS */
+#ifdef WIN32_NATIVE
+  syms_of_dired_mswindows ();
+  syms_of_nt ();
+#endif
+#ifdef WIN32_ANY
+  syms_of_win32 ();
+#endif
+
+  syms_of_file_coding ();
+  syms_of_unicode ();
+  syms_of_mule_ccl ();
+  syms_of_mule_charset ();
+  syms_of_mule_coding ();
+#ifdef HAVE_WNN
+  syms_of_mule_wnn ();
+#endif
+
+#ifdef WIN32_ANY
+  syms_of_intl_win32 ();
+#endif
+
+#ifdef SYMS_SYSTEM
+  SYMS_SYSTEM;
+#endif
+
+#ifdef SYMS_MACHINE
+  SYMS_MACHINE;
+#endif
+
+#ifdef TOOLTALK
+  syms_of_tooltalk ();
+#endif
+
+#ifdef SUNPRO
+  syms_of_sunpro ();
+#endif
+
+#ifdef HAVE_GPM
+  syms_of_gpmevent ();
+#endif
+
+  /* Now create the subtypes for the types that have them.  We do this before
+     the vars_*() because more symbols may get initialized here. */
+
+  /* Now initialize the console types and associated symbols.  Other than the
+     first function below, the functions may make exactly the following
+     function/macro calls:
+
+     INITIALIZE_CONSOLE_TYPE()
+     CONSOLE_HAS_METHOD()
+
+     For any given console type, the former macro must be called before the
+     any calls to the latter macro. */
+
+  console_type_create ();
+
+  console_type_create_stream ();
+
+#ifdef HAVE_TTY
+  console_type_create_tty ();
+  console_type_create_device_tty ();
+  console_type_create_frame_tty ();
+  console_type_create_fontcolor_tty ();
+  console_type_create_redisplay_tty ();
+#endif
+
+#ifdef HAVE_GTK
+  console_type_create_gtk ();
+  console_type_create_select_gtk ();
+  console_type_create_device_gtk ();
+  console_type_create_frame_gtk ();
+  console_type_create_fontcolor_gtk ();
+  console_type_create_glyphs_gtk ();
+  console_type_create_redisplay_gtk ();
+#ifdef HAVE_MENUBARS
+  console_type_create_menubar_gtk ();
+#endif
+#ifdef HAVE_SCROLLBARS
+  console_type_create_scrollbar_gtk ();
+#endif
+#ifdef HAVE_TOOLBARS
+  console_type_create_toolbar_gtk ();
+#endif
+#ifdef HAVE_DIALOGS
+  console_type_create_dialog_gtk ();
+#endif
+#endif /* HAVE_GTK */
+
+#ifdef HAVE_X_WINDOWS
+  console_type_create_x ();
+  console_type_create_device_x ();
+  console_type_create_frame_x ();
+  console_type_create_glyphs_x ();
+  console_type_create_select_x ();
+#ifdef HAVE_MENUBARS
+  console_type_create_menubar_x ();
+#endif
+  console_type_create_fontcolor_x ();
+  console_type_create_redisplay_x ();
+#ifdef HAVE_SCROLLBARS
+  console_type_create_scrollbar_x ();
+#endif
+#ifdef HAVE_TOOLBARS
+  console_type_create_toolbar_x ();
+#endif
+#ifdef HAVE_X_DIALOGS
+  console_type_create_dialog_x ();
+#endif
+#endif /* HAVE_X_WINDOWS */
+
+#ifdef HAVE_MS_WINDOWS
+  console_type_create_mswindows ();
+  console_type_create_device_mswindows ();
+  console_type_create_frame_mswindows ();
+  console_type_create_fontcolor_mswindows ();
+  console_type_create_redisplay_mswindows ();
+  console_type_create_glyphs_mswindows ();
+  console_type_create_select_mswindows ();
+# ifdef HAVE_SCROLLBARS
+  console_type_create_scrollbar_mswindows ();
+# endif
+#ifdef HAVE_MENUBARS
+  console_type_create_menubar_mswindows ();
+#endif
+#ifdef HAVE_TOOLBARS
+  console_type_create_toolbar_mswindows ();
+#endif
+#ifdef HAVE_DIALOGS
+  console_type_create_dialog_mswindows ();
+#endif
+#endif
+
+  /* Now initialize the specifier types and associated symbols.  Other than
+     the first function below, the functions may make exactly the following
+     function/macro calls:
+
+     INITIALIZE_SPECIFIER_TYPE()
+     SPECIFIER_HAS_METHOD()
+
+     For any given specifier type, the former macro must be called before the
+     any calls to the latter macro. */
+
+  specifier_type_create ();
+
+  specifier_type_create_image ();
+  specifier_type_create_gutter ();
+  specifier_type_create_fontcolor ();
+#ifdef HAVE_TOOLBARS
+  specifier_type_create_toolbar ();
+#endif
+
+  /* Now initialize the coding system types and associated symbols.  Other
+     than the first function below, the functions may make exactly the
+     following function/macro calls:
+
+     INITIALIZE_CODING_SYSTEM_TYPE()
+     CODING_SYSTEM_HAS_METHOD()
+
+     For any given coding system type, the former macro must be called
+     before the any calls to the latter macro. */
+
+  coding_system_type_create ();
+  coding_system_type_create_unicode ();
+#ifdef WIN32_ANY
+  coding_system_type_create_intl_win32 ();
+#endif
+  coding_system_type_create_mule_coding ();
+
+  /* Now initialize the image instantiator formats and associated symbols.
+     Other than the first function below, the functions may make exactly the
+     following function/macro calls:
+
+     INITIALIZE_IMAGE_INSTANTIATOR_FORMAT()
+     IIFORMAT_HAS_METHOD()
+     IIFORMAT_VALID_KEYWORD()
+
+     For any given image instantiator format, the first macro must be called
+     before the any calls to the other macros. */
+
+  image_instantiator_format_create ();
+#ifdef HAVE_WINDOW_SYSTEM
+  image_instantiator_format_create_glyphs_eimage ();
+#endif
+  image_instantiator_format_create_glyphs_widget ();
+#ifdef HAVE_TTY
+  image_instantiator_format_create_glyphs_tty ();
+#endif
+#ifdef HAVE_X_WINDOWS
+  image_instantiator_format_create_glyphs_x ();
+#endif /* HAVE_X_WINDOWS */
+#ifdef HAVE_MS_WINDOWS
+  image_instantiator_format_create_glyphs_mswindows ();
+#endif /* HAVE_MS_WINDOWS */
+#ifdef HAVE_GTK
+  image_instantiator_format_create_glyphs_gtk ();
+#endif
+
+  /* Now initialize the structure types and associated symbols.  Other than
+     the first function below, the functions may make exactly the following
+     function/macro calls:
+
+     define_structure_type()
+     define_structure_type_keyword() */
+  structure_type_create ();
+
+  structure_type_create_chartab ();
+  structure_type_create_faces ();
+  structure_type_create_rangetab ();
+  structure_type_create_hash_table ();
+
+  /* Now initialize most variables.
+
+     These functions may do exactly the following:
+
+     -- assigning a symbol or constant value to a variable
+     -- using a global variable that has been initialized
+        earlier on in the same function
+     -- DEFVAR_INT()
+     -- DEFVAR_LISP()
+     -- DEFVAR_BOOL()
+     -- DEFER_GETTEXT()
+     -- staticpro*()
+     -- xmalloc*(), xnew*(), and friends
+     -- Dynarr_*()
+     -- Fprovide (symbol)
+     -- intern()
+     -- Fput()
+     -- dump_add_*()
+     -- C library functions with no external dependencies, e.g. str*()
+     -- defsymbol(), if it's absolutely necessary and you're sure that
+        the symbol isn't referenced anywhere else in the initialization
+        code
+     -- Fset() on a symbol that is unbound
+     -- Any of the object-creating functions in alloc.c: e.g.
+            - make_string()
+	    - build_istring()
+	    - build_cistring()
+	    - build_ascstring()
+	    - make_vector()
+	    - make_fixnum()
+	    - make_char()
+	    - make_extent()
+	    - ALLOC_NORMAL_LISP_OBJECT()
+	    - ALLOC_SIZED_LISP_OBJECT()
+	    - Fcons()
+	    - listN()
+            - get_lcrecord_list()
+            -- make_opaque_ptr()
+            -- make_lisp_hash_table() (not allowed in 21.4!)
+     -- certain specifier creation functions (but be careful; see glyphs.c for
+        examples)
+
+        perhaps a few others.
+
+        NO EXTERNAL-FORMAT CONVERSIONS.
+
+        NB: Initialization or assignment should not be done here to certain
+        variables settable from the command line.  See the comment above the
+        call to pdump_load() in main_1().  This caveat should only apply to
+        vars_of_emacs().
+
+        Order may matter in these functions. */
+
+  /* Do this first to allow Fprovide() calls. */
+  vars_of_fns ();
+
+  vars_of_lstream ();
+
+  vars_of_data ();
+  vars_of_alloc ();
+  vars_of_abbrev ();
+  vars_of_buffer ();
+  vars_of_elhash ();
+  vars_of_bytecode ();
+  vars_of_callint ();
+  vars_of_casetab ();
+  vars_of_chartab ();
+  vars_of_cmdloop ();
+  vars_of_cmds ();
+  vars_of_console ();
+  vars_of_specifier ();
+
+#ifdef DEBUG_XEMACS
+  vars_of_tests ();
+#endif
+  vars_of_console_stream ();
+  vars_of_device ();
+#ifdef HAVE_DIALOGS
+  vars_of_dialog ();
+#endif
+  vars_of_dired ();
+  vars_of_doc ();
+#ifdef HAVE_DRAGNDROP
+  vars_of_dragdrop ();
+#endif
+  vars_of_editfns ();
+  vars_of_emacs ();
+  vars_of_eval ();
+
+#ifdef HAVE_X_WINDOWS
+  vars_of_event_Xt ();
+#endif
+#if defined (HAVE_TTY) && (defined (DEBUG_TTY_EVENT_STREAM) || !defined (HAVE_X_WINDOWS))
+  vars_of_event_tty ();
+#endif
+#ifdef HAVE_MS_WINDOWS
+  vars_of_event_mswindows ();
+#endif
+  vars_of_event_stream ();
+
+  vars_of_events ();
+  vars_of_extents ();
+  vars_of_faces ();
+  vars_of_file_coding ();
+  vars_of_fileio ();
+#ifdef CLASH_DETECTION
+  vars_of_filelock ();
+#endif
+  vars_of_floatfns ();
+#ifdef USE_C_FONT_LOCK
+  vars_of_font_lock ();
+#endif /* USE_C_FONT_LOCK */
+  vars_of_frame ();
+  vars_of_gc ();
+  vars_of_glyphs ();
+#ifdef HAVE_WINDOW_SYSTEM
+  vars_of_glyphs_eimage ();
+#endif
+  vars_of_glyphs_widget ();
+  vars_of_gui ();
+  vars_of_gutter ();
+  vars_of_indent ();
+  vars_of_insdel ();
+  vars_of_intl ();
+#ifdef WIN32_ANY
+  vars_of_intl_win32 ();
+#endif
+#ifdef HAVE_XIM
+#ifdef XIM_MOTIF
+  vars_of_input_method_motif ();
+#else /* XIM_XLIB */
+  vars_of_input_method_xlib ();
+#endif
+#endif /* HAVE_XIM */
+  vars_of_keymap ();
+  vars_of_lread ();
+
+  vars_of_macros ();
+  vars_of_md5 ();
+#ifdef HAVE_DATABASE
+  vars_of_database ();
+#endif
+#ifdef HAVE_MENUBARS
+  vars_of_menubar ();
+#endif
+  vars_of_minibuf ();
+  vars_of_module ();
+#ifdef WIN32_NATIVE
+  vars_of_dired_mswindows ();
+  vars_of_nt ();
+#endif
+#ifdef WITH_NUMBER_TYPES
+  vars_of_number ();
+#endif
+  vars_of_fontcolor ();
+  vars_of_print ();
+
+  vars_of_process ();
+#ifdef HAVE_UNIX_PROCESSES
+  vars_of_process_unix ();
+#endif
+#ifdef HAVE_WIN32_PROCESSES
+  vars_of_process_nt ();
+#endif
+
+  vars_of_profile ();
+#ifdef REL_ALLOC
+  vars_of_ralloc ();
+#endif 
+  vars_of_realpath ();
+  vars_of_redisplay ();
+  vars_of_regex ();
+#ifdef HAVE_SCROLLBARS
+  vars_of_scrollbar ();
+#endif
+  vars_of_search ();
+  vars_of_select ();
+  vars_of_sound ();
+  vars_of_syntax ();
+  vars_of_text ();
+#ifdef WITH_TLS
+  vars_of_tls ();
+#endif
+#ifdef HAVE_TOOLBARS
+  vars_of_toolbar ();
+#endif
+  vars_of_undo ();
+  vars_of_window ();
+#ifdef WIN32_ANY
+  vars_of_win32 ();
+#endif
+
+#ifdef HAVE_TTY
+  vars_of_console_tty ();
+  vars_of_frame_tty ();
+  vars_of_fontcolor_tty ();
+#endif
+
+#ifdef HAVE_GTK
+  vars_of_device_gtk ();
+  vars_of_console_gtk ();
+#ifdef HAVE_DIALOGS
+  vars_of_dialog_gtk ();
+#endif
+  vars_of_event_gtk ();
+  vars_of_frame_gtk ();
+  vars_of_glyphs_gtk ();
+  vars_of_ui_gtk ();
+#ifdef HAVE_MENUBARS
+  vars_of_menubar_gtk ();
+#endif
+  vars_of_fontcolor_gtk ();
+  vars_of_select_gtk ();
+#ifdef HAVE_SCROLLBARS
+  vars_of_scrollbar_gtk ();
+#endif
+#ifdef HAVE_TOOLBARS
+  vars_of_toolbar_gtk();
+#endif
+#if defined (HAVE_MENUBARS) || defined (HAVE_SCROLLBARS) || defined (HAVE_DIALOGS) || defined (HAVE_TOOLBARS)
+  vars_of_gui_gtk ();
+#endif
+#endif /* HAVE_GTK */
+
+#ifdef HAVE_X_WINDOWS
+#ifdef HAVE_BALLOON_HELP
+  vars_of_balloon_x ();
+#endif
+  vars_of_console_x ();
+  vars_of_device_x ();
+#ifdef HAVE_X_DIALOGS
+  vars_of_dialog_x ();
+#endif
+  vars_of_frame_x ();
+  vars_of_glyphs_x ();
+#ifdef HAVE_MENUBARS
+  vars_of_menubar_x ();
+#endif
+  vars_of_fontcolor_x ();
+  vars_of_select_x ();
+#ifdef HAVE_SCROLLBARS
+  vars_of_scrollbar_x ();
+#endif
+#if defined (HAVE_MENUBARS) || defined (HAVE_SCROLLBARS) || defined (HAVE_X_DIALOGS) || defined (HAVE_TOOLBARS)
+  vars_of_gui_x ();
+#endif
+
+#ifdef HAVE_XFT
+  vars_of_font_mgr ();
+#endif
+
+#endif /* HAVE_X_WINDOWS */
+
+#ifdef HAVE_MS_WINDOWS
+  vars_of_device_mswindows ();
+  vars_of_console_mswindows ();
+  vars_of_frame_mswindows ();
+  vars_of_fontcolor_mswindows ();
+  vars_of_select_mswindows ();
+  vars_of_glyphs_mswindows ();
+#ifdef HAVE_SCROLLBARS
+  vars_of_scrollbar_mswindows ();
+#endif
+#ifdef HAVE_MENUBARS
+  vars_of_menubar_mswindows ();
+#endif
+#ifdef HAVE_DIALOGS
+  vars_of_dialog_mswindows ();
+#endif
+#endif	/* HAVE_MS_WINDOWS */
+
+  vars_of_mule_ccl ();
+  vars_of_mule_charset ();
+  vars_of_unicode ();
+  vars_of_mule_coding ();
+#ifdef HAVE_WNN
+  vars_of_mule_wnn ();
+#endif
+
+#ifdef TOOLTALK
+  vars_of_tooltalk ();
+#endif
+
+#ifdef SUNPRO
+  vars_of_sunpro ();
+#endif
+
+#ifdef HAVE_GPM
+  vars_of_gpmevent ();
+#endif
+
+  /* Now initialize any specifier variables.  We do this later because it has
+     some dependence on the vars initialized above.
+
+     These functions should *only* initialize specifier variables, and may
+     make use of the following functions/macros in addition to the ones listed
+     above:
+
+     DEFVAR_SPECIFIER()
+     Fmake_specifier()
+     set_specifier_fallback()
+     set_specifier_caching() */
+
+  specifier_vars_of_glyphs ();
+  specifier_vars_of_glyphs_widget ();
+  specifier_vars_of_gutter ();
+#ifdef HAVE_MENUBARS
+  specifier_vars_of_menubar ();
+#endif
+  specifier_vars_of_redisplay ();
+#ifdef HAVE_SCROLLBARS
+  specifier_vars_of_scrollbar ();
+#endif
+#ifdef HAVE_TOOLBARS
+  specifier_vars_of_toolbar ();
+#endif
+  specifier_vars_of_window ();
+
+  /* Now comes all the rest of the variables that couldn't be handled above.
+     There may be dependencies on variables initialized above, and
+     dependencies between one complex_vars_() function and another. */
+
+  /* This creates charsets, which depends on vars initialized in
+     vars_of_unicode(). */
+  complex_vars_of_mule_charset ();
+  /* This depends on charsets created in complex_vars_of_mule_charset(). */
+  complex_vars_of_mule_coding ();
+  /* This one doesn't depend on anything really, and could go into vars_of_(),
+     but lots of lots of code gets called and it's easily possible that it
+     could get changed to require being a complex_vars_of_(), for example if a
+     charset appears anywhere, then we suddenly have dependence on the
+     previous call. */
+  complex_vars_of_file_coding ();
+#ifdef WIN32_ANY
+  /* Likewise this one. */
+  /* Define MS-Windows Unicode coding systems */
+  complex_vars_of_intl_win32 ();
+#endif
+  /* Define UTF-8 coding system, create JIT charset */
+  complex_vars_of_unicode ();
+
+  /* At this point we should be able to do conversion operations.  We have
+     initialized things to the point that we can create Lisp objects and we
+     have defined the basic coding systems (in the just-previous complex-vars
+     calls).  We will in fact do conversion quite soon, e.g. in
+     complex_vars_of_glyphs_x(). */
+  inhibit_non_essential_conversion_operations = 0;
+
+#ifdef HAVE_XFT
+  /* This uses coding systems.  Must be done before faces are init'ed. */
+  /* not in xft reloaded #3 */
+  complex_vars_of_font_mgr ();
+#endif
+
+  /* Depends on specifiers. */
+  complex_vars_of_faces ();
+
+  /* This calls allocate_glyph(), which creates specifiers and also relies on
+     a variable (Vthe_nothing_vector) initialized above. */
+  complex_vars_of_glyphs ();
+
+  /* These rely on the glyphs just created in the previous function, and call
+     Fadd_spec_to_specifier(), which relies on various variables initialized
+     above. */
+#ifdef HAVE_GTK
+  complex_vars_of_glyphs_gtk ();
+#endif
+#ifdef HAVE_X_WINDOWS
+  complex_vars_of_glyphs_x ();
+#endif
+#ifdef HAVE_MS_WINDOWS
+  complex_vars_of_glyphs_mswindows ();
+#endif
+
+  /* This calls Fmake_glyph_internal(). */
+#ifdef HAVE_MENUBARS
+  complex_vars_of_menubar ();
+#endif
+
+#ifdef HAVE_SCROLLBARS
+  /* This calls Fmake_glyph_internal(). */
+  complex_vars_of_scrollbar ();
+#endif
+
+  /* This calls allocate_glyph(). */
+  complex_vars_of_frame ();
+
+  /* This calls Fcopy_category_table() under Mule, which calls who
+     knows what. */
+  complex_vars_of_chartab ();
+
+  /* This calls Fput_char_table(), which (under Mule) depends on the
+	 charsets being initialized. */
+  complex_vars_of_casetab ();
+
+  /* This calls Fcopy_syntax_table(), which relies on char tables. */
+  complex_vars_of_syntax ();
+
+  /* This initializes buffer-local variables, sets things up so that buffers
+     can be created, and creates a couple of basic buffers.  This depends on
+     Vstandard_syntax_table and Vstandard_category_table (initialized in the
+     previous functions), and in Mule on some charsets existing, as well as a
+     whole horde of variables that may have been initialized above. */
+  complex_vars_of_buffer ();
+
+  /* This initializes console-local variables. */
+  complex_vars_of_console ();
+
+  /* These two might call Ffile_name_as_directory(), which might depend on all
+     sorts of things; I'm not sure. */
+  complex_vars_of_emacs ();
+
+  complex_vars_of_gc ();
+
+  /* This creates a couple of basic keymaps and depends on Lisp hash tables
+     and Ffset() (both of which depend on some variables initialized in the
+     vars_of_*() section) and possibly other stuff. */
+  complex_vars_of_keymap ();
+
+#ifdef ERROR_CHECK_GC
+  {
+    extern EMACS_INT gc_cons_threshold;
+    if (gc_cons_threshold < 0)       /* purification debugging hack */
+      garbage_collect_1 ();
+  }
+#endif
+}
+
 /* Make stack traces always identify version + configuration */
 #define main_1 STACK_TRACE_EYE_CATCHER
 
@@ -1089,19 +1962,35 @@ main_1 (int argc, Wexttext **argv, Wexttext **UNUSED (envp), int restart)
   in_pdump = 0;
   if (restart)
     initialized = 1;
-  else if (nodumpfile)
-    {
-      initialized = 0;
-      purify_flag = 1;
-    }
   else
     {
-      initialized = pdump_load ((const Extbyte *) argv[0]);
+      /* fatal () called from check_compatible_window_system() ultimately does
+         a GCPRO(), and this needs init_alloc_very_early() if we are
+         __cplusplus and ERROR_CHECK_GC.  It will cause less astonishment for
+         new code if we do this here rather than just before the
+         check_compatible_window_system () call.
 
-      if (initialized)
-	run_temacs_argc = -1;
+	 The other functions have to do xmalloc() both at run time and dump
+	 time, early; this is all they do, and this is a convenient place to
+	 call them. */
+      init_alloc_very_early ();
+      init_eval_very_early ();
+      init_search_very_early ();
+
+      if (nodumpfile)
+	{
+	  initialized = 0;
+	  purify_flag = 1;
+	}
       else
-	purify_flag = 1;
+	{
+	  initialized = pdump_load ((const Extbyte *) argv[0]);
+
+	  if (initialized)
+	    run_temacs_argc = -1;
+	  else
+	    purify_flag = 1;
+	}
     }
 
   /* Handle the -batch switch, which means don't do interactive display.  */
@@ -1178,13 +2067,6 @@ main_1 (int argc, Wexttext **argv, Wexttext **UNUSED (envp), int restart)
 
   if (noninteractive)
     display_use = "stream";
-
-  if (initialized && !restart)
-    {
-      /* After successful pdump_load(). Needs to be done now because fatal()
-         in check_compatible_window_system() GCPROs.  */
-      reinit_alloc_early ();
-    }
 
   if (argmatch (argv, argc, "-nw", "--no-windows", 0, NULL, &skip_args) ||
       argmatch (argv, argc, "-tty", "--use-tty", 0, NULL, &skip_args))
@@ -1318,917 +2200,13 @@ main_1 (int argc, Wexttext **argv, Wexttext **UNUSED (envp), int restart)
 
   if (!initialized)
     {
-      /* Initialize things so that new Lisp objects can be created and objects
-	 can be staticpro'd.  Must be basically the very first thing done
-	 because pretty much all of the initialization routines below create
-	 new objects. */
-      init_alloc_once_early ();
-
-      /* Make sure that hash tables (and packages) can be created.  Create
-         obarray. */
-      init_elhash_once_early ();
-
-      /* Make sure that opaque pointers can be created. Create Qunbound. */
-      init_opaque_once_early ();
-
-      /* Initialize Qnil and Qt.  After this, symbols can be interned.  This
-	 depends on init_alloc_once_early(), init_elhash_once_early(), and
-	 init_opaque_once_early(). */
-      init_symbols_once_early ();
-
-      /* Declare the basic symbols pertaining to errors,
-	 So that DEFERROR*() can be called. */
-      init_errors_once_early ();
-
-      /* Now declare all the symbols and define all the Lisp primitives.
-
-	 The *only* thing that the syms_of_*() functions are allowed to do
-	 is call one of the following:
-
-	 defsymbol(), DEFSYMBOL(), or DEFSYMBOL_MULTIWORD_PREDICATE()
-	 defsubr() (i.e. DEFSUBR)
-	 deferror(), DEFERROR(), or DEFERROR_STANDARD()
-	 defkeyword() or DEFKEYWORD()
-	 Fput()
-         DEFINE_.*_LISP_OBJECT()
-         OBJECT_HAS_METHOD ()
-
-	 syms_of_eval() needs to come first to make the Lisp_Subr object
-	 available to DEFSUBR(). Otherwise order does not matter in these
-	 functions. Calling syms_of_lstream() and syms_of_print() next is
-	 helpful avoiding recursive crashes in early error messages, should
-	 they be necessary. */
-      syms_of_eval ();
-      syms_of_lstream ();
-      syms_of_print ();
-
-      syms_of_abbrev ();
-      syms_of_alloc ();
-      syms_of_gc ();
-      syms_of_array ();
-      syms_of_buffer ();
-      syms_of_bytecode ();
-      syms_of_callint ();
-      syms_of_casefiddle ();
-      syms_of_casetab ();
-      syms_of_chartab ();
-      syms_of_cmdloop ();
-      syms_of_cmds ();
-      syms_of_console ();
-      syms_of_data ();
-#ifdef DEBUG_XEMACS
-      syms_of_tests ();
-#endif /* DEBUG_XEMACS */
-      syms_of_device ();
-#ifdef HAVE_DIALOGS
-      syms_of_dialog ();
-#endif
-      syms_of_dired ();
-      syms_of_doc ();
-      syms_of_doprnt ();
-      syms_of_editfns ();
-      syms_of_elhash ();
-      syms_of_emacs ();
-#ifdef HAVE_X_WINDOWS
-      syms_of_event_Xt ();
-#endif
-#ifdef HAVE_GTK
-      syms_of_event_gtk ();
-#endif
-#ifdef HAVE_DRAGNDROP
-      syms_of_dragdrop ();
-#endif
-      syms_of_event_stream ();
-      syms_of_events ();
-      syms_of_extents ();
-      syms_of_faces ();
-      syms_of_fileio ();
-#ifdef CLASH_DETECTION
-      syms_of_filelock ();
-#endif /* CLASH_DETECTION */
-      syms_of_floatfns ();
-      syms_of_fns ();
-      syms_of_sequence ();
-#ifdef USE_C_FONT_LOCK
-      syms_of_font_lock ();
-#endif /* USE_C_FONT_LOCK */
-      syms_of_frame ();
-      syms_of_general ();
-      syms_of_glyphs ();
-#ifdef HAVE_WINDOW_SYSTEM
-      syms_of_glyphs_eimage ();
-      syms_of_glyphs_shared ();
-#endif
-      syms_of_glyphs_widget ();
-      syms_of_gui ();
-      syms_of_gutter ();
-      syms_of_indent ();
-      syms_of_intl ();
-      syms_of_keymap ();
-      syms_of_lread ();
-      syms_of_macros ();
-      syms_of_marker ();
-      syms_of_md5 ();
-#ifdef HAVE_DATABASE
-      syms_of_database ();
-#endif
-#ifdef HAVE_MENUBARS
-      syms_of_menubar ();
-#endif
-      syms_of_minibuf ();
-#ifdef HAVE_SHLIB
-      syms_of_module ();
-#endif
-#ifdef WITH_NUMBER_TYPES
-      syms_of_number ();
-#endif
-      syms_of_fontcolor ();
-      syms_of_process ();
-#ifdef HAVE_WIN32_PROCESSES
-      syms_of_process_nt ();
-#endif
-      syms_of_profile ();
-#ifdef REL_ALLOC
-      syms_of_ralloc ();
-#endif /* HAVE_MMAP && REL_ALLOC */
-      syms_of_rangetab ();
-      syms_of_redisplay ();
-      syms_of_search ();
-      syms_of_select ();
-      syms_of_signal ();
-      syms_of_sound ();
-      syms_of_specifier ();
-      syms_of_symbols ();
-      syms_of_syntax ();
-#ifdef HAVE_SCROLLBARS
-      syms_of_scrollbar ();
-#endif
-      syms_of_text ();
-#ifdef WITH_TLS
-      syms_of_tls ();
-#endif
-#ifdef HAVE_TOOLBARS
-      syms_of_toolbar ();
-#endif
-      syms_of_undo ();
-      syms_of_widget ();
-      syms_of_window ();
-
-#ifdef HAVE_TTY
-      syms_of_console_tty ();
-      syms_of_device_tty ();
-      syms_of_frame_tty ();
-      syms_of_fontcolor_tty ();
-#endif
-
-#ifdef HAVE_GTK
-      syms_of_device_gtk ();
-      syms_of_event_gtk ();
-      syms_of_frame_gtk ();
-      syms_of_glyphs_gtk ();
-      syms_of_fontcolor_gtk ();
-      syms_of_ui_gtk ();
-      syms_of_select_gtk ();
-#ifdef HAVE_DIALOGS
-      syms_of_dialog_gtk ();
-#endif
-#ifdef HAVE_MENUBARS
-      syms_of_menubar_gtk ();
-#endif
-      syms_of_select_gtk ();
-
-#ifdef HAVE_GUI_OBJECTS
-      syms_of_gui_gtk ();
-#endif
-#endif /* HAVE_GTK */
-
-#ifdef HAVE_X_WINDOWS
-#ifdef HAVE_BALLOON_HELP
-      syms_of_balloon_x ();
-#endif
-      syms_of_device_x ();
-#ifdef HAVE_X_DIALOGS
-      syms_of_dialog_x ();
-#endif
-      syms_of_frame_x ();
-      syms_of_glyphs_x ();
-      syms_of_fontcolor_x ();
-#ifdef HAVE_MENUBARS
-      syms_of_menubar_x ();
-#endif
-      syms_of_select_x ();
-#ifdef HAVE_GUI_OBJECTS
-      syms_of_gui_x ();
-#endif
-      syms_of_intl_x ();
-#ifdef HAVE_XIM
-#ifdef XIM_XLIB
-      syms_of_input_method_xlib ();
-#endif
-#endif /* HAVE_XIM */
-
-#ifdef HAVE_XFT
-      syms_of_font_mgr();
-#endif
-
-#endif /* HAVE_X_WINDOWS */
-
-#ifdef HAVE_MS_WINDOWS
-      syms_of_console_mswindows ();
-      syms_of_device_mswindows ();
-      syms_of_event_mswindows ();
-#ifdef HAVE_DIALOGS
-      syms_of_dialog_mswindows ();
-#endif
-      syms_of_frame_mswindows ();
-      syms_of_fontcolor_mswindows ();
-      syms_of_select_mswindows ();
-      syms_of_glyphs_mswindows ();
-#ifdef HAVE_GUI_OBJECTS
-      syms_of_gui_mswindows ();
-#endif
-#ifdef HAVE_MENUBARS
-      syms_of_menubar_mswindows ();
-#endif
-#ifdef HAVE_SCROLLBARS
-      syms_of_scrollbar_mswindows ();
-#endif
-#endif	/* HAVE_MS_WINDOWS */
-#ifdef WIN32_NATIVE
-      syms_of_dired_mswindows ();
-      syms_of_nt ();
-#endif
-#ifdef WIN32_ANY
-      syms_of_win32 ();
-#endif
-
-      syms_of_file_coding ();
-      syms_of_unicode ();
-      syms_of_mule_ccl ();
-      syms_of_mule_charset ();
-      syms_of_mule_coding ();
-#ifdef HAVE_WNN
-      syms_of_mule_wnn ();
-#endif
-
-#ifdef WIN32_ANY
-      syms_of_intl_win32 ();
-#endif
-
-#ifdef SYMS_SYSTEM
-      SYMS_SYSTEM;
-#endif
-
-#ifdef SYMS_MACHINE
-      SYMS_MACHINE;
-#endif
-
-#ifdef TOOLTALK
-      syms_of_tooltalk ();
-#endif
-
-#ifdef SUNPRO
-      syms_of_sunpro ();
-#endif
-
-#ifdef HAVE_GPM
-      syms_of_gpmevent ();
-#endif
-
-      /* Now create the subtypes for the types that have them.
-	 We do this before the vars_*() because more symbols
-	 may get initialized here. */
-
-      /* Now initialize the console types and associated symbols.
-         Other than the first function below, the functions may
-	 make exactly the following function/macro calls:
-
-	 INITIALIZE_CONSOLE_TYPE()
-	 CONSOLE_HAS_METHOD()
-
-	 For any given console type, the former macro must be called
-	 before the any calls to the latter macro. */
-
-      console_type_create ();
-
-      console_type_create_stream ();
-
-#ifdef HAVE_TTY
-      console_type_create_tty ();
-      console_type_create_device_tty ();
-      console_type_create_frame_tty ();
-      console_type_create_fontcolor_tty ();
-      console_type_create_redisplay_tty ();
-#endif
-
-#ifdef HAVE_GTK
-      console_type_create_gtk ();
-      console_type_create_select_gtk ();
-      console_type_create_device_gtk ();
-      console_type_create_frame_gtk ();
-      console_type_create_fontcolor_gtk ();
-      console_type_create_glyphs_gtk ();
-      console_type_create_redisplay_gtk ();
-#ifdef HAVE_MENUBARS
-      console_type_create_menubar_gtk ();
-#endif
-#ifdef HAVE_SCROLLBARS
-      console_type_create_scrollbar_gtk ();
-#endif
-#ifdef HAVE_TOOLBARS
-      console_type_create_toolbar_gtk ();
-#endif
-#ifdef HAVE_DIALOGS
-      console_type_create_dialog_gtk ();
-#endif
-#endif /* HAVE_GTK */
-
-#ifdef HAVE_X_WINDOWS
-      console_type_create_x ();
-      console_type_create_device_x ();
-      console_type_create_frame_x ();
-      console_type_create_glyphs_x ();
-      console_type_create_select_x ();
-#ifdef HAVE_MENUBARS
-      console_type_create_menubar_x ();
-#endif
-      console_type_create_fontcolor_x ();
-      console_type_create_redisplay_x ();
-#ifdef HAVE_SCROLLBARS
-      console_type_create_scrollbar_x ();
-#endif
-#ifdef HAVE_TOOLBARS
-      console_type_create_toolbar_x ();
-#endif
-#ifdef HAVE_X_DIALOGS
-      console_type_create_dialog_x ();
-#endif
-#endif /* HAVE_X_WINDOWS */
-
-#ifdef HAVE_MS_WINDOWS
-      console_type_create_mswindows ();
-      console_type_create_device_mswindows ();
-      console_type_create_frame_mswindows ();
-      console_type_create_fontcolor_mswindows ();
-      console_type_create_redisplay_mswindows ();
-      console_type_create_glyphs_mswindows ();
-      console_type_create_select_mswindows ();
-# ifdef HAVE_SCROLLBARS
-      console_type_create_scrollbar_mswindows ();
-# endif
-#ifdef HAVE_MENUBARS
-      console_type_create_menubar_mswindows ();
-#endif
-#ifdef HAVE_TOOLBARS
-      console_type_create_toolbar_mswindows ();
-#endif
-#ifdef HAVE_DIALOGS
-      console_type_create_dialog_mswindows ();
-#endif
-#endif
-
-      /* Now initialize the specifier types and associated symbols.
-         Other than the first function below, the functions may
-	 make exactly the following function/macro calls:
-
-	 INITIALIZE_SPECIFIER_TYPE()
-	 SPECIFIER_HAS_METHOD()
-
-	 For any given specifier type, the former macro must be called
-	 before the any calls to the latter macro. */
-
-      specifier_type_create ();
-
-      specifier_type_create_image ();
-      specifier_type_create_gutter ();
-      specifier_type_create_fontcolor ();
-#ifdef HAVE_TOOLBARS
-      specifier_type_create_toolbar ();
-#endif
-
-      /* Now initialize the coding system types and associated symbols.
-         Other than the first function below, the functions may
-	 make exactly the following function/macro calls:
-
-	 INITIALIZE_CODING_SYSTEM_TYPE()
-	 CODING_SYSTEM_HAS_METHOD()
-
-	 For any given coding system type, the former macro must be called
-	 before the any calls to the latter macro. */
-
-      coding_system_type_create ();
-      coding_system_type_create_unicode ();
-#ifdef WIN32_ANY
-      coding_system_type_create_intl_win32 ();
-#endif
-      coding_system_type_create_mule_coding ();
-
-      /* Now initialize the image instantiator formats and associated symbols.
-         Other than the first function below, the functions may
-	 make exactly the following function/macro calls:
-
-	 INITIALIZE_IMAGE_INSTANTIATOR_FORMAT()
-	 IIFORMAT_HAS_METHOD()
-	 IIFORMAT_VALID_KEYWORD()
-
-	 For any given image instantiator format, the first macro must be
-	 called before the any calls to the other macros. */
-
-      image_instantiator_format_create ();
-#ifdef HAVE_WINDOW_SYSTEM
-      image_instantiator_format_create_glyphs_eimage ();
-#endif
-      image_instantiator_format_create_glyphs_widget ();
-#ifdef HAVE_TTY
-      image_instantiator_format_create_glyphs_tty ();
-#endif
-#ifdef HAVE_X_WINDOWS
-      image_instantiator_format_create_glyphs_x ();
-#endif /* HAVE_X_WINDOWS */
-#ifdef HAVE_MS_WINDOWS
-      image_instantiator_format_create_glyphs_mswindows ();
-#endif /* HAVE_MS_WINDOWS */
-#ifdef HAVE_GTK
-      image_instantiator_format_create_glyphs_gtk ();
-#endif
-
-      /* Now initialize the structure types and associated symbols.
-	 Other than the first function below, the functions may
-	 make exactly the following function/macro calls:
-
-	 define_structure_type()
-	 define_structure_type_keyword() */
-      structure_type_create ();
-
-      structure_type_create_chartab ();
-      structure_type_create_faces ();
-      structure_type_create_rangetab ();
-      structure_type_create_hash_table ();
-
-      /* Now initialize most variables.
-
-	 These functions may do exactly the following:
-
-	 -- assigning a symbol or constant value to a variable
-	 -- using a global variable that has been initialized
-	    earlier on in the same function
-	 -- DEFVAR_INT()
-	 -- DEFVAR_LISP()
-	 -- DEFVAR_BOOL()
-	 -- DEFER_GETTEXT()
-	 -- staticpro*()
-	 -- xmalloc*(), xnew*(), and friends
-	 -- Dynarr_*()
-	 -- Fprovide (symbol)
-	 -- intern()
-	 -- Fput()
-         -- dump_add_*()
-         -- C library functions with no external dependencies, e.g. str*()
-	 -- defsymbol(), if it's absolutely necessary and you're sure that
-	    the symbol isn't referenced anywhere else in the initialization
-	    code
-	 -- Fset() on a symbol that is unbound
-	 -- Any of the object-creating functions in alloc.c: e.g.
-	    - make_string()
-	    - build_istring()
-	    - build_cistring()
-	    - build_ascstring()
-	    - make_vector()
-	    - make_fixnum()
-	    - make_char()
-	    - make_extent()
-	    - ALLOC_NORMAL_LISP_OBJECT()
-	    - ALLOC_SIZED_LISP_OBJECT()
-	    - Fcons()
-	    - listN()
-            - get_lcrecord_list()
-	 -- make_opaque_ptr()
-	 -- make_lisp_hash_table() (not allowed in 21.4!)
-         -- certain specifier creation functions (but be careful; see
-            glyphs.c for examples)
-
-	 perhaps a few others.
-
-	 NO EXTERNAL-FORMAT CONVERSIONS.
-
-         NB:  Initialization or assignment should not be done here to certain
-           variables settable from the command line.  See the comment above
-           the call to pdump_load() in main_1().  This caveat should only
-           apply to vars_of_emacs().
-
-	 Order may matter in these functions.
-       */
-
-      /* Now allow Fprovide() statements to be made. */
-      init_provide_once ();
-
-      vars_of_lstream ();
-
-      vars_of_data ();
-      vars_of_alloc ();
-      vars_of_abbrev ();
-      vars_of_buffer ();
-      vars_of_elhash ();
-      vars_of_bytecode ();
-      vars_of_callint ();
-      vars_of_casetab ();
-      vars_of_chartab ();
-      vars_of_cmdloop ();
-      vars_of_cmds ();
-      vars_of_console ();
-      vars_of_specifier ();
-
-#ifdef DEBUG_XEMACS
-      vars_of_tests ();
-#endif
-      vars_of_console_stream ();
-      vars_of_device ();
-#ifdef HAVE_DIALOGS
-      vars_of_dialog ();
-#endif
-      vars_of_dired ();
-      vars_of_doc ();
-#ifdef HAVE_DRAGNDROP
-      vars_of_dragdrop ();
-#endif
-      vars_of_editfns ();
-      vars_of_emacs ();
-      vars_of_eval ();
-
-#ifdef HAVE_X_WINDOWS
-      vars_of_event_Xt ();
-#endif
-#if defined (HAVE_TTY) && (defined (DEBUG_TTY_EVENT_STREAM) || !defined (HAVE_X_WINDOWS))
-      vars_of_event_tty ();
-#endif
-#ifdef HAVE_MS_WINDOWS
-      vars_of_event_mswindows ();
-#endif
-      vars_of_event_stream ();
-
-      vars_of_events ();
-      vars_of_extents ();
-      vars_of_faces ();
-      vars_of_file_coding ();
-      vars_of_fileio ();
-#ifdef CLASH_DETECTION
-      vars_of_filelock ();
-#endif
-      vars_of_floatfns ();
-      vars_of_fns ();
-#ifdef USE_C_FONT_LOCK
-      vars_of_font_lock ();
-#endif /* USE_C_FONT_LOCK */
-      vars_of_frame ();
-      vars_of_gc ();
-      vars_of_glyphs ();
-#ifdef HAVE_WINDOW_SYSTEM
-      vars_of_glyphs_eimage ();
-#endif
-      vars_of_glyphs_widget ();
-      vars_of_gui ();
-      vars_of_gutter ();
-      vars_of_indent ();
-      vars_of_insdel ();
-      vars_of_intl ();
-#ifdef WIN32_ANY
-      vars_of_intl_win32 ();
-#endif
-#ifdef HAVE_XIM
-#ifdef XIM_MOTIF
-      vars_of_input_method_motif ();
-#else /* XIM_XLIB */
-      vars_of_input_method_xlib ();
-#endif
-#endif /* HAVE_XIM */
-      vars_of_keymap ();
-      vars_of_lread ();
-
-      vars_of_macros ();
-      vars_of_md5 ();
-#ifdef HAVE_DATABASE
-      vars_of_database ();
-#endif
-#ifdef HAVE_MENUBARS
-      vars_of_menubar ();
-#endif
-      vars_of_minibuf ();
-      vars_of_module ();
-#ifdef WIN32_NATIVE
-      vars_of_dired_mswindows ();
-      vars_of_nt ();
-#endif
-#ifdef WITH_NUMBER_TYPES
-      vars_of_number ();
-#endif
-      vars_of_fontcolor ();
-      vars_of_print ();
-
-      vars_of_process ();
-#ifdef HAVE_UNIX_PROCESSES
-      vars_of_process_unix ();
-#endif
-#ifdef HAVE_WIN32_PROCESSES
-      vars_of_process_nt ();
-#endif
-
-      vars_of_profile ();
-#ifdef REL_ALLOC
-      vars_of_ralloc ();
-#endif 
-      vars_of_realpath ();
-      vars_of_redisplay ();
-      vars_of_regex ();
-#ifdef HAVE_SCROLLBARS
-      vars_of_scrollbar ();
-#endif
-      vars_of_search ();
-      vars_of_select ();
-      vars_of_sound ();
-      vars_of_syntax ();
-      vars_of_text ();
-#ifdef WITH_TLS
-      vars_of_tls ();
-#endif
-#ifdef HAVE_TOOLBARS
-      vars_of_toolbar ();
-#endif
-      vars_of_undo ();
-      vars_of_window ();
-#ifdef WIN32_ANY
-      vars_of_win32 ();
-#endif
-
-#ifdef HAVE_TTY
-      vars_of_console_tty ();
-      vars_of_frame_tty ();
-      vars_of_fontcolor_tty ();
-#endif
-
-#ifdef HAVE_GTK
-      vars_of_device_gtk ();
-      vars_of_console_gtk ();
-#ifdef HAVE_DIALOGS
-      vars_of_dialog_gtk ();
-#endif
-      vars_of_event_gtk ();
-      vars_of_frame_gtk ();
-      vars_of_glyphs_gtk ();
-      vars_of_ui_gtk ();
-#ifdef HAVE_MENUBARS
-      vars_of_menubar_gtk ();
-#endif
-      vars_of_fontcolor_gtk ();
-      vars_of_select_gtk ();
-#ifdef HAVE_SCROLLBARS
-      vars_of_scrollbar_gtk ();
-#endif
-#ifdef HAVE_TOOLBARS
-      vars_of_toolbar_gtk();
-#endif
-#if defined (HAVE_MENUBARS) || defined (HAVE_SCROLLBARS) || defined (HAVE_DIALOGS) || defined (HAVE_TOOLBARS)
-      vars_of_gui_gtk ();
-#endif
-#endif /* HAVE_GTK */
-
-#ifdef HAVE_X_WINDOWS
-#ifdef HAVE_BALLOON_HELP
-      vars_of_balloon_x ();
-#endif
-      vars_of_console_x ();
-      vars_of_device_x ();
-#ifdef HAVE_X_DIALOGS
-      vars_of_dialog_x ();
-#endif
-      vars_of_frame_x ();
-      vars_of_glyphs_x ();
-#ifdef HAVE_MENUBARS
-      vars_of_menubar_x ();
-#endif
-      vars_of_fontcolor_x ();
-      vars_of_select_x ();
-#ifdef HAVE_SCROLLBARS
-      vars_of_scrollbar_x ();
-#endif
-#if defined (HAVE_MENUBARS) || defined (HAVE_SCROLLBARS) || defined (HAVE_X_DIALOGS) || defined (HAVE_TOOLBARS)
-      vars_of_gui_x ();
-#endif
-
-#ifdef HAVE_XFT
-      vars_of_font_mgr ();
-#endif
-
-#endif /* HAVE_X_WINDOWS */
-
-
-#ifdef HAVE_MS_WINDOWS
-      vars_of_device_mswindows ();
-      vars_of_console_mswindows ();
-      vars_of_frame_mswindows ();
-      vars_of_fontcolor_mswindows ();
-      vars_of_select_mswindows ();
-      vars_of_glyphs_mswindows ();
-#ifdef HAVE_SCROLLBARS
-      vars_of_scrollbar_mswindows ();
-#endif
-#ifdef HAVE_MENUBARS
-      vars_of_menubar_mswindows ();
-#endif
-#ifdef HAVE_DIALOGS
-      vars_of_dialog_mswindows ();
-#endif
-#endif	/* HAVE_MS_WINDOWS */
-
-      vars_of_mule_ccl ();
-      vars_of_mule_charset ();
-      vars_of_unicode ();
-      vars_of_mule_coding ();
-#ifdef HAVE_WNN
-      vars_of_mule_wnn ();
-#endif
-
-#ifdef TOOLTALK
-      vars_of_tooltalk ();
-#endif
-
-#ifdef SUNPRO
-      vars_of_sunpro ();
-#endif
-
-#ifdef HAVE_GPM
-      vars_of_gpmevent ();
-#endif
-    }
-
-  if (!initialized
-      || !restart
-      )
-    {
-      /* Now do additional vars_of_*() initialization that happens both
-	 at dump time and after pdump load. */
-      reinit_vars_of_eval ();
-      reinit_vars_of_fileio ();
-      reinit_vars_of_search ();
-    }
-
-  if (!initialized)
-    {
-      /* Now initialize any specifier variables.  We do this later
-	 because it has some dependence on the vars initialized
-	 above.
-
-	 These functions should *only* initialize specifier variables,
-	 and may make use of the following functions/macros in addition
-	 to the ones listed above:
-
-	 DEFVAR_SPECIFIER()
-	 Fmake_specifier()
-	 set_specifier_fallback()
-	 set_specifier_caching()
-	 */
-
-      specifier_vars_of_glyphs ();
-      specifier_vars_of_glyphs_widget ();
-      specifier_vars_of_gutter ();
-#ifdef HAVE_MENUBARS
-      specifier_vars_of_menubar ();
-#endif
-      specifier_vars_of_redisplay ();
-#ifdef HAVE_SCROLLBARS
-      specifier_vars_of_scrollbar ();
-#endif
-#ifdef HAVE_TOOLBARS
-      specifier_vars_of_toolbar ();
-#endif
-      specifier_vars_of_window ();
-
-      /* Now comes all the rest of the variables that couldn't
-	 be handled above.  There may be dependencies on variables
-	 initialized above, and dependencies between one complex_vars_()
-	 function and another. */
-
-      /* This creates charsets, which depends on vars initialized in
-	 vars_of_unicode(). */
-      complex_vars_of_mule_charset ();
-      /* This depends on charsets created in complex_vars_of_mule_charset(). */
-      complex_vars_of_mule_coding ();
-      /* This one doesn't depend on anything really, and could go into
-	 vars_of_(), but lots of lots of code gets called and it's easily
-	 possible that it could get changed to require being a
-	 complex_vars_of_(), for example if a charset appears anywhere,
-	 then we suddenly have dependence on the previous call. */
-      complex_vars_of_file_coding ();
-#ifdef WIN32_ANY
-      /* Likewise this one. */
-      /* Define MS-Windows Unicode coding systems */
-      complex_vars_of_intl_win32 ();
-#endif
-      /* Define UTF-8 coding system, create JIT charset */
-      complex_vars_of_unicode ();
-
-      /* At this point we should be able to do conversion operations.
-         We have initialized things to the point that we can create Lisp
-         objects and we have defined the basic coding systems (in the
-         just-previous complex-vars calls).  We will in fact do conversion
-	 quite soon, e.g. in complex_vars_of_glyphs_x(). */
-      inhibit_non_essential_conversion_operations = 0;
-
-#ifdef HAVE_XFT
-      /* This uses coding systems.  Must be done before faces are init'ed. */
-      /* not in xft reloaded #3 */
-      complex_vars_of_font_mgr ();
-#endif
-
-      /* Depends on specifiers. */
-      complex_vars_of_faces ();
-
-      /* This calls allocate_glyph(), which creates specifiers
-	 and also relies on a variable (Vthe_nothing_vector) initialized
-	 above. */
-      complex_vars_of_glyphs ();
-
-      /* These rely on the glyphs just created in the previous function,
-	 and call Fadd_spec_to_specifier(), which relies on various
-	 variables initialized above. */
-#ifdef HAVE_GTK
-      complex_vars_of_glyphs_gtk ();
-#endif
-#ifdef HAVE_X_WINDOWS
-      complex_vars_of_glyphs_x ();
-#endif
-#ifdef HAVE_MS_WINDOWS
-      complex_vars_of_glyphs_mswindows ();
-#endif
-
-      /* This calls Fmake_glyph_internal(). */
-#ifdef HAVE_MENUBARS
-      complex_vars_of_menubar ();
-#endif
-
-#ifdef HAVE_SCROLLBARS
-      /* This calls Fmake_glyph_internal(). */
-      complex_vars_of_scrollbar ();
-#endif
-
-      /* This calls allocate_glyph(). */
-      complex_vars_of_frame ();
-
-      /* This calls Fcopy_category_table() under Mule, which calls who
-         knows what. */
-      complex_vars_of_chartab ();
-
-      /* This calls Fput_char_table(), which (under Mule) depends on the
-	 charsets being initialized. */
-      complex_vars_of_casetab ();
-
-      /* This calls Fcopy_syntax_table(), which relies on char tables. */
-      complex_vars_of_syntax ();
-
-      /* This initializes buffer-local variables, sets things up so that
-	 buffers can be created, and creates a couple of basic buffers.
-	 This depends on Vstandard_syntax_table and
-	 Vstandard_category_table (initialized in the previous functions),
-	 and in Mule on some charsets existing, as well as a whole horde of
-	 variables that may have been initialized above. */
-      complex_vars_of_buffer ();
-
-      /* This initializes console-local variables. */
-      complex_vars_of_console ();
-
-      /* This creates a couple more buffers, and depends on the
-	 previous function. */
-      complex_vars_of_minibuf ();
-
-      /* These two might call Ffile_name_as_directory(), which
-	 might depend on all sorts of things; I'm not sure. */
-      complex_vars_of_emacs ();
-
-      complex_vars_of_gc ();
-
-      /* This creates a couple of basic keymaps and depends on Lisp
-	 hash tables and Ffset() (both of which depend on some variables
-	 initialized in the vars_of_*() section) and possibly other
-	 stuff. */
-      complex_vars_of_keymap ();
-
-#ifdef ERROR_CHECK_GC
-      {
-	extern EMACS_INT gc_cons_threshold;
-	if (gc_cons_threshold < 0)       /* purification debugging hack */
-	  garbage_collect_1 ();
-      }
-#endif
+      initialize_temacs ();
     }
   else
     {
       /* We are at the equivalent place where we reset this in the
 	 non-initialized case. */
       inhibit_non_essential_conversion_operations = 0;
-
-      if (!restart)	      /* after successful pdump_load() */
-	{
-	  reinit_complex_vars_of_minibuf ();
-	}
     }
 
   /* CONGRATULATIONS!!!  We have successfully initialized the Lisp
@@ -2243,11 +2221,12 @@ main_1 (int argc, Wexttext **argv, Wexttext **UNUSED (envp), int restart)
      only at run time, by querying the `initialized' variable.
 
      The ordering of these functions is critical, especially the early ones,
-     where there is typically a dependency from each to the previous.
- */
+     where there is typically a dependency from each to the previous. */
+
   init_buffer_1 ();	/* Create *scratch* buffer; the code just below is
 			   going to call Lisp code (the very first code we
 			   call), and needs a current buffer */
+  init_minibuf ();
 
   if (qxegetpagesize () < page_size_reorganize_threshold)
     {
@@ -2306,6 +2285,7 @@ main_1 (int argc, Wexttext **argv, Wexttext **UNUSED (envp), int restart)
   init_redisplay ();      /* Determine terminal type.
 			     init_sys_modes uses results */
   init_frame ();
+  init_fileio ();
   init_event_stream (); /* Set up so we can get user input. */
   init_editfns (); /* Determine the name of the user we're running as */
 #ifdef SUNPRO

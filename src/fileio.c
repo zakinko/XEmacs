@@ -4593,7 +4593,7 @@ This is in the case that nothing in `file-system-case-alist' matches.
 }
 
 void
-reinit_vars_of_fileio (void)
+init_fileio (void)
 {
   /* We want temp_name_rand to be initialized to a value likely to be
      unique to the process, not to the executable.  The danger is that

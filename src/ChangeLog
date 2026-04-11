@@ -1,3 +1,68 @@
+2026-04-11  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Clean up naming for the initialization functions. Move the code to
+	initialize temacs to its own function, refactored out from
+	main_1(), in preparation for marking dump-time-only calls as
+	__attribute__ (__cold__).
+
+	* alloc.c (init_alloc_very_early): Rename
+	common_init_alloc_early() to this. Make it non-static to allow
+	emacs.c to call it explicitly.
+	* alloc.c (init_alloc_once_early):
+	No longer call common_init_alloc_early() from here, trust emacs.c
+	to have done that.
+	* emacs.c:
+	* emacs.c (initialize_temacs): New. Refactor out the dump-time
+	initialization of the Lisp environment from main_1(), in
+	anticipation of marking it cold.
+	No longer call init_provide_once(), call vars_of_fns() early
+	enough to make that unnecessary.
+	* emacs.c (main_1):
+	Call init_alloc_very_early() within the if statement that decides
+	on whether to load the dump file to reduce astonishment if new
+	code decides to fatal.
+	Call init_eval_very_early() (previously reinit_vars_of_eval()),
+	init_search_very_early() (previously reinit_vars_of_search()) at
+	the same place, since they are now very simple and this is a
+	convenient place to do that.
+	* eval.c:
+	* eval.c (int specpdl_size): Initialize this at toplevel in C
+	rather that in init_eval_very_early() for simplicity.
+	* eval.c (Fixnum max_specpdl_size): Ditto.
+	* eval.c (Fixnum max_lisp_eval_depth): Ditto.
+	* eval.c (init_eval_very_early): New name for
+	reinit_vars_of_eval(), simplify it to do only the things it has to
+	do.
+	* fileio.c (init_fileio):
+	New name for reinit_vars_of_fileio(), fits better with other
+	terminology.
+	* fns.c (vars_of_fns):
+	Move body of init_provide_once into this function.
+	* fns.c (init_provide_once): Removed, subsumed by vars_of_fns().
+	* gc.h:
+	Move declarations for syms_of_gc(), vars_of_gc(),
+	complex_vars_of_gc() from here to symsinit.h.
+	* minibuf.c:
+	* minibuf.c (init_minibuf): Rename
+	reinit_complex_vars_of_minibuf() to this.
+	* search.c (init_search_very_early): Rename
+	reinit_vars_of_search() to this.
+	* symsinit.h:
+	Use new names for init_alloc_very_early(), init_eval_very_early(),
+	init_search_very_early() here. Re-order them appropriately.
+	Move declaration for init_number() up with the _very_early()
+	functions.
+	Move declarations for syms_of_gc(), syms_of_tls(), vars_of_gc(),
+	vars_of_tls(), comlex_var_of_gc() here.
+	Add declarations for init_fileio(), init_minibuf(), init_tls().
+	Remove mention, declarations of the reinit_vars_of_*()
+	functions. Remove declarations for
+	{vars_of,syms_of}_{postgresql,canna_api,eldap} now they are
+	exclusively implemented as modules.
+	* tls.h:
+	Move declarations for syms_of_tls(), vars_of_tls(), init_tls() to
+	symsinit.h.
+
 2026-04-08  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Dump the regexp_cache structures, avoid need to initialize them

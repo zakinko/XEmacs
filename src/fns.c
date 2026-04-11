@@ -2736,6 +2736,14 @@ syms_of_fns (void)
 void
 vars_of_fns (void)
 {
+  DEFVAR_LISP ("features", &Vfeatures /*
+A list of symbols which are the features of the executing emacs.
+Used by `featurep' and `require', and altered by `provide'.
+*/ );
+  Vfeatures = Qnil;
+
+  Fprovide (intern ("base64"));
+
   DEFVAR_LISP ("path-separator", &Vpath_separator /*
 The directory separator in search paths, as a string.
 */ );
@@ -2745,14 +2753,4 @@ The directory separator in search paths, as a string.
   }
 }
 
-void
-init_provide_once (void)
-{
-  DEFVAR_LISP ("features", &Vfeatures /*
-A list of symbols which are the features of the executing emacs.
-Used by `featurep' and `require', and altered by `provide'.
-*/ );
-  Vfeatures = Qnil;
-
-  Fprovide (intern ("base64"));
-}
+/* fns.c ends here. */

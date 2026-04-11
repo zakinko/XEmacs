@@ -1134,7 +1134,7 @@ Each completion has to match all regexps in this list.
 }
 
 void
-reinit_complex_vars_of_minibuf (void)
+init_minibuf (void)
 {
   /* This function can GC */
 #ifdef I18N3
@@ -1148,8 +1148,4 @@ reinit_complex_vars_of_minibuf (void)
     = Fget_buffer_create (build_ascstring (" *Echo Area*"));
 }
 
-void
-complex_vars_of_minibuf (void)
-{
-  reinit_complex_vars_of_minibuf ();
-}
+/* minibuf.c ends here. */

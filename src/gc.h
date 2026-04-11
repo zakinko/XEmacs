@@ -104,12 +104,6 @@ void kkcc_detailed_backtrace_full (void);
 #define kkcc_detailed_backtrace()
 #endif
 
-
-/* Initializers */
-void syms_of_gc (void);
-void vars_of_gc (void);
-void complex_vars_of_gc (void);
-
 /* Needed prototypes due to the garbage collector code move from
    alloc.c to gc.c. */
 void gc_sweep_1 (void);

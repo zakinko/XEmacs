@@ -4369,7 +4369,7 @@ syms_of_search (void)
 }
 
 void
-reinit_vars_of_search (void)
+init_search_very_early (void)
 {
   search_regs.start = xnew_array (regoff_t, RE_NREGS);
   search_regs.end   = xnew_array (regoff_t, RE_NREGS);

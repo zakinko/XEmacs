@@ -27,31 +27,28 @@ prototypes won't hurt anything. */
 
 /* Earliest environment initializations (dump-time and run-time). */
 
+void init_alloc_very_early (void);
 void init_data_very_early (void);
+void init_eval_very_early (void);
 void init_floatfns_very_early (void);
 void init_mswindows_dde_very_early (void);
 void init_process_times_very_early (void);
 void init_ralloc (void);
+void init_search_very_early (void);
 void init_signals_very_early (void);
 
-/* Early Lisp-engine initialization -- dump-time only for init, dump-time
-   and post-pdump-load-time for reinit.  We call the reinit() routine
-   ourselves at post-pdump-load-time, but the init_() routine calls the
-   reinit() routine itself. (This is because sometimes the timing of when
-   to call the routine is tricky -- the init routine might need to do some
-   stuff, call the reinit() routine, and do some more stuff.) */
+/* Enhanced number initialization; needs to be done both at dump time and at
+   run time before pdump_load() to allow bignums and friends to be dumped and
+   restored. */
+void init_number (void);
 
-void reinit_alloc_early (void);
+/* Early Lisp-engine initialization, dump-time only. */
+
 void init_alloc_once_early (void);
 void init_elhash_once_early (void);
 void init_errors_once_early (void);
 void init_opaque_once_early (void);
 void init_symbols_once_early (void);
-
-/* Called somewhat randomly -- at dump-time, in the middle of the vars()
-   calls, and at run-time, just before the late initializations. */
-
-void init_eval_semi_early (void);
 
 /* Declare the built-in symbols and primitives (dump-time only). */
 
@@ -62,7 +59,6 @@ void syms_of_balloon_x (void);
 void syms_of_buffer (void);
 void syms_of_bytecode (void);
 void syms_of_callint (void);
-EXTERN_C void syms_of_canna_api (void);
 void syms_of_casefiddle (void);
 void syms_of_casetab (void);
 void syms_of_chartab (void);
@@ -88,7 +84,6 @@ void syms_of_doc (void);
 void syms_of_doprnt (void);
 void syms_of_dragdrop (void);
 void syms_of_editfns (void);
-EXTERN_C void syms_of_eldap (void);
 void syms_of_elhash (void);
 void syms_of_emacs (void);
 void syms_of_eval (void);
@@ -111,6 +106,7 @@ void syms_of_frame_gtk (void);
 void syms_of_frame_mswindows (void);
 void syms_of_frame_tty (void);
 void syms_of_frame_x (void);
+void syms_of_gc (void);
 void syms_of_general (void);
 void syms_of_glyphs (void);
 void syms_of_glyphs_eimage (void);
@@ -154,7 +150,6 @@ void syms_of_fontcolor_gtk (void);
 void syms_of_fontcolor_mswindows (void);
 void syms_of_fontcolor_tty (void);
 void syms_of_fontcolor_x (void);
-EXTERN_C void syms_of_postgresql (void);
 void syms_of_print (void);
 void syms_of_process (void);
 void syms_of_process_nt (void);
@@ -180,6 +175,7 @@ void syms_of_tests (void);
 void syms_of_text (void);
 void syms_of_toolbar (void);
 void syms_of_tooltalk (void);
+void syms_of_tls (void);
 void syms_of_ui_byhand (void);
 void syms_of_ui_gtk (void);
 void syms_of_undo (void);
@@ -188,8 +184,7 @@ void syms_of_widget (void);
 void syms_of_win32 (void);
 void syms_of_window (void);
 
-/* Initialize the console types (dump-time only for console_type_(),
-   post-pdump-load-time only for reinit_). */
+/* Initialize the console types (dump-time only). */
 
 void console_type_create (void);
 void console_type_create_device_gtk (void);
@@ -207,12 +202,10 @@ void console_type_create_glyphs_gtk (void);
 void console_type_create_glyphs_mswindows (void);
 void console_type_create_glyphs_x (void);
 void console_type_create_gtk (void);
-void reinit_console_type_create_gtk (void);
 void console_type_create_menubar_gtk (void);
 void console_type_create_menubar_mswindows (void);
 void console_type_create_menubar_x (void);
 void console_type_create_mswindows (void);
-void reinit_console_type_create_mswindows (void);
 void console_type_create_fontcolor_gtk (void);
 void console_type_create_fontcolor_mswindows (void);
 void console_type_create_fontcolor_tty (void);
@@ -271,10 +264,6 @@ void image_instantiator_format_create_glyphs_x (void);
 void process_type_create_nt (void);
 void process_type_create_unix (void);
 
-/* Allow for Fprovide() (dump-time only). */
-
-void init_provide_once (void);
-
 /* Lisp interactive function to sort groups of initialization functions by
    name, ignoring any reinit_ or init_ at the beginning.  Put the cursor
    after the last right paren, type C-x C-e, then select some text and
@@ -287,8 +276,7 @@ void init_provide_once (void);
 
 */
 
-/* Initialize most variables (dump-time for vars_, dump-time and
-   post-pdump-load-time for reinit_vars). */
+/* Initialize most variables (dump-time only). */
 
 void vars_of_abbrev (void);
 void vars_of_alloc (void);
@@ -296,7 +284,6 @@ void vars_of_balloon_x (void);
 void vars_of_buffer (void);
 void vars_of_bytecode (void);
 void vars_of_callint (void);
-EXTERN_C void vars_of_canna_api (void);
 void vars_of_casetab (void);
 void vars_of_chartab (void);
 void vars_of_cmdloop (void);
@@ -313,7 +300,6 @@ void vars_of_device (void);
 void vars_of_device_gtk (void);
 void vars_of_device_mswindows (void);
 void vars_of_device_x (void);
-void reinit_vars_of_device_x (void);
 void vars_of_dialog (void);
 void vars_of_dialog_gtk (void);
 void vars_of_dialog_mswindows (void);
@@ -323,11 +309,9 @@ void vars_of_dired_mswindows (void);
 void vars_of_doc (void);
 void vars_of_dragdrop (void);
 void vars_of_editfns (void);
-EXTERN_C void vars_of_eldap (void);
 void vars_of_elhash (void);
 void vars_of_emacs (void);
 void vars_of_eval (void);
-void reinit_vars_of_eval (void);
 void vars_of_event_Xt (void);
 void vars_of_event_gtk (void);
 void vars_of_event_mswindows (void);
@@ -339,7 +323,6 @@ void vars_of_faces (void);
 void vars_of_file_coding (void);
 void vars_of_fileio (void);
 #ifdef USE_C_FONT_LOCK
-void reinit_vars_of_fileio (void);
 void vars_of_filelock (void);
 #endif /* USE_C_FONT_LOCK */
 void vars_of_floatfns (void);
@@ -351,6 +334,7 @@ void vars_of_frame_gtk (void);
 void vars_of_frame_mswindows (void);
 void vars_of_frame_tty (void);
 void vars_of_frame_x (void);
+void vars_of_gc (void);
 void vars_of_glyphs (void);
 void vars_of_glyphs_eimage (void);
 void vars_of_glyphs_gtk (void);
@@ -385,15 +369,12 @@ void vars_of_mule_coding (void);
 void vars_of_mule_wnn (void);
 void vars_of_nt (void);
 void vars_of_number (void);
-void reinit_vars_of_number (void);
 void vars_of_fontcolor (void);
 void vars_of_fontcolor_gtk (void);
 void vars_of_fontcolor_mswindows (void);
 void vars_of_fontcolor_tty (void);
 void vars_of_fontcolor_x (void);
-EXTERN_C void vars_of_postgresql (void);
 void vars_of_print (void);
-void reinit_complex_vars_of_print (void);
 void vars_of_process (void);
 void vars_of_process_nt (void);
 void vars_of_process_unix (void);
@@ -407,7 +388,6 @@ void vars_of_scrollbar_gtk (void);
 void vars_of_scrollbar_mswindows (void);
 void vars_of_scrollbar_x (void);
 void vars_of_search (void);
-void reinit_vars_of_search (void);
 void vars_of_select (void);
 void vars_of_select_gtk (void);
 void vars_of_select_mswindows (void);
@@ -419,7 +399,7 @@ void vars_of_symbols (void);
 void vars_of_syntax (void);
 void vars_of_tests (void);
 void vars_of_text (void);
-void reinit_vars_of_text (void);
+void vars_of_tls (void);
 void vars_of_toolbar (void);
 void vars_of_toolbar_gtk (void);
 void vars_of_tooltalk (void);
@@ -441,10 +421,7 @@ void specifier_vars_of_toolbar (void);
 void specifier_vars_of_window (void);
 
 /* Initialize variables with complex dependencies on other variables
-   (dump-time for complex_vars_, dump-time and post-pdump-load-time
-   for reinit_(), pdump-load-time-only for reinit_..._runtime_only()).
-   #### The reinit_() functions should be called from emacs.c, not the
-   corresponding complex_vars_of_(). */
+   (dump-time only). */
 
 void complex_vars_of_alloc (void);
 void complex_vars_of_buffer (void);
@@ -456,6 +433,7 @@ void complex_vars_of_faces (void);
 void complex_vars_of_file_coding (void);
 void complex_vars_of_font_mgr (void);
 void complex_vars_of_frame (void);
+void complex_vars_of_gc (void);
 void complex_vars_of_glyphs (void);
 void complex_vars_of_glyphs_gtk (void);
 void complex_vars_of_glyphs_mswindows (void);
@@ -465,7 +443,6 @@ void complex_vars_of_intl_win32 (void);
 void complex_vars_of_keymap (void);
 void complex_vars_of_menubar (void);
 void complex_vars_of_minibuf (void);
-void reinit_complex_vars_of_minibuf (void);
 void complex_vars_of_mule_charset (void);
 void complex_vars_of_mule_coding (void);
 void complex_vars_of_scrollbar (void);
@@ -489,6 +466,7 @@ void init_buffer_2 (void);
 void init_console_stream (int reinit);
 void init_device_tty (void);
 void init_editfns (void);
+void init_fileio (void);
 void init_event_Xt_late (void);
 void init_event_gtk_late (void);
 void init_event_mswindows_late (void);
@@ -500,18 +478,14 @@ void init_hpplay (void);
 void init_intl (void);
 void init_intl_win32 (void);
 void init_lread (void);
+void init_minibuf (void);
 void init_mswindows_environment (void);
 void init_nt (void);
-void init_postgresql_from_environment (void);
 void init_redisplay (void);
 void init_sunpro (void);
+void init_tls (void);
 void init_unicode (void);
 void init_win32 (void);
 void init_xemacs_process (void);
-
-/* Enhanced number initialization; needs to be done both at dump time and at
-   run time before pdump_load() to allow bignums and friends to be dumped and
-   restored. */
-void init_number (void);
 
 #endif /* INCLUDED_symsinit_h_ */

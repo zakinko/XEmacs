@@ -278,7 +278,7 @@ Lisp_Object Vautoload_queue;
 Lisp_Object Vmacro_declaration_function, Vbyte_compile_macro_environment;
 
 /* Current number of specbindings allocated in specpdl.  */
-int specpdl_size;
+int specpdl_size = 50;
 
 /* Pointer to beginning of specpdl.  */
 struct specbinding *specpdl;
@@ -290,13 +290,13 @@ struct specbinding *specpdl_ptr;
 int specpdl_depth_counter;
 
 /* Maximum size allowed for specpdl allocation */
-Fixnum max_specpdl_size;
+Fixnum max_specpdl_size = 3000;
 
 /* Depth in Lisp evaluations and function calls.  */
 int lisp_eval_depth;
 
 /* Maximum allowed depth in Lisp evaluations and function calls.  */
-Fixnum max_lisp_eval_depth;
+Fixnum max_lisp_eval_depth = 1000;
 
 /* Nonzero means enter debugger before next function call */
 static Boolint debug_on_next_call;
@@ -7448,19 +7448,10 @@ syms_of_eval (void)
 }
 
 void
-reinit_vars_of_eval (void)
+init_eval_very_early (void)
 {
-  preparing_for_armageddon = 0;
-  in_warnings = 0;
-  specpdl_size = 50;
   specpdl = xnew_array (struct specbinding, specpdl_size);
   specpdl_ptr = specpdl;
-  /* XEmacs change: increase these values. */
-  max_specpdl_size = 3000;
-  max_lisp_eval_depth = 1000;
-#ifdef DEFEND_AGAINST_THROW_RECURSION
-  throw_level = 0;
-#endif
 }
 
 void

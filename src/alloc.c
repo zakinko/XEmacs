@@ -5577,8 +5577,8 @@ The results of the leak check are sent to stderr.
 /************************************************************************/
 
 /* Initialization */
-static void
-common_init_alloc_early (void)
+void
+init_alloc_very_early (void)
 {
 #if defined (__cplusplus) && defined (ERROR_CHECK_GC)
   static struct gcpro initial_gcpro;
@@ -5595,12 +5595,6 @@ common_init_alloc_early (void)
   mallopt (M_TRIM_THRESHOLD, 128*1024); /* trim threshold */
   mallopt (M_MMAP_THRESHOLD, 64*1024); /* mmap threshold */
 #endif
-}
-
-void
-reinit_alloc_early (void)
-{
-  common_init_alloc_early ();
 }
 
 void
@@ -5623,8 +5617,6 @@ init_alloc_once_early (void)
      check this fits with our understanding. */
   structure_checking_assert (EQ (Qnull_pointer, wrap_pointer_1 (0)));
 #endif
-
-  common_init_alloc_early ();
 
   /* lrecord_implementations_table is in BSS and is already initialized to all
      zeroes by the C implementation. */

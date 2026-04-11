@@ -25,10 +25,6 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 extern Lisp_Object Qtls_error;
 
-void syms_of_tls (void);
-void vars_of_tls (void);
-void init_tls (void);
-
 #ifdef WITH_TLS
 
 #ifdef HAVE_NSS
