@@ -109,7 +109,8 @@ void prune_weak_hash_tables (void);
 extern Lisp_Object Vpdump_hash_table_reorganize_keys;
 extern const struct memory_description htentry_description_1[];
 extern void pdump_reorganize_at_dump_time (const htentry *old_htentries,
-					   htentry *new_htentries);
+					   htentry *new_htentries)
+	ATTRIBUTE_COLD;
 
 /* Used at runtime. */
 extern Elemcount pdump_hash_table_reorganize_count;
@@ -123,7 +124,8 @@ extern htentry *inchash (Lisp_Object key, Lisp_Object table, EMACS_INT offset);
 extern htentry *find_htentry (Lisp_Object key, const Lisp_Hash_Table *ht);
 
 extern Boolint general_hash_table_reorganize_needed_p (Lisp_Object func,
-						       Lisp_Object hash_table);
+						       Lisp_Object hash_table)
+	ATTRIBUTE_COLD;
 
 extern Lisp_Object
 define_hash_table_test (Lisp_Object name,

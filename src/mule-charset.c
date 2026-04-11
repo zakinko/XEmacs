@@ -245,6 +245,8 @@ print_charset (Lisp_Object obj, Lisp_Object printcharfun,
 		    LISP_OBJECT_UID (obj));
 }
 
+static void disksave_charset (Lisp_Object charset) ATTRIBUTE_COLD;
+
 static void
 disksave_charset (Lisp_Object charset)
 {

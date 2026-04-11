@@ -3258,6 +3258,8 @@ static const struct memory_description lcrecord_list_description[] = {
   { XD_END }
 };
 
+static void disksave_lcrecord_list (Lisp_Object) ATTRIBUTE_COLD;
+
 static void
 disksave_lcrecord_list (Lisp_Object lcrecord_list)
 {

@@ -1,5 +1,25 @@
 2026-04-11  Aidan Kehoe  <kehoea@parhasard.net>
 
+	* compiler.h: Detect __attribute__(__cold__) here, and #define
+	ATTRIBUTE_COLD to a non-empty string if GCC or clang supports it.
+	* alloc.c:
+	* dumper.h:
+	* elhash.c:
+	* elhash.h:
+	* emacs.c:
+	* lisp.h:
+	* lrecord.h:
+	* lrecord.h (DUMP_ADD_WEAK_OBJECT_CHAIN):
+	* lstream.c:
+	* mule-charset.c:
+	* symsinit.h:
+	Mark the dump time infrastructure (plus staticpro_nodump(),
+	define_lisp_object(), called almost exclusively at dump time) with
+	ATTRIBUTE_COLD, so the compiler puts them all together in the
+	binary and optimizes for size rather than speed.
+
+2026-04-11  Aidan Kehoe  <kehoea@parhasard.net>
+
 	Clean up naming for the initialization functions. Move the code to
 	initialize temacs to its own function, refactored out from
 	main_1(), in preparation for marking dump-time-only calls as

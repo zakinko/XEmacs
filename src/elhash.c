@@ -262,6 +262,10 @@ hash_table_size (Elemcount requested_size)
 
 
 static Boolint
+built_in_reorganize_needed_p (Lisp_Object,
+			      Boolint (*) (Lisp_Object)) ATTRIBUTE_COLD;
+
+static Boolint
 built_in_reorganize_needed_p (Lisp_Object hash_table,
 			      Boolint (*no_reorganize_key_condition)
 			      (Lisp_Object))
@@ -282,6 +286,8 @@ built_in_reorganize_needed_p (Lisp_Object hash_table,
   return 0;
 }
 
+static Boolint fixnum_or_char_p (Lisp_Object) ATTRIBUTE_COLD;
+
 static Boolint
 fixnum_or_char_p (Lisp_Object object)
 {
@@ -289,8 +295,11 @@ fixnum_or_char_p (Lisp_Object object)
 }
 
 static Boolint
+eq_reorganize_needed_p (Lisp_Object, Lisp_Object) ATTRIBUTE_COLD;
+
+static Boolint
 eq_reorganize_needed_p (Lisp_Object UNUSED (func),
-			 Lisp_Object hash_table)
+			Lisp_Object hash_table)
 {
   return built_in_reorganize_needed_p (hash_table, fixnum_or_char_p);
 }
@@ -310,11 +319,16 @@ lisp_object_eql_hash (const Hash_Table_Test *UNUSED (http), Lisp_Object obj)
     internal_hash (obj, 0, 0) : LISP_HASH (obj);
 }
 
+static Boolint char_or_number_p (Lisp_Object) ATTRIBUTE_COLD;
+
 static Boolint
 char_or_number_p (Lisp_Object object)
 {
   return CHARP (object) || NUMBERP (object);
 }
+
+static Boolint eql_reorganize_needed_p (Lisp_Object,
+					Lisp_Object) ATTRIBUTE_COLD;
 
 static Boolint
 eql_reorganize_needed_p (Lisp_Object UNUSED (func),
@@ -336,11 +350,16 @@ lisp_object_equal_hash (const Hash_Table_Test *UNUSED (http), Lisp_Object obj)
   return internal_hash (obj, 0, 0);
 }
 
+static Boolint fixnum_char_or_string_p (Lisp_Object) ATTRIBUTE_COLD;
+
 static Boolint
 fixnum_char_or_string_p (Lisp_Object object)
 {
   return FIXNUMP (object) || CHARP (object) || STRINGP (object);
 }
+
+static Boolint equal_reorganize_needed_p (Lisp_Object,
+					  Lisp_Object) ATTRIBUTE_COLD;
 
 static Boolint
 equal_reorganize_needed_p (Lisp_Object UNUSED (func),
@@ -363,11 +382,16 @@ lisp_object_equalp_equal (const Hash_Table_Test *UNUSED (http),
   return internal_equalp (obj1, obj2, 0);
 }
 
+static Boolint number_char_or_string_p (Lisp_Object) ATTRIBUTE_COLD;
+
 static Boolint
 number_char_or_string_p (Lisp_Object object)
 {
   return NUMBERP (object) || CHARP (object) || STRINGP (object);
 }
+
+static Boolint
+equalp_reorganize_needed_p (Lisp_Object, Lisp_Object) ATTRIBUTE_COLD;
 
 static Boolint
 equalp_reorganize_needed_p (Lisp_Object UNUSED (func),
@@ -1361,6 +1385,8 @@ resize_hash_table (Lisp_Hash_Table *ht, Elemcount new_size)
 
   free_hentries (old_entries, old_size);
 }
+
+static void disksave_hash_table (Lisp_Object hash_table) ATTRIBUTE_COLD;
 
 /* Decide if HASH_TABLE will need reorganization after pdump_load(). */
 static void

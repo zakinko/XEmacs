@@ -26,9 +26,9 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 BEGIN_C_DECLS
 
 void pdump_objects_unmark (void);
-void pdump (void);
+void pdump (void) ATTRIBUTE_COLD;
 Boolint pdump_load (const Extbyte *argv0);
-void pdump_backtrace (void);
+void pdump_backtrace (void) ATTRIBUTE_COLD;
 extern unsigned int dump_id;
 extern Rawbyte *pdump_start, *pdump_end;
 

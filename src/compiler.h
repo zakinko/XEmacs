@@ -233,6 +233,16 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 # endif /* GCC_VERSION >= NEED_GCC (2, 5, 0) */
 #endif /* ATTRIBUTE_CONST */
 
+#ifndef ATTRIBUTE_COLD
+# if (GCC_VERSION >= NEED_GCC (4, 3, 0)) || \
+	(defined (__clang__) && defined (__has_attribute) \
+	 && __has_attribute(__cold__))
+#  define ATTRIBUTE_COLD __attribute__ ((__cold__))
+# endif
+#else
+# define ATTRIBUTE_COLD
+#endif
+
 /*
    NOTE:  These macros MUST be named UNUSED (exactly) or something
    prefixed with USED_IF_, or DEFUN docstrings will be parsed incorrectly.

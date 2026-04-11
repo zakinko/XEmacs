@@ -880,6 +880,8 @@ check_compatible_window_system (const Ascbyte *must)
 /*                   main and friends: XEmacs startup                   */
 /************************************************************************/
 
+static void initialize_temacs (void) ATTRIBUTE_COLD;
+
 static void
 initialize_temacs (void)
 {
@@ -2667,6 +2669,8 @@ Currently defined values:
   return Fnreverse (plist);
 }
 
+EXFUN (Frun_emacs_from_temacs, MANY) ATTRIBUTE_COLD;
+
 DEFUN_NORETURN ("run-emacs-from-temacs", Frun_emacs_from_temacs, 0, MANY, 0, /*
 Reinitialize XEmacs for use after initializing C and Lisp state.
 
@@ -2894,6 +2898,8 @@ main (int argc, Extbyte **argv, Extbyte **UNUSED (envp))
 /************************************************************************/
 /*                             dumping XEmacs                           */
 /************************************************************************/
+
+EXFUN (Fdump_emacs, 0) ATTRIBUTE_COLD;
 
 DEFUN ("dump-emacs", Fdump_emacs, 0, 0, 0, /*
 Dump current state of XEmacs. This is usually into a file `xemacs.dmp'.

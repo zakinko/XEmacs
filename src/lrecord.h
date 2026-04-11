@@ -1242,7 +1242,8 @@ struct opaque_convert_functions
    defined, do nothing. */
 extern MODULE_API void init_memory_usage_stats (int type,
                                                 Lisp_Object
-                                                memusage_stats_list);
+                                                memusage_stats_list)
+	ATTRIBUTE_COLD;
 
 #define INIT_MEMORY_USAGE_STATS(type, memusage_stats_list)      \
   init_memory_usage_stats (lrecord_type_##type, memusage_stats_list)
@@ -1380,7 +1381,8 @@ extern MODULE_API void define_lisp_object (int lrecord_type,
                                            Bytecount size,
                                            const struct memory_description *,
                                            Boolint dumpable,
-                                           Boolint frob_block_p);
+                                           Boolint frob_block_p)
+	ATTRIBUTE_COLD;
 
 #ifdef HAVE_SHLIB
 
@@ -1914,7 +1916,8 @@ void free_normal_lisp_object (Lisp_Object obj);
    description, though, as compared to using dump_add_root_block_ptr(),
    and thus this function is generally more convenient.
     */
-void dump_add_root_block_ptr (void *, const struct sized_memory_description *);
+void dump_add_root_block_ptr (void *, const struct sized_memory_description *)
+	ATTRIBUTE_COLD;
 
 /* dump_add_opaque (&var, size) dumps the opaque static structure `var'.
    This is for a static block of memory (in the data segment, not the
@@ -1926,7 +1929,8 @@ void dump_add_root_block_ptr (void *, const struct sized_memory_description *);
    static block of memory (in the data segment, not the heap), with
    relocatable pointers in it. */
 void dump_add_root_block (const void *ptraddress, Bytecount size,
-			  const struct memory_description *desc);
+			  const struct memory_description *desc)
+	ATTRIBUTE_COLD;
 
 /* Call dump_add_opaque_int (&int_var) to dump `int_var', of type `int'. */
 #define dump_add_opaque_int(int_varaddr) do {	\
@@ -1943,13 +1947,13 @@ void dump_add_root_block (const void *ptraddress, Bytecount size,
 
 /* Call dump_add_root_lisp_object (&var) to ensure that var is properly
    updated after pdump. */
-void dump_add_root_lisp_object (Lisp_Object *);
+void dump_add_root_lisp_object (Lisp_Object *) ATTRIBUTE_COLD;
 
 /* Tell the dumper that VAR should be initialized to Qnil on pdump_load(),
    irrespective of its value at dump time.  Does not mark the address as a root
    for dumping; one of DEFVAR_LISP(), staticpro() or
    dump_add_root_lisp_object() are still necessary. */
-void dump_mark_nil_lisp_object (Lisp_Object *);
+void dump_mark_nil_lisp_object (Lisp_Object *) ATTRIBUTE_COLD;
 
 /* Tell the dumper that VAR should be initialized to zero on pdump_load(),
    irrespective of its value at dump time.
@@ -1959,12 +1963,12 @@ void dump_mark_nil_lisp_object (Lisp_Object *);
    -inhibit-autoloads. This is only necessary for variables reachable from the
    dumper by means of DEFVAR_BOOL(); for variables not reachable from the
    dumper static initialization at file top-level is sufficient. */
-void dump_mark_zero_boolint (Boolint *);
+void dump_mark_zero_boolint (Boolint *) ATTRIBUTE_COLD;
 
 /* Call dump_add_weak_lisp_object (&var) to ensure that var is properly
    updated after pdump.  var must point to a linked list of objects out of
    which some may not be dumped */
-void dump_add_weak_object_chain (Lisp_Object *);
+void dump_add_weak_object_chain (Lisp_Object *) ATTRIBUTE_COLD;
 
 #define DUMP_ADD_WEAK_OBJECT_CHAIN(var) do {                            \
     /* Don't add to the chain before marking it for dumping! */         \

@@ -78,6 +78,8 @@ finalize_lstream (Lisp_Object obj)
     (lstr->imp->finalizer) (lstr);
 }
 
+static void disksave_lstream (Lisp_Object lstream) ATTRIBUTE_COLD;
+
 static void
 disksave_lstream (Lisp_Object lstream)
 {

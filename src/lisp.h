@@ -4156,11 +4156,11 @@ extern Lisp_Object_ptr_dynarr *staticpros;
 extern Lisp_Object_ptr_dynarr *staticpros_nodump;
 
 /* Call staticpro (&var) to protect static variable `var'. */
-MODULE_API void staticpro (Lisp_Object *);
+MODULE_API void staticpro (Lisp_Object *) ATTRIBUTE_COLD;
 
 /* Call staticpro_nodump (&var) to protect static variable `var'. */
 /* var will not be saved at dump time */
-MODULE_API void staticpro_nodump (Lisp_Object *);
+MODULE_API void staticpro_nodump (Lisp_Object *) ATTRIBUTE_COLD;
 
 #ifdef HAVE_SHLIB
 /* Call unstaticpro_nodump (&var) to stop protecting static variable `var'. */
@@ -4172,7 +4172,7 @@ MODULE_API void unstaticpro_nodump (Lisp_Object *);
    initial value is Qnil. Useful for variables like Vbuffer_alist where the
    value is guaranteed to be distinct at dump time and at run time. Do not
    call it after pdump_load(), you will crash.  */
-void staticpro_dump_nil (Lisp_Object *);
+void staticpro_dump_nil (Lisp_Object *) ATTRIBUTE_COLD;
 
 void register_post_gc_action (void (*fun) (void *), void *arg);
 int begin_gc_forbidden (void);
@@ -4254,7 +4254,7 @@ MODULE_API Lisp_Object list6 (Lisp_Object, Lisp_Object, Lisp_Object,
 MODULE_API Lisp_Object listn (int numargs, ...);
 MODULE_API Lisp_Object listu (Lisp_Object, ...);
 DECLARE_DOESNT_RETURN (memory_full (void));
-void disksave_object_finalization (void);
+void disksave_object_finalization (void) ATTRIBUTE_COLD;
 void finish_object_memory_usage_stats (void);
 extern int purify_flag;
 
@@ -6503,7 +6503,7 @@ void add_charset_to_precedence_array (Lisp_Object charset,
 void add_charsets_to_precedence_array (Lisp_Object list,
 				       Lisp_Object precarray);
 void charset_created_recalculate_unicode_precedence (void);
-void disksave_clear_unicode_precedence (void);
+void disksave_clear_unicode_precedence (void) ATTRIBUTE_COLD;
 Lisp_Object simple_convert_predence_list_to_array (Lisp_Object charsets);
 Lisp_Object precedence_array_to_list (Lisp_Object precarray);
 
