@@ -234,13 +234,17 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 #endif /* ATTRIBUTE_CONST */
 
 #ifndef ATTRIBUTE_COLD
-# if (GCC_VERSION >= NEED_GCC (4, 3, 0)) || \
-	(defined (__clang__) && defined (__has_attribute) \
-	 && __has_attribute(__cold__))
+# if defined (__has_attribute)
+#  if __has_attribute (__cold__)
+#    define ATTRIBUTE_COLD __attribute__ ((__cold__))
+#  else
+#    define ATTRIBUTE_COLD
+#  endif
+# elif (GCC_VERSION >= NEED_GCC (4, 3, 0))
 #  define ATTRIBUTE_COLD __attribute__ ((__cold__))
+# else
+#  define ATTRIBUTE_COLD
 # endif
-#else
-# define ATTRIBUTE_COLD
 #endif
 
 /*

@@ -1,5 +1,10 @@
 2026-04-11  Aidan Kehoe  <kehoea@parhasard.net>
 
+	* compiler.h:
+	Revise ATTRIBUTE_COLD to work with Visual Studio.
+
+2026-04-11  Aidan Kehoe  <kehoea@parhasard.net>
+
 	* compiler.h: Detect __attribute__(__cold__) here, and #define
 	ATTRIBUTE_COLD to a non-empty string if GCC or clang supports it.
 	* alloc.c:
