@@ -118,6 +118,11 @@ TODO (in rough order of priority):
 
 Lisp_Object Vpg_coding_system;
 
+EXTERN_C void syms_of_postgresql (void);
+EXTERN_C void vars_of_postgresql (void);
+
+void init_postgresql_from_environment (void);
+
 #define CHECK_LIVE_CONNECTION(P)					\
 do									\
 {									\

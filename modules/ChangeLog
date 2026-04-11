@@ -1,3 +1,11 @@
+2026-04-11  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* postgresql/postgresql.c:
+	* ldap/eldap.c:
+	* canna/canna_api.c:
+	Restore declarations for vars_of_MODULE(), syms_of_MODULE(), now
+	they have been removed from the core code.
+
 2026-02-28  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* zlib/Makefile (CC): Update this to reflect ellcc.elc rather than

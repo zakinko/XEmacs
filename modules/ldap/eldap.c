@@ -44,6 +44,9 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "eldap.h"
 
+EXTERN_C void syms_of_eldap (void);
+EXTERN_C void vars_of_eldap (void);
+
 static Fixnum ldap_default_port;
 static Lisp_Object Vldap_default_base;
 

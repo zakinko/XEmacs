@@ -165,6 +165,9 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 #include "canna/jrkanji.h"
 #include "canna/RK.h"
 
+EXTERN_C void syms_of_canna_api (void);
+EXTERN_C void vars_of_canna_api (void);
+
 /* #### These shouldn't be needed any more. */
 extern char *jrKanjiError;
 extern int (*jrBeepFunc) (void);
