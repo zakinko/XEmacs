@@ -67,6 +67,15 @@
 
 2026-04-11  Aidan Kehoe  <kehoea@parhasard.net>
 
+	* xemacs.dmp.in: New file, reflecting Larry McVoy's magic numbers
+	to avoid compilers putting a constant into BSS, in anticipation of
+	using the same approach to dump-in-exec on Windows native as on
+	every other platform.
+	* Makefile.in.in:
+	Revise this to use xemacs.dmp.in.
+
+2026-04-11  Aidan Kehoe  <kehoea@parhasard.net>
+
 	* compiler.h: Detect __attribute__(__cold__) here, and #define
 	ATTRIBUTE_COLD to a non-empty string if GCC or clang supports it.
 	* alloc.c:

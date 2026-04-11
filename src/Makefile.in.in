@@ -507,20 +507,20 @@ dump-id.c: $(LIB_SRC)/make-dump-id $(link_deps)
 ## (Linux and OpenBSD dd(1) are content with zero), and dump-size should
 ## be non-zero in length if it exists.
 
-## The non-zero bytes that are written to xemacs.dmp by the echo statement
-## prevent the compiler placing the array in BSS, and are the work of Larry
-## McVoy.  See http://lkml.org/lkml/2003/7/11/141 for more information. */
+## xemacs.dmp.in consists of non-zero bytes that prvent prevent the compiler
+## placing the array in BSS, which bytes are the work of Larry McVoy. See
+## http://lkml.org/lkml/2003/7/11/141 for more information.
 $(RAW_EXE): $(link_deps) $(DUMP_ID) dump-data.c
-	@echo "\xff\x06\x01\x02\x03\x04\xff\x03\x09\x3e\xff\x0a\x04\x3d\xff" > @DUMP_FILE_NAME@; \
+	@cp -f xemacs.dmp.in @DUMP_FILE_NAME@; \
 	if test -f dump-size ; then \
 		echo "Known dump size, using it for temacs"; \
 		dd if=dump-size of=$(DUMP_TARGET).dmp bs=1 count=1 \
 			seek=$$(expr $$(cat dump-size) - 1);  \
-		mv dump-size temacs-dump-size; \
+		rm dump-size;	\
 	else \
-		echo "Dump size not known, starting from zero"; \
-		echo 0 > temacs-dump-size; \
+		echo "Dump size not known, initial size " $$(wc -c < @DUMP_FILE_NAME); \
 	fi; \
+	echo `wc -c < @DUMP_FILE_NAME@` > temacs-dump-size; \
 	echo $(CC) -c $(cflags) $(SRC)/dump-data.c ; \
 	$(CC) -c $(cflags) $(SRC)/dump-data.c ; \
 	echo $(LD) $(ldflags) $(start_flags) -o $@ $(start_files) $(objs) $(otherobjs) dump-data.o $(DUMP_ID) $(LIBES); \
