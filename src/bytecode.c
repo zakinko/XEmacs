@@ -3139,9 +3139,9 @@ integer, it is incremented each time that symbol's function is called.
   byte_metering_on = 0;
   Vbyte_code_meter = make_vector (256, Qzero);
   {
-    int i = 256;
-    while (i--)
-      XVECTOR_DATA (Vbyte_code_meter)[i] = make_vector (256, Qzero);
+    int ij = 256;
+    while (ij--)
+      XVECTOR_DATA (Vbyte_code_meter)[ij] = make_vector (256, Qzero);
   }
 #endif /* BYTE_CODE_METER */
   Vcompiled_function_annotations = make_lisp_hash_table (8000,

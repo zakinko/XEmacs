@@ -37,6 +37,9 @@
     (global-set-key '(control insert) 'copy-primary-selection)
 
     (global-set-key '(meta f4)	      'save-buffers-kill-emacs)
+    (when initial-frame-unmapped-p
+      (setq initial-frame-plist
+	    (list* 'initially-unmapped t initial-frame-plist)))
     (setq make-device-early-mswindows-entry-point-called-p t)))
 
 (defun make-device-late-mswindows-entry-point (device)

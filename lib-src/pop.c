@@ -139,7 +139,7 @@ static char *find_crlf (char *, int);
 #endif
 #endif
 
-char pop_error[ERROR_MAX];
+char pop_error[ERROR_MAX + 1];
 int pop_debug = 0;
 
 #ifndef min

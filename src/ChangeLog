@@ -1,3 +1,65 @@
+2026-04-12  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Suppress GCC warnings when building on Cygwin as C.
+	In passing, get -unmapped working on Windows, which it never did
+	before.
+
+	* bytecode.c (vars_of_bytecode):
+	Rename a counter to avoid a shadowed variable warning.
+	* compiler.h:
+	Use __builtin_unreachable() for RETURN_NOT_REACHED() on GCC as
+	well as on clang.
+	* console-msw-impl.h (struct mswindows_frame):
+	New bit field, initially_unmapped, on the pattern of the X11
+	implementation.
+	* console-msw-impl.h (FRAME_MSWINDOWS_INITIALLY_UNMAPPED):
+	Macro to access it.
+	* faces.c (ensure_face_cachel_contains_charset):
+	Silence warnings regarding OFF1 possibly being used to access
+	Stynarr elements with indexes less than zero, by checking it and
+	doing a RETURN_NOT_REACHED (Qunbound). FACE_CACHEL_OFFSET_ENSURE()
+	will never return a negative number.
+	* faces.c (add_face_cachel):
+	GCC warns that the result of WINDOW_FACE_CACHEL cannot be zero
+	because it is a pointer. But it can be NULL if
+	w->face_cachels->base has yet to be initialized. G++ doesn't warn
+	regarding this, clang doesn't warn regarding this, Visual Studio
+	doesn't. Work around this with a stupid comparison against
+	((struct face_cachel *) NULL) + !1), which silences the warning
+	for me.
+	* faces.c (update_face_cachel_data):
+	Same problem, same solution as previous.
+	* frame-msw.c (mswindows_init_frame_1):
+	Initialize FRAME_MSWINDOWS_INITIALLY_UNMAPPED(f), suppress a
+	set-but-not-used warning for initially_unmapped.
+	* frame-msw.c (mswindows_init_frame_3):
+	Check FRAME_MSWINDOWS_INITIALLY_UNMAPPED(), decide on the nCmdShow
+	argument to ShowWindow() depending on that.
+	Only call SetForegroundWindow() if we are mapping the window.
+	* frame-msw.c (mswindows_after_init_frame):
+	Move the second ShowWindow() call here. Only do it with the first
+	frame on a given console; and only do it if the process that
+	started XEmacs supplied a STARTUPINFO structure where the
+	specified nCmdShow value differs from that which we want.
+	If we are not mapping the window, mark the frame as non-visible.
+	* frame.c (Fframe_visible_p):
+	Fix a misspelling in the docstring here.
+	* glyphs-msw.c (mswindows_init_image_instance_from_eimage):
+	BKCOLOR has been set but never used since the initial commit in
+	1997; there is no mechanism to use it that I can see, remove it,
+	suppress a warning.
+	* glyphs-msw.c (init_image_instance_from_xbm_inline):
+	Pass BG as the background as seems to have always been the
+	intention; suppress a set-but-not-used warning.
+	* glyphs.c (add_entry_to_device_ii_format_list):
+	* glyphs.c (add_entry_to_image_instantiator_format_list):
+	No longer take a SYMBOL argument in these two functions, not
+	used.
+	* glyphs.c (initialize_image_instantiator_format):
+	Call add_entry_to_image_instantiator_format_list(),
+	add_entry_to_device_ii_format_list() with their new arguments from
+	here.
+
 2026-04-11  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* compiler.h:

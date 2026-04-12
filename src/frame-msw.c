@@ -197,6 +197,7 @@ mswindows_init_frame_1 (struct frame *f, Lisp_Object props,
   FRAME_HEIGHT (f) = 0;
   FRAME_PIXWIDTH (f) = 0;
   FRAME_PIXHEIGHT (f) = 0;
+  FRAME_MSWINDOWS_INITIALLY_UNMAPPED (f) = !NILP (initially_unmapped);
 
   if (NILP (popup))
     {
@@ -293,35 +294,63 @@ mswindows_init_frame_2 (struct frame *f, Lisp_Object UNUSED (props))
 static void
 mswindows_init_frame_3 (struct frame *f)
 {
+  Boolint unmappedp = FRAME_MSWINDOWS_INITIALLY_UNMAPPED (f);
+
   /* Don't do this earlier or we get a WM_PAINT before the frame is ready. */
-  ShowWindow (FRAME_MSWINDOWS_HANDLE(f), SW_SHOWNORMAL);
-#ifdef CYGWIN
-  /* The SW_x parameter in the first call that an app makes to ShowWindow is
-   * ignored, and the parameter specified in the caller's STARTUPINFO is
-   * substituted instead. That parameter is SW_HIDE if we were started by
-   * runemacs, so call this twice. #### runemacs is evil.  To see why this
-   * second call was restored, see the threads referenced by
-   * 20a807210611011157j57ea2b22ue892f4dfcb6aade8@mail.gmail.com and
-   * 20a807210708181345m7ac94ff2m43337be71e853d95@mail.gmail.com . */
-  ShowWindow (FRAME_MSWINDOWS_HANDLE(f), SW_SHOWNORMAL);
-#endif
-  SetForegroundWindow (FRAME_MSWINDOWS_HANDLE(f));
-  DragAcceptFiles (FRAME_MSWINDOWS_HANDLE(f), TRUE);
+  ShowWindow (FRAME_MSWINDOWS_HANDLE(f), unmappedp ? SW_HIDE : SW_SHOWNORMAL);
+  if (!unmappedp)
+    {
+      SetForegroundWindow (FRAME_MSWINDOWS_HANDLE (f));
+    }
+
+  DragAcceptFiles (FRAME_MSWINDOWS_HANDLE (f), TRUE);
 }
 
 static void
-mswindows_after_init_frame (struct frame *UNUSED (f),
+mswindows_after_init_frame (struct frame *f,
 			    int UNUSED (first_on_device), int first_on_console)
 {
+  Boolint unmappedp = FRAME_MSWINDOWS_INITIALLY_UNMAPPED (f);
+
   /* Windows, unlike X, is very synchronous. After the initial
      frame is created, it will never be displayed, except for
      hollow border, unless we start pumping messages. Load progress
      messages show in the bottom of the hollow frame, which is ugly.
      We redisplay the initial frame here, so modeline and root window
-     background show.
-  */
+     background show. */
   if (first_on_console)
-    redisplay ();
+    {
+      STARTUPINFOW startupinfo;
+      WORD desired_show_window_flags = unmappedp ? SW_HIDE : SW_NORMAL;
+
+      qxeGetStartupInfo (&startupinfo);
+      if ((startupinfo.dwFlags & STARTF_USESHOWWINDOW) &&
+	  startupinfo.wShowWindow != desired_show_window_flags)
+	{
+	  /* If the process that started XEmacs supplied a STARTUPINFO
+	     structure, the nCmdShow parameter in the first call that we make
+	     to ShowWindow (in mswindows_init_frame_3()) is ignored, and the
+	     parameter specified in the caller's STARTUPINFO is substituted
+	     instead.  If we call ShowWindow again now with our desired value
+	     for nCmdShow, things work fine; the synchronicity above means
+	     there isn't a flicker of a window appearing and disappearing.
+
+	     This had been an issue with runemacs, which was a C program that
+	     started XEmacs with its console window hidden, back when XEmacs
+	     was a console-mode program (basically the inverse of
+	     lib-src/i.c). It is unlikely to happen much these days, runemacs
+	     is long gone. */
+	  ShowWindow (FRAME_MSWINDOWS_HANDLE(f),
+		      desired_show_window_flags);
+	}
+      
+      redisplay ();
+    }
+
+  if (unmappedp)
+    {
+      FRAME_VISIBLE_P (f) = 0;
+    }
 }
 
 static void

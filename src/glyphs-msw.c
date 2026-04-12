@@ -444,15 +444,9 @@ mswindows_init_image_instance_from_eimage (Lisp_Image_Instance *ii,
   BITMAPINFO *		bmp_info;
   Binbyte *	bmp_data;
   int			bmp_bits;
-  COLORREF		bkcolor;
   int slice;
 
   CHECK_MSGDI_DEVICE (device);
-
-  /* this is a hack but MaskBlt and TransparentBlt are not supported
-     on most windows variants */
-  bkcolor = COLOR_INSTANCE_MSWINDOWS_COLOR
-    (XCOLOR_INSTANCE (FACE_BACKGROUND (Vdefault_face, domain)));
 
   for (slice = 0; slice < slices; slice++)
     {
@@ -1522,7 +1516,7 @@ init_image_instance_from_xbm_inline (Lisp_Image_Instance *ii,
 
 	IMAGE_INSTANCE_MSWINDOWS_BITMAP (ii) =
 	  xbm_create_bitmap_from_data (hdc, bits, width, height,
-				       FALSE, fg, black);
+				       FALSE, fg, bg);
       }
       break;
 
@@ -1549,7 +1543,7 @@ init_image_instance_from_xbm_inline (Lisp_Image_Instance *ii,
 
 	IMAGE_INSTANCE_MSWINDOWS_BITMAP (ii) =
 	  xbm_create_bitmap_from_data (hdc, bits, width, height,
-				       TRUE, fg, black);
+				       TRUE, fg, bg);
 	mswindows_initialize_image_instance_icon (ii, TRUE);
       }
       break;

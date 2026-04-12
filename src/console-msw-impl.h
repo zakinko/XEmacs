@@ -188,6 +188,7 @@ struct mswindows_frame
   int sizing : 1;
   int paint_pending : 1; /* Whether a WM_PAINT magic event has been queued */
   int popup : 1; /* frame is a popup frame */
+  int initially_unmapped : 1;
 
   /* Geometry, in characters, as specified by proplist during frame
      creation. Members are set to -1 for unspecified */
@@ -215,6 +216,8 @@ struct mswindows_frame
 #define FRAME_MSWINDOWS_TARGET_RECT(f)	  (FRAME_MSWINDOWS_DATA (f)->target_rect)
 
 #define FRAME_MSWINDOWS_POPUP(f)	  (FRAME_MSWINDOWS_DATA (f)->popup)
+#define FRAME_MSWINDOWS_INITIALLY_UNMAPPED(f)		\
+  (FRAME_MSWINDOWS_DATA (f)->initially_unmapped)
 
 # define FRAME_MSWINDOWS_CURSOR_X(f) (FRAME_MSWINDOWS_DATA (f)->cursor_x)
 # define FRAME_MSWINDOWS_CURSOR_Y(f) (FRAME_MSWINDOWS_DATA (f)->cursor_y)

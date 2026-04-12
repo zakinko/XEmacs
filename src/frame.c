@@ -2425,7 +2425,7 @@ DEFUN ("frame-visible-p", Fframe_visible_p, 0, 1, 0, /*
 Return non NIL if FRAME is now "visible" (actually in use for display).
 A frame that is not visible is not updated, and, if it works through a
 window system, may not show at all.
-N.B. Under X "visible" means Mapped. It the window is mapped but not
+N.B. Under X "visible" means Mapped. If the window is mapped but not
 actually visible on screen then `frame-visible-p' returns `hidden'.
 */
        (frame))

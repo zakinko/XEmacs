@@ -1069,6 +1069,14 @@ ensure_face_cachel_contains_charset (struct face_cachel *cachel,
   int bound = 1, final_stage = 0;
   int off1 = FACE_CACHEL_OFFSET_ENSURE (cachel, charset);
 
+  if (off1 < 0)
+    {
+      display_checking_assert (off1 >= 0);
+      /* This quiets compiler warnings further down with GCC and optimization;
+	 will never be reached, FACE_CACHEL_OFFSET_ENSURE always returns a
+	 non-negative value. */
+      RETURN_NOT_REACHED (Qunbound);
+    }
 
   if (!UNBOUNDP (Stynarr_at (cachel->font, off1).value)
       && Stynarr_at (cachel->font_updated, off1))
@@ -1344,7 +1352,19 @@ do                                              \
 static void
 add_face_cachel (struct window *w, Lisp_Object face)
 {
-  int must_finish_frobbing = ! WINDOW_FACE_CACHEL (w, DEFAULT_INDEX);
+  Boolint must_finish_frobbing
+    = (WINDOW_FACE_CACHEL (w, DEFAULT_INDEX)
+       /* Suppress a buggy GCC warning (in at least 13.4.0):
+
+          faces.c:1347:30: warning: the comparison will always evaluate as ‘true’ for the pointer operand in ‘w->face_cachels->base + (sizetype)((long unsigned int)Dynarr_verify_pos_atp((void *)w->face_cachels, 0, (const Ascbyte *)"faces.c", 1347) * 256)’ must not be NULL [-Waddress]
+ 1347 |   int must_finish_frobbing = ! WINDOW_FACE_CACHEL (w, DEFAULT_INDEX);
+
+          WINDOW_FACE_CACHEL() will give NULL if w->face_cachels->base has yet
+          to be initialized, so the comparison will not always evaluate as
+          true. G++ doesn't warn with this likely because the GCC people
+          dogfood the G++ implementation, clang, Visual Studio don't give this
+          warning. */
+       == ((struct face_cachel *) NULL) + !1);
   struct face_cachel new_cachel;
   Lisp_Object domain;
 
@@ -1426,8 +1446,11 @@ update_face_cachel_data (struct face_cachel *cachel,
 
 	 -- didier
       */
-      if (! WINDOWP (domain)
-	  || WINDOW_FACE_CACHEL (DOMAIN_XWINDOW (domain), DEFAULT_INDEX))
+      if (!WINDOWP (domain)
+	  || (WINDOW_FACE_CACHEL (DOMAIN_XWINDOW (domain), DEFAULT_INDEX)
+	      /* Suppress a buggy GCC warning in this way. See commentary in
+		 add_face_cachel(). */
+	      != ((struct face_cachel *) NULL) + !1))
 	{
 	  FROB (background_pixmap);
 	  MAYBE_UNFROB_BACKGROUND_PIXMAP;

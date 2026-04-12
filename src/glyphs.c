@@ -285,7 +285,7 @@ Return a list of valid image-instantiator formats.
 }
 
 static void
-add_entry_to_device_ii_format_list (Lisp_Object device, Lisp_Object symbol,
+add_entry_to_device_ii_format_list (Lisp_Object device,
 				    struct image_instantiator_methods *meths)
 {
   struct image_instantiator_format_entry entry;
@@ -296,11 +296,10 @@ add_entry_to_device_ii_format_list (Lisp_Object device, Lisp_Object symbol,
 }
 
 static void
-add_entry_to_image_instantiator_format_list (Lisp_Object symbol,
-					     struct
+add_entry_to_image_instantiator_format_list (struct
 					     image_instantiator_methods *meths)
 {
-  add_entry_to_device_ii_format_list (Qnil, symbol, meths);
+  add_entry_to_device_ii_format_list (Qnil, meths);
 }
 
 static const Lisp_Object *
@@ -5307,10 +5306,10 @@ initialize_image_instantiator_format (struct image_instantiator_methods
   result->keywords = Dynarr_new (ii_keyword_entry);
   result->consoles = Dynarr_new2 (const_console_methods_pointer_dynarr,
                                   const struct console_methods *);
-  add_entry_to_image_instantiator_format_list (format, result);
+  add_entry_to_image_instantiator_format_list (result);
   if (!NILP (device_type))
     {
-      add_entry_to_device_ii_format_list (device_type, format, result);
+      add_entry_to_device_ii_format_list (device_type, result);
       Dynarr_add (decode_image_instantiator_format (format,
                                                     ERROR_ME)->consoles,
                   decode_console_type (device_type, ERROR_ME));
