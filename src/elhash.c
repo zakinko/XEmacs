@@ -1465,7 +1465,6 @@ pdump_reorganize_at_dump_time (const htentry *old_htentries,
   const htentry *ee;
   htentry *scratch_htentries;
   Elemcount count;
-  EMACS_UINT dump_offset;
   Boolint eqlp; 
 
   if (NILP (hash_table))
@@ -1478,12 +1477,6 @@ pdump_reorganize_at_dump_time (const htentry *old_htentries,
   count = ht->count;
   scratch_htentries = alloca_array (htentry, ht->size + 1);
   memset (scratch_htentries, 0, sizeof (htentry) * (ht->size + 1));
-
-#if !defined (WIN32_NATIVE) && defined (DUMP_IN_EXEC)
-  dump_offset = (EMACS_UINT) dumped_data_get ();
-#else
-  dump_offset = 0;
-#endif
 
   for (ee = old_htentries; count; ee++)
     {
@@ -1504,8 +1497,7 @@ pdump_reorganize_at_dump_time (const htentry *old_htentries,
 	      new_key = 
 		wrap_pointer_1 ((Rawbyte *) (XPNTRVAL (new_htentries
                                                        [ee -
-                                                        old_htentries].key))
-				+ dump_offset);
+                                                        old_htentries].key)));
 	      http = XHASH_TABLE_TEST (Veq_hash_table_test);
 	    }
 

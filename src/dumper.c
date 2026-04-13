@@ -1059,11 +1059,20 @@ pdump_register_block (const void *data,
    that needs to be added to all pointers.
 
    The dump file is, these days, usually stored in the XEmacs executable
-   image, and in theory for builds on platforms without ASLR this step
-   (addition of the delta) could be done at dump time. It currently (2024)
-   isn't, and I have no plans to do that given that the majority of platforms
-   have ASLR and would prefer that we not keep data segment addresses constant
-   from invocation to invocation.
+   image. In this case the pointer offsets are from the known address of the
+   dumped data (important for the hash table pdump_reorganize_at_dump_time(),
+   which needs an address that is relative to some page--with mmap() this is
+   trivial, with DUMP_IN_EXEC the relevant page is the beginning of the XEmacs
+   executable).  With some configure.ac changes and an identity #define for
+   pdump_reloc_c_func(), pdump_reloc_c_data(), pdump_reloc_lisp_object(),
+   pdump_reloc_lisp_data(), on platforms without ASLR relocation these
+   functions could be a no-op for most objects; if we added a flag in the
+   header to say there are no XD_OPAQUE_DATA_CONVERTIBLE,
+   XD_OPAQUE_PTR_CONVERTIBLE variables in the dump file, in the absence of,
+   e.g, bignums, pdump_reloc_one() could be a no-op.
+
+   There are not many non-ASLR platforms around these days; but the actual
+   work is not too extreme, it makes some sense.
 
    If the dump file is not stored in the XEmacs executable, it is loaded using
    mmap(2). The MAP_FIXED flag to mmap(2) is deprecated and unreliable with
@@ -1079,10 +1088,20 @@ pdump_register_block (const void *data,
    harder.
 
    Dumped objects that are freed by the garbage collector are not reclaimed.
-   This is acceptable, dumped data will rarely be freed (usually only when
-   strings are resized, something that doesn't happen much) and the bonus of
-   not having the heap infrastructure (the malloc() headers and so on) kept
-   around in the dumped data outweighs this occasional loss of garbage. */
+   This is not ideal; see that obarray is intentionally larger than it would
+   otherwise default to, because its old htentries will leak on resize, giving
+   more memory usage than we want. It would be of value to reuse dumped data
+   (obvious candidates are the cv_data_info, cv_ptr_info, root_block_ptrs,
+   root_blocks in the dump file); what occurs to me as a useful starting point
+   for this would be to move the relocation tables before the above values,
+   and put all the rest on the lcrecord_list for buffers, since we know
+   buffers are going to be allocated and cannot be dumped (because of
+   ralloc.c). This would have the advantage for DUMP_IN_EXEC that we could
+   round up to a larger dump size for temacs and usually reduce the current
+   three link steps to two, with the confidence that the memory would (likely)
+   be used. Further work would involve a more generalised scheme to reuse dump
+   data, including dumped Lisp_Objects; see above regarding the Common Lisp
+   specification for packages. */
 static void
 pdump_store_new_pointer_offsets (Elemcount count, void *data,
 				 const void *orig_data,
@@ -2070,6 +2089,11 @@ pdump (void)
   pdump_header header;
   int speccount = specpdl_depth ();
   struct gcpro gcpro1, gcpro2, gcpro3;
+  EMACS_UINT initial_offset = 0;
+
+#if defined(DUMP_IN_EXEC) && !defined (WIN32_NATIVE)
+  initial_offset += (EMACS_UINT) dumped_data_get ();
+#endif
 
   in_pdump = 1;
 
@@ -2242,7 +2266,7 @@ pdump (void)
   /* (1) Determine header size */
   memcpy (header.signature, PDUMP_SIGNATURE, PDUMP_SIGNATURE_LEN);
   header.id = dump_id;
-  header.reloc_address = 0;
+  header.reloc_address = initial_offset;
   header.Fcons_address = (EMACS_UINT) (&Fcons);
   header.lisp_object_description_address
     = (EMACS_UINT) (&lisp_object_description);
@@ -2251,7 +2275,8 @@ pdump (void)
   header.nb_cv_data = Dynarr_length (pdump_cv_data);
   header.nb_cv_ptr =  Dynarr_length (pdump_cv_ptr);
 
-  cur_offset = MAX_ALIGN_SIZE (sizeof (header));
+  cur_offset = initial_offset;
+  cur_offset += MAX_ALIGN_SIZE (sizeof (header));
   max_size = 0;
 
   /* (2) Traverse all heap blocks and compute their offsets; keep track
@@ -2260,7 +2285,7 @@ pdump (void)
 			   pdump_allocate_offset_cv_data,
 			   pdump_allocate_offset_cv_ptr);
   cur_offset = MAX_ALIGN_SIZE (cur_offset);
-  header.stab_offset = cur_offset;
+  header.stab_offset = cur_offset - initial_offset;
 
   /* (3) Update maximum size based on root blocks and root block pointers. */
   for (i = 0; i < Dynarr_length (pdump_root_blocks); i++)

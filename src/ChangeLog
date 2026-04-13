@@ -1,3 +1,14 @@
+2026-04-13  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* dumper.c:
+	Revise some comments here.
+	* dumper.c (pdump):
+	New local variable, initial_offset, set to non-zero if DUMP_IN_EXEC.
+	Use it for header.reloc_address, check it for header.stab_offset.
+	* elhash.c (pdump_reorganize_at_dump_time):
+	No further need to add the integer result of dumped_data_get() to
+	the pointer values encountered, now pdump() does that for us.
+
 2026-04-12  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Suppress GCC warnings when building on Cygwin as C.
