@@ -1497,20 +1497,30 @@ pdump_reloc_one (void *data, const struct memory_description *desc)
 	  {
 	    pdump_cv_ptr_load_info *p = pdump_loaded_cv_ptr + *(EMACS_INT *)rdata;
 	    if (!p->adr)
-	      p->adr = desc1->data2.funcs->deconvert(0, pdump_start +
-						     p->save_offset, p->size);
+	      p->adr = desc1->data2.funcs->deconvert(0, (void *) p->save_offset,
+						     p->size);
 	    *(void **)rdata = p->adr;
 	    break;
 	  }
 
 	case XD_OPAQUE_DATA_CONVERTIBLE:
 	  {
-	    EMACS_INT dest_offset = (Rawbyte *)rdata - pdump_start;
+	    EMACS_INT dest_offset = (EMACS_INT) rdata;
 	    pdump_cv_data_dump_info *p;
 
+	    /* #### This will have horrendous performance characteristics if we
+	       dump many bignums; the right thing to do with both this and
+	       XD_OPAQUE_PTR_CONVERTIBLE is to do the deconversion early in
+	       pdump_load_finish() at the point we examine
+	       pdump_loaded_cv_data, pdump_loaded_cv_ptr, and set the value at
+	       that point.
+
+	       #### EMACS_INT is the wrong type for dest_offset, save_offset,
+	       they both should just be void pointers. Similarly for the
+	       XD_OPAQUE_PTR_CONVERTIBLE above. */
 	    for(p = pdump_loaded_cv_data; p->dest_offset != dest_offset; p++);
 
-	    desc1->data2.funcs->deconvert(rdata, pdump_start + p->save_offset,
+	    desc1->data2.funcs->deconvert(rdata, (void *) p->save_offset,
 					  p->size);
 	    break;
 	  }
@@ -2428,6 +2438,16 @@ pdump_load_finish (void)
   /* Get the cv_data array */
   p = (Rawbyte *) ALIGN_PTR (p, pdump_cv_data_dump_info);
   pdump_loaded_cv_data = (pdump_cv_data_dump_info *)p;
+  for (i = 0; i < header->nb_cv_data; i++)
+    {
+      pdump_loaded_cv_data[i].dest_offset
+	= (EMACS_INT) pdump_reloc_lisp_data
+	((const void *) pdump_loaded_cv_data[i].dest_offset);
+      pdump_loaded_cv_data[i].save_offset
+	= (EMACS_INT) pdump_reloc_lisp_data
+	((const void *) pdump_loaded_cv_data[i].save_offset);
+    }
+
   p += header->nb_cv_data*sizeof(pdump_cv_data_dump_info);
 
   /* Build the cv_ptr array */
@@ -2437,7 +2457,9 @@ pdump_load_finish (void)
   for (i = 0; i < header->nb_cv_ptr; i++)
     {
       pdump_cv_ptr_dump_info info = PDUMP_READ (p, pdump_cv_ptr_dump_info);
-      pdump_loaded_cv_ptr[i].save_offset = info.save_offset;
+      pdump_loaded_cv_ptr[i].save_offset
+	= (EMACS_INT) pdump_reloc_lisp_data
+	((const void *) info.save_offset);
       pdump_loaded_cv_ptr[i].size        = info.size;
       pdump_loaded_cv_ptr[i].adr         = 0;
     }

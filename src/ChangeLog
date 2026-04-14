@@ -1,3 +1,17 @@
+2026-04-14  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Fix the build after the last change when building with bignum support.
+
+	* dumper.c (pdump_reloc_one):
+	Trust pdump_load_finish to have adjusted p->save_offset,
+	p->dest_offset when dealing with XD_OPAQUE_PTR_CONVERTIBLE,
+	XD_OPAQUE_DATA_CONVERTIBLE. Add a comment with two ####s.
+	* dumper.c (pdump_load_finish):
+	Call pdump_reloc_lisp_data() on the dest_offset, save_offset fields
+	of the pdump_loaded_cv_data array.
+	Call pdump_reloc_lisp_data() on the save_offset field of the
+	pdump_loaded_cv_ptr array.
+
 2026-04-13  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* dumper.c:
