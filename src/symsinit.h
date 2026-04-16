@@ -112,7 +112,6 @@ void syms_of_glyphs (void) ATTRIBUTE_COLD;
 void syms_of_glyphs_eimage (void) ATTRIBUTE_COLD;
 void syms_of_glyphs_gtk (void) ATTRIBUTE_COLD;
 void syms_of_glyphs_mswindows (void) ATTRIBUTE_COLD;
-void syms_of_glyphs_shared (void) ATTRIBUTE_COLD;
 void syms_of_glyphs_widget (void) ATTRIBUTE_COLD;
 void syms_of_glyphs_x (void) ATTRIBUTE_COLD;
 void syms_of_gpmevent (void) ATTRIBUTE_COLD;

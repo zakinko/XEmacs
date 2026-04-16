@@ -272,6 +272,8 @@ SYMBOL (Qredisplay);
 SYMBOL (Qremove_all);
 SYMBOL (Qrequire);
 SYMBOL (Qresource);
+SYMBOL_KEYWORD (Q_resource_id);
+SYMBOL_KEYWORD (Q_resource_type);
 SYMBOL (Qretry);
 SYMBOL (Qreturn);
 SYMBOL (Qreverse);

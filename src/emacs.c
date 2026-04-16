@@ -980,7 +980,6 @@ initialize_temacs (void)
   syms_of_glyphs ();
 #ifdef HAVE_WINDOW_SYSTEM
   syms_of_glyphs_eimage ();
-  syms_of_glyphs_shared ();
 #endif
   syms_of_glyphs_widget ();
   syms_of_gui ();

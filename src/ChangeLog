@@ -1,3 +1,28 @@
+2026-04-16  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Simplify glyphs-shared.c significantly.
+	* emacs.c (initialize_temacs):
+	Remove call to syms_of_glyphs_shared() here.
+	* general-slots.h:
+	Add slots for :resource-id, :resource-type here, moved from
+	syms_of_glyphs_shared().
+	* glyphs-shared.c:
+	Remove declarations for Q_resource_type, Q_resource_id, now in
+	general.c.
+	Make hexTable const, initialize it statically. Portability to
+	non-ASCII machines is no longer a concern; I have supplied Lisp
+	code to construct the static initializer, which is more
+	maintainable (easier to extend, less prone to bugs) than the C
+	code.
+	* glyphs-shared.c (initHexTable): Removed, use a static
+	initializer instead.
+	* glyphs-shared.c (shared_resource_validate):
+	No longer call initHexTable() from here.
+	* glyphs-shared.c (syms_of_glyphs_shared): Removed.
+	Add a /* glyphs-shared.c ends here */ comment.
+	* symsinit.h:
+	Remove declaration for syms_of_glyphs_shared().
+
 2026-04-14  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Fix the build after the last change when building with bignum support.
