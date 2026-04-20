@@ -82,7 +82,7 @@ static volatile int profiling_lock;
 
 /* Whether we're in the process of doing *any* profiling-related stuff.
    Used to indicate amount of time spent profiling. */
-static int in_profiling;
+static int volatile in_profiling;
 
 static void
 create_profile_tables (void)
@@ -108,7 +108,7 @@ static Lisp_Object
 current_profile_function (void)
 {
   Lisp_Object fun;
-  struct backtrace *bt = backtrace_list;
+  struct backtrace *bt = (struct backtrace *) backtrace_list;
 
   /* 2 because we set in_profiling when we entered the current routine. */
   if (in_profiling >= 2)
@@ -239,11 +239,11 @@ profile_record_just_called (struct backtrace *bt)
 /* Called when unwinding the catch stack after a throw or signal, to
    note that we are exiting the function. */
 void
-profile_record_unwind (struct backtrace *bt)
+profile_record_unwind (struct backtrace volatile *bt)
 {
   /* We may have thrown while still in a function's preamble. */
   if (bt->function_being_called)
-    profile_record_just_called (bt);
+    profile_record_just_called ((struct backtrace *) bt);
 }
 
 static SIGTYPE
@@ -304,7 +304,7 @@ will be properly accumulated. (To clear, use `clear-profiling-info'.)
 
   if (profiling_active)
     return Qnil;
-  depth = internal_bind_int (&in_profiling, 1 + in_profiling);
+  depth = internal_bind_int ((int *) (&in_profiling), 1 + in_profiling);
 
   create_profile_tables ();
 
@@ -328,7 +328,7 @@ will be properly accumulated. (To clear, use `clear-profiling-info'.)
 
   set_timeout_signal (SIGPROF, sigprof_handler);
   {
-    struct backtrace *bt = backtrace_list;
+    struct backtrace *bt = (struct backtrace *) backtrace_list;
 
     /* When we begin profiling, pretend like we just entered all the
        functions currently on the stack.  When we stop profiling, do the
@@ -365,7 +365,7 @@ Stop profiling.
   qxe_setitimer (ITIMER_PROF, &foo, 0);
   profiling_active = 0;
   {
-    struct backtrace *bt = backtrace_list;
+    struct backtrace *bt = (struct backtrace *) backtrace_list;
 
     for (; bt; bt = bt->next)
       profile_reap_backtrace (bt);
@@ -465,7 +465,7 @@ are recorded
   /* This function does not GC */
   struct get_profiling_info_closure closure;
   Lisp_Object retv;
-  int depth = internal_bind_int (&in_profiling, 1 + in_profiling);
+  int depth = internal_bind_int ((int *) (&in_profiling), 1 + in_profiling);
   Lisp_Object overhead;
 
   closure.timing =
@@ -531,7 +531,7 @@ as described there.
   /* This function does not GC */
   Fclear_profiling_info ();
 
-  depth = internal_bind_int (&in_profiling, 1 + in_profiling);
+  depth = internal_bind_int ((int *) (&in_profiling), 1 + in_profiling);
   {
     EXTERNAL_PROPERTY_LIST_LOOP_3 (key, value, info)
       {

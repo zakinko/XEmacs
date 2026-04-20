@@ -2960,7 +2960,7 @@ void
 debug_short_backtrace (EMACS_INT length)
 {
   Fixnum first = 1;
-  struct backtrace *bt = backtrace_list;
+  struct backtrace *bt = (struct backtrace *) backtrace_list;
 
   debug_out ("   [");
   while (length > 0 && bt)

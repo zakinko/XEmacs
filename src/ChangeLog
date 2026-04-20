@@ -1,3 +1,52 @@
+2026-04-20  Aidan Kehoe  <kehoea@parhasard.net>
+
+	GCC with -flto can make access to BACKTRACE_LIST incorrect when
+	current_profile_function() is called from sigprof_handler(),
+	giving a crash; mark it as a volatile pointer, avoid this. Mark
+	IN_PROFILING as volatile also, from an abundance of prudence.
+	* backtrace.h:
+	Update declaration of backtrace_list.
+	* backtrace.h (PUSH_BACKTRACE):
+	Cast it to a (struct backtrace *) when accessing it.
+	* eval.c:
+	Update definition of backtrace_list.
+	* eval.c (internal_catch):
+	Cast when accessing it.
+	* eval.c (unwind_to_catch):
+	Ditto.
+	* eval.c (condition_case_1):
+	Ditto.
+	* eval.c (Finteractive_p):
+	Ditto.
+	* eval.c (Fbacktrace_debug):
+	Ditto.
+	* eval.c (Fbacktrace):
+	Ditto.
+	* eval.c (Fbacktrace_frame):
+	Ditto.
+	* gc.c (gc_mark_root_set):
+	Ditto.
+	* print.c (debug_short_backtrace):
+	Ditto.
+	* profile.c:
+	Mark in_profiling as volatile.
+	* profile.c (current_profile_function):
+	Cast when accessing backtrace_list.
+	* profile.c (profile_record_unwind):
+	Update its declaration to take a volatile pointer, since it is
+	usually called on backtrace_list itself.
+	* profile.c (Fstart_profiling):
+	Cast &in_profiling to (int *) when binding a new value.
+	* profile.c (Fstop_profiling):
+	Cast when accessing backtrace_list.
+	* profile.c (Fget_profiling_info):
+	Ditto.
+	Cast &in_profiling to (int *) when binding a new value.
+	* profile.c (Fset_profiling_info):
+	Cast &in_profiling to (int *) when binding a new value.
+	* profile.h:
+	Update declaration of profile_record_unwind().
+
 2026-04-16  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Simplify glyphs-shared.c significantly.

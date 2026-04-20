@@ -25,7 +25,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "backtrace.h"
 
-void profile_record_unwind (struct backtrace *);
+void profile_record_unwind (struct backtrace volatile *);
 void profile_record_about_to_call (struct backtrace *);
 void profile_record_just_called (struct backtrace *);
 void profile_record_consing (EMACS_INT size);

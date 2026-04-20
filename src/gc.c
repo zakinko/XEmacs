@@ -1326,7 +1326,9 @@ gc_mark_root_set (void)
 
   {
     struct backtrace *backlist;
-    for (backlist = backtrace_list; backlist; backlist = backlist->next)
+    for (backlist = (struct backtrace *) backtrace_list;
+	 backlist;
+	 backlist = backlist->next)
       {
 	int nargs = backlist->nargs;
 	int i;

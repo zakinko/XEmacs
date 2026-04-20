@@ -148,7 +148,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 #include "profile.h"
 #include "window.h"
 
-struct backtrace *backtrace_list;
+struct backtrace volatile *backtrace_list;
 
 /* Macros for calling subrs with an argument list whose length is only
    known at runtime.  See EXFUN and DEFUN for similar hackery.  */
@@ -1680,7 +1680,7 @@ internal_catch (Lisp_Object tag,
   c.actual_tag = Qnil;
   c.backtrace = Qnil;
   c.val = Qnil;
-  c.backlist = backtrace_list;
+  c.backlist = (struct backtrace *) backtrace_list;
 #if 0 /* FSFmacs */
   /* #### */
   c.handlerlist = handlerlist;
@@ -2093,7 +2093,7 @@ condition_case_1 (Lisp_Object handlers,
   c.val = Qnil;
   c.actual_tag = Qnil;
   c.backtrace = Qnil;
-  c.backlist = backtrace_list;
+  c.backlist = (struct backtrace *) backtrace_list;
 #if 0 /* FSFmacs */
   /* #### */
   c.handlerlist = handlerlist;
@@ -3397,7 +3397,7 @@ and input is currently coming from the keyboard (not in keyboard macro).
       (if interpreted) or the frame of byte-code (if called from a compiled
       function).  Note that *btp->function may be a symbol pointing at a
       compiled function. */
-  btp = backtrace_list;
+  btp = (struct backtrace *) backtrace_list;
 
 #if 0 /* FSFmacs */
 
@@ -7069,7 +7069,8 @@ The debugger is entered when that frame exits, if the flag is non-nil.
 */
        (level, flag))
 {
-  REGISTER struct backtrace *backlist = backtrace_list;
+  REGISTER struct backtrace *backlist
+    = (struct backtrace *) backtrace_list;
   REGISTER int i;
 
   CHECK_FIXNUM (level);
@@ -7130,7 +7131,7 @@ unwind-protects, as well as function calls, were made.
        (stream, detailed))
 {
   /* This function can GC */
-  struct backtrace *backlist = backtrace_list;
+  struct backtrace *backlist = (struct backtrace *) backtrace_list;
   struct catchtag *catches = catchlist;
   int speccount = specpdl_depth();
 
@@ -7265,7 +7266,7 @@ If NFRAMES is more than the number of frames, the value is nil.
 */
        (nframes))
 {
-  REGISTER struct backtrace *backlist = backtrace_list;
+  REGISTER struct backtrace *backlist = (struct backtrace *) backtrace_list;
   REGISTER int i;
   Lisp_Object tem;
 

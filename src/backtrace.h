@@ -214,7 +214,7 @@ extern struct handler *handlerlist;
 extern struct specbinding *specpdl;
 extern struct specbinding *specpdl_ptr;
 extern struct catchtag *catchlist;
-extern struct backtrace *backtrace_list;
+extern struct backtrace volatile *backtrace_list;
 
 /* Most callers should simply use specbind() and unbind_to_1(), but if
    speed is REALLY IMPORTANT, you can use the faster macros below */
@@ -396,12 +396,12 @@ extern int specpdl_size;
    before pushing them on the backtrace_list.  The profiling code depends
    on this. */
 
-#define PUSH_BACKTRACE(bt) do {   \
-  (bt).next = backtrace_list;     \
-  PRAGMA_PUSH_DIAGNOSTICS;        \
-  PRAGMA_IGNORE_DANGLING_POINTER; \
-  backtrace_list = &(bt);         \
-  PRAGMA_POP_DIAGNOSTICS;         \
+#define PUSH_BACKTRACE(bt) do {				\
+  (bt).next = (struct backtrace *) backtrace_list;	\
+  PRAGMA_PUSH_DIAGNOSTICS;				\
+  PRAGMA_IGNORE_DANGLING_POINTER;			\
+  backtrace_list = &(bt);				\
+  PRAGMA_POP_DIAGNOSTICS;				\
 } while (0)
 
 #define POP_BACKTRACE(bt) do {		\
