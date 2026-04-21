@@ -845,7 +845,7 @@ check_compatible_window_system (const Ascbyte *must)
 #ifdef HAVE_MS_WINDOWS
     "mswindows",
 #endif
-    "no-such-window-system"
+    NULL
   };
   Elemcount ii;
   Boolint compatiblep = 0;
@@ -854,7 +854,7 @@ check_compatible_window_system (const Ascbyte *must)
     fatal ("Incompatible window system type `%s': `%s' already specified",
 	   must, display_use);
 
-  for (ii = 0; ii < countof (supported_window_systems); ii++)
+  for (ii = 0; supported_window_systems[ii] != NULL; ii++)
     {
       if (!strcmp (must, supported_window_systems[ii]))
         {
@@ -2484,14 +2484,14 @@ static const struct standard_args standard_args[] =
 static void
 sort_args (int argc, Wexttext **argv)
 {
-  Wexttext **new_argv = xnew_array (Wexttext *, argc);
+  Wexttext **new_argv = alloca_array (Wexttext *, argc);
   /* For each element of argv,
      the corresponding element of options is:
      0 for an option that takes no arguments,
      1 for an option that takes one argument, etc.
      -1 for an ordinary non-option argument.  */
-  int *options  = xnew_array (int, argc);
-  int *priority = xnew_array (int, argc);
+  int *options  = alloca_array (int, argc);
+  int *priority = alloca_array (int, argc);
   int to = 1;
   int from;
   int i;
@@ -2604,9 +2604,6 @@ sort_args (int argc, Wexttext **argv)
     }
 
   memcpy (argv, new_argv, sizeof (Wexttext *) * argc);
-  xfree (new_argv);
-  xfree (options);
-  xfree (priority);
 }
 
 DEFUN ("running-temacs-p", Frunning_temacs_p, 0, 0, 0, /*

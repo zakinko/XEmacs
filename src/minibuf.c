@@ -68,6 +68,9 @@ Lisp_Object Qappend_message, Qcurrent_message_label,
 
 Lisp_Object Qxemacs_next_iteration_in_vector;
 
+static Lisp_Object QSMinibuf_0; /* A string " *Minibuf-0*" */
+static Lisp_Object QSEcho_Area; /* " *Echo Area*" */
+
 
 DEFUN ("minibuffer-depth", Fminibuffer_depth, 0, 0, 0, /*
 Return current depth of activations of minibuffer, a nonnegative integer.
@@ -1131,21 +1134,20 @@ Each completion has to match all regexps in this list.
 
   Vecho_area_buffer = Qnil;
   staticpro_dump_nil (&Vecho_area_buffer);
+
+  QSMinibuf_0 = build_ascstring (" *Minibuf-0*");
+  staticpro (&QSMinibuf_0);
+
+  QSEcho_Area = build_ascstring (" *Echo Area*");
+  staticpro (&QSEcho_Area);
 }
 
 void
 init_minibuf (void)
 {
   /* This function can GC */
-#ifdef I18N3
-  /* #### This needs to be fixed up so that the gettext() gets called
-     at runtime instead of at load time. */
-#endif
-  Vminibuffer_zero
-    = Fget_buffer_create (build_ascstring (" *Minibuf-0*"));
-
-  Vecho_area_buffer
-    = Fget_buffer_create (build_ascstring (" *Echo Area*"));
+  Vminibuffer_zero = Fget_buffer_create (QSMinibuf_0);
+  Vecho_area_buffer = Fget_buffer_create (QSEcho_Area);
 }
 
 /* minibuf.c ends here. */

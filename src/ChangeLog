@@ -1,3 +1,24 @@
+2026-04-21  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Avoid noise when putting a breakpoint on xmalloc() at startup.
+
+	* emacs.c (check_compatible_window_system):
+	In passing, terminate the supported_window_systems array with NULL
+	and check against this when processing it.
+	* emacs.c (sort_args):
+	Allocate new_argv, options, priority using alloca_array() since we
+	know from the pdump code that doing this early is fine.
+	* minibuf.c:
+	New static variables, reflecting the Lisp strings " *Minibuf-0*"
+	and " *Echo Area*".
+	* minibuf.c (vars_of_minibuf):
+	Initialize them.
+	* minibuf.c (init_minibuf):
+	Use them, on the model of init_buffer_1().
+	Remove a comment regarding fixing up the call "so that gettext()
+	gets called at runtime instead of load time"; these are internal
+	hidden buffers, inappropiate to localise them at all.
+
 2026-04-20  Aidan Kehoe  <kehoea@parhasard.net>
 
 	GCC with -flto can make access to BACKTRACE_LIST incorrect when
