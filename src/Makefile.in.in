@@ -518,7 +518,7 @@ $(RAW_EXE): $(link_deps) $(DUMP_ID) dump-data.c
 			seek=$$(expr $$(cat dump-size) - 1);  \
 		rm dump-size;	\
 	else \
-		echo "Dump size not known, initial size " $$(wc -c < @DUMP_FILE_NAME); \
+		echo "Dump size not known, initial size " $$(wc -c < @DUMP_FILE_NAME@); \
 	fi; \
 	echo `wc -c < @DUMP_FILE_NAME@` > temacs-dump-size; \
 	echo $(CC) -c $(cflags) $(SRC)/dump-data.c ; \

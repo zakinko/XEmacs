@@ -1,3 +1,15 @@
+2026-04-22  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Fix a couple of infelicities Makefile.in.in, elhash.c.
+	* Makefile.in.in ($(RAW_EXE)):
+	Quote DUMP_FILE_NAME correctly when echoing the initial size.
+	* elhash.c:
+	* elhash.c (pdump_reorganize_at_dump_time):
+	No need to do an wrap_pointer_1 (XPNTRVAL(...)) with the new
+	htentry keys, can just use them as-is.
+	In passing mention that disksave_hash_table() makes many hash
+	tables smaller, so increased memory usage is not guaranteed.
+
 2026-04-21  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Avoid noise when putting a breakpoint on xmalloc() at startup.

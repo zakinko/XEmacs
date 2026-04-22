@@ -1486,18 +1486,14 @@ pdump_reorganize_at_dump_time (const htentry *old_htentries,
 	  const Hash_Table_Test *http;
 	  htentry *probe;
 
-	  if (FIXNUMP (ee->key) || CHARP (ee->key)
-	      || (eqlp && NUMBERP (ee->key)))
+	  if (eqlp && NON_FIXNUM_NUMBER_P (ee->key))
 	    {
 	      new_key = ee->key;
 	      http = XHASH_TABLE_TEST (Vequal_hash_table_test);
 	    }
 	  else
 	    {
-	      new_key = 
-		wrap_pointer_1 ((Rawbyte *) (XPNTRVAL (new_htentries
-                                                       [ee -
-                                                        old_htentries].key)));
+	      new_key = new_htentries[ee - old_htentries].key;
 	      http = XHASH_TABLE_TEST (Veq_hash_table_test);
 	    }
 
@@ -1526,9 +1522,14 @@ pdump_reorganize_at_dump_time (const htentry *old_htentries,
    its golden ratio to be one, resize the table to be a power of two, and, deep
    in the bowels of the dumper, reorganize it at dump time using (effectively)
    the post pdump_load() addresses. This is only workable for those hash tables
-   with a size (the number of slots) less than the (byte count) page size.  The
-   good spread of data from the golden ratio is lost but this is mitigated by
-   the individual hash tables being larger. */
+   with a size (the number of slots) less than the (byte count) page size.
+
+   The good spread of data from the golden ratio is lost but this is mitigated
+   by the individual hash tables often being larger. However, if their counts
+   are very small disksave_hash_table() actually makes them smaller, since the
+   smallest hash table size returned by hash_table_size() is 29 elements and
+   disksave_hash_table() can make hash tables of size 4. This is helpful for
+   hash tables within keymaps that will never be resized. */
 void
 pdump_reorganize_hash_tables (void)
 {
