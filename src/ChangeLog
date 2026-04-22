@@ -1,5 +1,16 @@
 2026-04-22  Aidan Kehoe  <kehoea@parhasard.net>
 
+	* elhash.c (disksave_hash_table):
+	Resize very small hash tables that do not need to be reorganized
+	to be of size 3, disksave_hash_table(), giving less memory usage
+	both for tables that will not be resized and tables that will, and
+	faster lookups in my testing.
+	* elhash.c: (pdump_reorganize_hash_tables):
+	Mention this in the documentation for
+	pdump_reorganize_hash_tables().
+
+2026-04-22  Aidan Kehoe  <kehoea@parhasard.net>
+
 	Fix a couple of infelicities Makefile.in.in, elhash.c.
 	* Makefile.in.in ($(RAW_EXE)):
 	Quote DUMP_FILE_NAME correctly when echoing the initial size.

@@ -1399,6 +1399,19 @@ disksave_hash_table (Lisp_Object hash_table)
 	   (XHASH_TABLE_TEST (ht->test)->lisp_reorganize_needed_p,
 	    hash_table)))
     {
+      if (ht->count < 2)
+	{
+	  /* Either this hash table is empty and going to remain empty, it is
+	     one-element and going to remain one-element (this is both common
+	     for fields of many of the keymaps), or it is going to be filled
+	     fairly quickly and the dump time htentries will be leaked at that
+	     point. Reduce memory usage for the non-modified hash tables and
+	     reduce memory leaks for the modified hash tables by making these
+	     tables small.
+
+	     Lookup performance remains good with this. */
+	  resize_hash_table (ht, 3);
+	}
       Fputhash (hash_table, make_fixnum (ht->size),
 		Vpdump_hash_table_reorganize_keys);
       return;
@@ -1529,7 +1542,11 @@ pdump_reorganize_at_dump_time (const htentry *old_htentries,
    are very small disksave_hash_table() actually makes them smaller, since the
    smallest hash table size returned by hash_table_size() is 29 elements and
    disksave_hash_table() can make hash tables of size 4. This is helpful for
-   hash tables within keymaps that will never be resized. */
+   hash tables within keymaps that will never be resized.
+
+   disksave_hash_table() also makes tables for which dump-time reorganization
+   is unnecessary smaller, since that uses less memory and gives faster lookups
+   in my testing. */
 void
 pdump_reorganize_hash_tables (void)
 {
