@@ -1,3 +1,14 @@
+2026-04-23  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Revert 8943a7bad974 for now, restore support for old-eq and the
+	version 19 bytecodes, pending wide diffusion packages built with a
+	a recent change to 21.4 ( 0c8c47c51ac6 ) that fixed a bug in the
+	byte compiler to not generate version 19 bytecodes.
+	* bytecomp.el:
+	* bytecomp.el (61):
+	* bytecomp.el (154):
+	* test-harness.el (test-harness-from-buffer):
+
 2026-04-12  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* msw-init.el (make-device-early-mswindows-entry-point):

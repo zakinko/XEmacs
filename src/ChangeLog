@@ -1,3 +1,33 @@
+2026-04-23  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Revert 8943a7bad974 for now, restore support for old-eq and the
+	version 19 bytecodes, pending wide diffusion packages built with a
+	a recent change to 21.4 ( 0c8c47c51ac6 ) that fixed a bug in the
+	byte compiler to not generate version 19 bytecodes.
+	* bytecode-ops.h:
+	* bytecode-ops.h (OPCODE):
+	* bytecode.c (UNUSED):
+	* bytecode.h (struct Lisp_Compiled_Function):
+	* config.h.in:
+	* config.h.in (SUPPORT_CONFOUNDING_FUNCTIONS):
+	* data.c:
+	* data.c (decode_weak_list_type):
+	* fns.c:
+	* fns.c (plists_differ):
+	* fns.c (internal_old_equal):
+	* fns.c (Fold_assoc):
+	* fns.c (Fold_assq):
+	* fns.c (Fold_rassq):
+	* fns.c (Fold_rassoc):
+	* fns.c (Special kludge): New.
+	* fns.c (syms_of_fns):
+	* lisp.h:
+	* lread.c:
+	* lread.c (ebolify_bytecode_constants):
+	* lread.c (load_force_doc_string_unwind):
+	* lread.c (Fload_internal):
+	* lread.c (read_compiled_function):
+
 2026-04-22  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* elhash.c (disksave_hash_table):
