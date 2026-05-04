@@ -65,7 +65,7 @@ Lisp_Object Qinteger_or_char_p, Qinteger_char_or_marker_p;
 Lisp_Object Qnumberp, Qnumber_char_or_marker_p;
 Lisp_Object Qbit_vectorp, Qbitp, Qcdr;
 
-Lisp_Object Qerror_lacks_explanatory_string;
+Lisp_Object Qephemeronp, Qerror_lacks_explanatory_string;
 Lisp_Object Qfloatp;
 Lisp_Object Q_junk_allowed,  Q_radix, Q_radix_table;
 
@@ -3548,11 +3548,12 @@ future calls to `ephemeron-ref' will return NIL.
 }
 
 DEFUN ("ephemeron-ref",  Fephemeron_ref, 1, 1, 0, /*
-Return the contents of ephemeron EPHEMERON.
+Return the contents of EPHEMERON.
 If the contents have been GCed, return NIL.
 */
        (ephemeron))
 {
+  CHECK_EPHEMERON (ephemeron);
   return XEPHEMERON_REF (ephemeron);
 }
 
@@ -3715,6 +3716,7 @@ syms_of_data (void)
   DEFSYMBOL (Qcdr);
   DEFSYMBOL (Qerror_lacks_explanatory_string);
   DEFSYMBOL_MULTIWORD_PREDICATE (Qweak_listp);
+  DEFSYMBOL (Qephemeronp);
   DEFSYMBOL (Qfloatp);
   DEFSYMBOL (Qwrong_subtype_argument);
 

@@ -1,3 +1,9 @@
+2026-05-04  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* automated/weak-tests.el:
+	Check that #'ephemeron-ref correctly errors if the supplied
+	argument is not an ephemeron.
+
 2026-04-06  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* automated/regexp-tests.el:

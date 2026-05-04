@@ -217,7 +217,7 @@
 (garbage-collect)
 
 ;; test the intended functionality of the fixpoint iteration used for marking
-;; weak data structures like the ephermerons. Basically this tests gc_internals
+;; weak data structures like the ephemerons. Basically this tests gc_internals
 ;; to work properly but it also ensures the ephemerons behave according to the
 ;; specification
 
@@ -238,3 +238,8 @@
 )
 
 (garbage-collect)
+
+;; #'ephemeron-ref did not type-check its argument for a long time.
+(Check-Error wrong-type-argument (ephemeron-ref pi))
+
+;; end of weak-tests.el

@@ -1,3 +1,13 @@
+2026-05-04  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* data.c:
+	Declare Qephemeronp here.
+	* data.c (Fephemeron_ref):
+	Check the type of the supplied EPHEMERON argument, avoid crashes
+	with error checking.
+	* data.c (syms_of_data):
+	Do a DEFYSMBOL() for Qephemeronp.
+
 2026-04-23  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Revert 8943a7bad974 for now, restore support for old-eq and the
