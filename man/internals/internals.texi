@@ -491,7 +491,6 @@ Garbage Collection - Step by Step
 * sweep_lcrecords_1::           
 * compact_string_chars::        
 * sweep_strings::               
-* sweep_bit_vectors_1::         
 
 Evaluation; Stack Frames; Bindings
 
@@ -1177,8 +1176,8 @@ Authorship of some of the internal modules:
 @item alloc.c
 Inherited 1991 from a prototype of GNU Emacs 19.  Around mid-1993
 Richard Mlynarik redid much of the code, creating the existing system of
-object abstractions, (where each object can define its own marking
-method, printing method, and so on) and the existing scheme of Lrecords
+object abstractions, (where each object can define its own
+printing method, hash method, and so on) and the existing scheme of Lrecords
 and LC records.  This was done both to increase the number of bits that
 a pointer can occupy from 26 to 28, and provide a general framework for
 creating new object types easily.  The garbage collection and
@@ -2820,7 +2819,7 @@ error.
 
 This manual previously used the term ``module'' to refer to internal modules;
 currently this term is reserved for dynamically loaded modules written in C,
-@pxref{(emodules)Introduction}.
+@pxref{(emodules.info)Introduction}.
 
 @menu
 * A Summary of the Various XEmacs Internal Modules::  
@@ -4148,15 +4147,6 @@ block of memory.  An object is created that is big enough to hold the
 memory, which is copied into the object's storage.  The object will then
 stick around as long as you keep pointers to it, after which it will be
 automatically reclaimed.
-
-@cindex mark method
-Opaque objects can also have an arbitrary @dfn{mark method} associated
-with them, in case the block of memory contains other Lisp objects that
-need to be marked for garbage-collection purposes. (If you need other
-object methods, such as a finalize method, you should just go ahead and
-create a new Lisp object type---it's not hard.)
-
-
 
 @example
 @file{abbrev.c}
@@ -8596,13 +8586,6 @@ Mlynarik), with the exception of the character type, have been in this
 category.
 @end itemize
 
-  Note that bit vectors are a bit of a special case.  They are
-simple lrecords as in category (b), but are individually @code{malloc()}ed
-like vectors.  You can basically view them as exactly like vectors
-except that their type is stored in lrecord fashion rather than
-in directly-tagged fashion.
-
-
 @node Garbage Collection, GCPROing, Introduction to Allocation, Allocation of Objects in XEmacs Lisp
 @section Garbage Collection
 @cindex garbage collection
@@ -8617,9 +8600,8 @@ accessible from those slots, marking each one that is found.
 We then go through all of memory and free each object that is
 not marked, and unmarking each object that is marked.  Note
 that ``all of memory'' means all currently allocated objects.
-Traversing all these objects means traversing all frob blocks,
-all vectors (which are chained in one big list), and all
-lcrecords (which are likewise chained).
+Traversing all these objects means traversing all frob blocks and all
+lcrecords (which are chained in one big list).
 
   Garbage collection can be invoked explicitly by calling
 @code{garbage-collect} but is also called automatically by @code{eval},
@@ -8835,7 +8817,6 @@ this already-rarely-elicited bug further.
 * sweep_lcrecords_1::           
 * compact_string_chars::        
 * sweep_strings::               
-* sweep_bit_vectors_1::         
 @end menu
 
 @node Invocation, garbage_collect_1, Garbage Collection - Step by Step, Garbage Collection - Step by Step
@@ -9092,12 +9073,8 @@ already marked, and need not be marked for the second time (checked by
 
 Now, the actual marking is feasible. We do so by once using the macro
 @code{MARK_RECORD_HEADER} to mark the object itself (actually the
-special flag in the lrecord header), and calling its special marker
-``method'' @code{marker} if available. The marker method marks every
-other object that is in reach from our current object. Note, that these
-marker methods should not call @code{mark_object} recursively, but
-instead should return the next object from where further marking has to
-be performed.
+special flag in the lrecord header). We then examine its fields using
+the object's memory description, @xref{Data descriptions}. 
 
 In case another object was returned, as mentioned before, we reiterate
 the whole @code{mark_object} process beginning with this next object.
@@ -9142,8 +9119,7 @@ compression of holes is made, i.e. all strings are relocated together.
 @code{sweep_strings} is described below.
 
 After that, the other types are swept step by step using functions
-@code{sweep_conses}, @code{sweep_bit_vectors_1},
-@code{sweep_compiled_functions}, @code{sweep_floats},
+@code{sweep_conses}, @code{sweep_compiled_functions}, @code{sweep_floats},
 @code{sweep_symbols}, @code{sweep_extents}, @code{sweep_markers} and
 @code{sweep_extents}.  They are the fixed-size types cons, floats,
 compiled-functions, symbol, marker, extent, and event stored in
@@ -9152,10 +9128,6 @@ every type objects, using the same macros, especially defined only to
 handle everything with respect to fixed-size blocks. The only fixed-size
 type that is not handled here are the fixed-size portion of strings,
 because we took special care of them earlier.
-
-The only big exceptions are bit vectors stored differently and
-therefore treated differently by the function @code{sweep_bit_vectors_1}
-described later.
 
 At first, we need some brief information about how
 these fixed-size types are managed in general, in order to understand
@@ -9208,7 +9180,7 @@ The first loop calls for each object its @code{finalizer} method, but only
 in the case that it is not read only
 (@code{C_READONLY_RECORD_HEADER_P)}, it is not already marked
 (@code{MARKED_RECORD_HEADER_P}), it is not already in a free list (list of
-freed objects, field @code{free}) and finally it owns a finalizer
+freed objects, field @code{free}) and finally it has a finalizer
 method.
 
 The second loop actually frees the appropriate objects again by iterating
@@ -9263,7 +9235,7 @@ is reset on the last block to which we moved a string,
 i.e. @code{to_block}, and all remaining blocks (we know that they just
 carry garbage) are explicitly @code{xfree}d.
 
-@node sweep_strings, sweep_bit_vectors_1, compact_string_chars, Garbage Collection - Step by Step
+@node sweep_strings, , compact_string_chars, Garbage Collection - Step by Step
 @subsection @code{sweep_strings}
 @cindex @code{sweep_strings}
 
@@ -9283,20 +9255,6 @@ addition: in case, the string was not allocated in a
 @code{string_chars_block} because it exceeded the maximal length, and
 therefore it was @code{malloc}ed separately, we know also @code{xfree}
 it explicitly.
-
-@node sweep_bit_vectors_1,  , sweep_strings, Garbage Collection - Step by Step
-@subsection @code{sweep_bit_vectors_1}
-@cindex @code{sweep_bit_vectors_1}
-
-Bit vectors are also one of the rare types that are @code{malloc}ed
-individually. Consequently, while sweeping, all further needless
-bit vectors must be freed by hand. This is done, as one might imagine,
-the expected way: since they are all registered in a list called
-@code{all_bit_vectors}, all elements of that list are traversed,
-all unmarked bit vectors are unlinked by calling @code{xfree} and all of
-them become unmarked.
-In addition, the bookkeeping information used for garbage
-collector's output purposes is updated.
 
 @node Fixnums and Characters, Allocation from Frob Blocks, Garbage Collection - Step by Step, Allocation of Objects in XEmacs Lisp
 @section Fixnums and Characters
@@ -9346,15 +9304,20 @@ is more defensive but less efficient and is used for error-checking.)
   [see @file{lrecord.h}]
 
 All lrecords have at the beginning of their structure a @code{struct
-lrecord_header}.  This just contains a type number and some flags,
-including the mark bit.  All builtin type numbers are defined as
-constants in @code{enum lrecord_type}, to allow the compiler to generate
-more efficient code for @code{@var{type}P}.  The type number, thru the
+lrecord_header}.  This just contains a type number and some flags, including
+the mark bit.  All builtin type numbers are defined as constants in @code{enum
+lrecord_type}, to allow the compiler to generate more efficient code for
+@code{@var{type}P}.  The type number, through the
 @code{lrecord_implementation_table}, gives access to a @code{struct
-lrecord_implementation}, which is a structure containing method pointers
-and such.  There is one of these for each type, and it is a global,
-constant, statically-declared structure that is declared in the
-@code{DEFINE_*_LISP_OBJECT()} macro.
+lrecord_implementation}, which is a structure containing method pointers and
+such.  There is only one of these for each type, and it is allocated and
+initialized by means of various @code{DEFINE_*_LISP_OBJECT()} macros.
+@code{DEFINE_ happens at dump time (and, accordingly, the
+lrecord_implementation structure is part of the dumped data), or at the point
+a dynamically loaded module is loaded.  In the latter case the
+lrecord_implementation structure is allocated on the heap.  The modules
+implementation previously allocated the structure in the data segment of the
+module; this functioned poorly when a module was unloaded.
 
 Frob-block lrecords just have a @code{struct lrecord_header} at their
 beginning.  lcrecords, however, actually have a
@@ -9656,13 +9619,13 @@ before.
 @section Vector
 @cindex vector
 
-  As mentioned above, each vector is @code{malloc()}ed individually, and
-all are threaded through the variable @code{all_vectors}.  Vectors are
-marked strangely during garbage collection, by kludging the size field.
-Note that the @code{struct Lisp_Vector} is declared with its
-@code{contents} field being a @emph{stretchy} array of one element.  It
-is actually @code{malloc()}ed with the right size, however, and access
-to any element through the @code{contents} array works fine.
+  As mentioned above, each vector is @code{malloc()}ed individually. This is
+ultimately by means of @code{ALLOC_SIZED_LISP_OBJECT()}, so a vector is just a
+normal @code{lcrecord}, @pxref{lrecords} and is reachable for GC by means of
+@code{all_lcrecords}. Note that the @code{struct Lisp_Vector} is declared with
+its @code{contents} field being a @emph{stretchy} array of one element.  It is
+actually allocated with the right size, however, and access to any element
+through the @code{contents} array works fine.
 
 @node Bit Vector, Symbol, Vector, Allocation of Objects in XEmacs Lisp
 @section Bit Vector
@@ -9670,11 +9633,7 @@ to any element through the @code{contents} array works fine.
 @cindex vector, bit
 
   Bit vectors work exactly like vectors, except for more complicated
-code to access an individual bit, and except for the fact that bit
-vectors are lrecords while vectors are not. (The only difference here is
-that there's an lrecord implementation pointer at the beginning and the
-tag field in bit vector Lisp words is ``lrecord'' rather than
-``vector''.)
+code to access an individual bit.
 
 @node Symbol, Marker, Bit Vector, Allocation of Objects in XEmacs Lisp
 @section Symbol
@@ -9683,7 +9642,7 @@ tag field in bit vector Lisp words is ``lrecord'' rather than
   Symbols are also allocated in frob blocks.
 
 Remember that @code{intern} looks up a symbol in an obarray, creating
-one if necessary.
+a new symbol if necessary.
 
 @node Marker, String, Symbol, Allocation of Objects in XEmacs Lisp
 @section Marker

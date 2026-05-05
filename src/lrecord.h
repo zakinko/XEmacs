@@ -176,25 +176,13 @@ struct lrecord_header
   /* 1 if the object is readonly from lisp */
   unsigned int lisp_readonly :1;
 
-  /* The `free' field is currently used only for lcrecords under old-GC.
-     It is a flag that indicates whether this lcrecord is on a "free list".
-     Free lists are used to minimize the number of calls to malloc() when
-     we're repeatedly allocating and freeing a number of the same sort of
-     lcrecord.  Lcrecords on a free list always get marked in a different
-     fashion, so we can use this flag as a sanity check to make sure that
-     free lists only have freed lcrecords and there are no freed lcrecords
-     elsewhere. */
-  unsigned int free :1;
-
   /* The `uid' field is just for debugging/printing convenience.  Having
      this slot doesn't hurt us spacewise, since the bits are unused
      anyway. (The bits are used for strings, though.) */
-  unsigned int uid :20;
-
+  unsigned int uid :21;
 };
 
 struct lrecord_implementation;
-int lrecord_type_index (const struct lrecord_implementation *implementation);
 extern int lrecord_uid_counter[];
 
 #define set_lheader_implementation(header,imp) do {			\
@@ -203,7 +191,6 @@ extern int lrecord_uid_counter[];
   SLI_header->mark = 0;							\
   SLI_header->c_readonly = 0;						\
   SLI_header->lisp_readonly = 0;					\
-  SLI_header->free = 0;							\
   SLI_header->uid = lrecord_uid_counter[(imp)->lrecord_type_index]++;   \
 } while (0)
 
@@ -398,18 +385,11 @@ struct lrecord_implementation
   Lisp_Object (*setplist) (Lisp_Object obj, Lisp_Object newplist);
 
   /* `disksave' is called at dump time.  It is used for objects that
-     contain pointers or handles to objects created in external libraries,
-     such as window-system windows or file handles.  Such external objects
-     cannot be dumped, so it is necessary to release them at dump time and
-     arrange somehow or other for them to be resurrected if necessary later
-     on.
-
-     It seems that even non-dumpable objects may be around at dump time,
-     and a disksave may be provided. (In fact, the only object currently
-     with a disksave, lstream, is non-dumpable.)
-     
-     Objects rarely need to provide this method; most of the time it will
-     be NULL. */
+     need special handling given the relocation implicit in dumping;
+     disksave_hash_table() is the most relevant example.  There normally is no
+     need for this; any object with an associated window system window or file
+     handle should no longer be around (beziehungsweise it should not be
+     reachable) at dump. */
   void (*disksave) (Lisp_Object);
 
   /* Return memory-usage information about the object in question, stored
@@ -454,9 +434,9 @@ struct lrecord_implementation
      not be clear what to count in "ancillary objects", and the value may
      be too high if the same object occurs multiple times in the table.
 
-     Not used if MEMORY_USAGE_STATS is not defined, but kept in structure
-     structure so modules don't choke if they are built with an XEmacs that
-     differs from the current XEmacs in that respect. */
+     Not used if MEMORY_USAGE_STATS is not defined, but kept in struct
+     lrecord_implementation so modules don't choke if they are built with an
+     XEmacs that differs from the current XEmacs in that respect. */
   Lisp_Object memusage_stats_list;
 
   /* --------------------------------------------------------------------- */
@@ -501,7 +481,7 @@ struct lrecord_implementation
      is (usually) allocated in frob blocks. */
   unsigned int frob_block_p :1;
 
-  /* information for the dumper: is the object dumpable and should it 
+  /* Information for the dumper: is the object dumpable and should it 
      be dumped. */
   unsigned int dumpable :1;
 };

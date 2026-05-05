@@ -3308,7 +3308,6 @@ alloc_managed_lcrecord_1 (Lisp_Object lcrecord_list,
       /* There should be no other pointers to the free list. */
       assert (! MARKED_RECORD_HEADER_P (lheader));
       /* Only free lcrecords should be here. */
-      assert (lheader->free);
       assert (lheader->type == lrecord_type_free);
       /* Only lcrecords should be here. */
       assert (! (implementation->frob_block_p));
@@ -3318,7 +3317,6 @@ alloc_managed_lcrecord_1 (Lisp_Object lcrecord_list,
 #endif /* ERROR_CHECK_GC */
 
       list->free = free_header->chain;
-      lheader->free = 0;
       /* Put back the correct type, as we set it to lrecord_type_free. */
       lheader->type = implementation->lrecord_type_index;
       zero_sized_lisp_object (val, list->size);
@@ -3412,22 +3410,19 @@ free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object lcrecord)
      putting a window configuration on the wrong free list. */
   gc_checking_assert (lisp_object_size (lcrecord) == list->size);
   /* Make sure the object isn't already freed. */
-  gc_checking_assert (!lheader->free);
+  gc_checking_assert (!LRECORD_FREE_P (lheader));
   /* Freeing stuff in dumped memory is bad.  If you trip this, you
      may need to check for this before freeing. */
   gc_checking_assert (!OBJECT_DUMPED_P (lcrecord));
   
   if (implementation->finalizer)
     implementation->finalizer (lcrecord);
-  /* Yes, there are two ways to indicate freeness -- the type is
-     lrecord_type_free or the ->free flag is set.  We used to do only the
-     latter; now we do the former as well for KKCC purposes.  Probably
-     safer in any case, as we will lose quicker this way than keeping
-     around an lrecord of apparently correct type but bogus junk in it. */
+
+  /* Change the lrecord's type to lrecord_type_free; this the one and only way
+     we mark it as free. */
   MARK_LRECORD_AS_FREE (lheader);
   CLEAR_C_READONLY_RECORD_HEADER (lheader);
   free_header->chain = list->free;
-  lheader->free = 1;
   list->free = lcrecord;
 }
 
@@ -3892,7 +3887,7 @@ tick_lrecord_stats (const struct lrecord_header *h,
 inline static void
 tick_lcrecord_stats (const struct lrecord_header *h, int free_p)
 {
-  if (h->free)
+  if (LRECORD_FREE_P (h))
     {
       gc_checking_assert (!free_p);
       tick_lrecord_stats (h, ALLOC_ON_FREE_LIST);
@@ -4664,7 +4659,7 @@ sweep_lcrecords_1 (struct old_lcrecord_header **prev, int *used)
 
       GC_CHECK_LHEADER_INVARIANTS (h);
 
-      if (! MARKED_RECORD_HEADER_P (h) && !h->free)
+      if (! MARKED_RECORD_HEADER_P (h) && !LRECORD_FREE_P (h))
 	{
 	  if (LHEADER_IMPLEMENTATION (h)->finalizer)
 	    LHEADER_IMPLEMENTATION (h)->finalizer (wrap_pointer_1 (h));
@@ -5332,7 +5327,7 @@ disksave_object_finalization_1 (void)
 	  debug_print (wrap_pointer_1 (header));
 	}
 #endif
-      if (imp->disksave && !objh->free)
+      if (imp->disksave && !LRECORD_FREE_P (header))
 	(imp->disksave) (wrap_pointer_1 (header));
     }
 #ifdef ERROR_CHECK_TYPES

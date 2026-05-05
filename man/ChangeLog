@@ -1,3 +1,35 @@
+2026-05-04  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* internals/internals.texi (Top):
+	Remove reference to the node documenting sweep_bit_vectors_1(),
+	which function is long gone.
+	* internals/internals.texi (Authorship of XEmacs):
+	No longer mention mark methods in this, gone with KKCC.
+	* internals/internals.texi (Internal Modules for Other Aspects of
+	the Lisp Interpreter and Object System):
+	Opaque objects can no longer have a mark method, remove mention of
+	this.
+	* internals/internals.texi (Introduction to Allocation):
+	Bit vectors are no longer a special case, remove mention of this.
+	* internals/internals.texi (Garbage Collection):
+	Vectors are just lcrecords, no need to mention them specially.
+	* internals/internals.texi (Garbage Collection - Step by Step):
+	* internals/internals.texi (mark_object):
+	Remove documentation of the mark method.
+	* internals/internals.texi (gc_sweep):
+	Remove mention of sweep_bit_vectors_1().
+	* internals/internals.texi (sweep_lcrecords_1):
+	Correct some syntax here.
+	* internals/internals.texi (sweep_strings):
+	Remove reference to sweep_bit_vectors_1() here, long gone.
+	* internals/internals.texi (sweep_bit_vectors_1): Removed, bit
+	vectors are just lcrecords, they are not handled specially.
+	* internals/internals.texi (Vector):
+	Vectors are not marked strangely during garbage collection.
+	* internals/internals.texi (Bit Vector):
+	* internals/internals.texi (Symbol):
+	* internals/internals.texi (Marker):
+
 2026-04-05  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* lispref/searching.texi (Syntax of Regexps):

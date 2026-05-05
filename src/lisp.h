@@ -2641,9 +2641,7 @@ struct Lisp_String
       struct
 	{
 	  /* WARNING: Everything before modiffp must agree exactly with
-	     struct lrecord_header. (Actually, the `free' field in old-GC
-	     overlaps with modiffp there; we can get away with this
-	     because in old-GC the `free' field is used only for lcrecords. */
+	     struct lrecord_header. */
 	  unsigned int type :8;
 	  unsigned int mark :1;
 	  unsigned int c_readonly :1;

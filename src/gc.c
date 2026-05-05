@@ -405,10 +405,8 @@ lispdesc_block_size_1 (const void *obj, Bytecount size,
   }
 }
 
-#define GC_CHECK_NOT_FREE(lheader)					\
-      gc_checking_assert (! LRECORD_FREE_P (lheader));			\
-      gc_checking_assert (LHEADER_IMPLEMENTATION (lheader)->frob_block_p || \
-			  ! (lheader)->free)
+#define GC_CHECK_NOT_FREE(lheader)			\
+  gc_checking_assert (!LRECORD_FREE_P (lheader))
 
 /* The following functions implement the new mark algorithm. 
    They mark objects according to their descriptions.  They 

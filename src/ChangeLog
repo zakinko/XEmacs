@@ -8,6 +8,42 @@
 	* data.c (syms_of_data):
 	Do a DEFYSMBOL() for Qephemeronp.
 
+2026-05-04  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Remove the redundant FREE bit from lrecord_header, just check 
+	TYPE against lrecord_type_free instead.
+	* alloc.c (alloc_managed_lcrecord_1):
+	Remove assertion that LHEADER->FREE is non-zero. Retain check that
+	LHEADER->TYPE is equal to lrecord_type_free.
+	No longer set LHEADER->FREE to zero when taking an object off the
+	free list.
+	* alloc.c (free_managed_lcrecord):
+	Assert that LHEADER is not already free using !LRECORD_FREE_P
+	(lcrecord).
+	Update a comment here. No longer set LHEADER->FREE.
+	* alloc.c (tick_lcrecord_stats):
+	Check for freeness using LRECORD_FREE_P()
+	* alloc.c (sweep_lcrecords_1):
+	Ditto.
+	* alloc.c (disksave_object_finalization_1):
+	Ditto.
+	* gc.c (GC_CHECK_NOT_FREE):
+	Ditto.
+	* lisp.h (struct Lisp_String):
+	Update a comment here.
+	* lrecord.h:
+	Remove declaration for lrecord_type_index() from this file, which
+	function does not exist.
+	* lrecord.h (struct lrecord_header):
+	Remove the FREE bit from this structure. Remove the comment
+	documenting it. Update the bit width of the UID.
+	* lrecord.h (struct lrecord_implementation):
+	Correct the documentation of the disksave method. Edit
+	documentation of memusage_stats_list.
+	* lrecord.h (set_lheader_implementation):
+	No longer zero the FREE bit in the header when initializing an
+	object.
+
 2026-04-23  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Revert 8943a7bad974 for now, restore support for old-eq and the
