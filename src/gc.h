@@ -106,7 +106,7 @@ void kkcc_detailed_backtrace_full (void);
 
 /* Needed prototypes due to the garbage collector code move from
    alloc.c to gc.c. */
-void gc_sweep_1 (void);
+void gc_sweep (void);
 
 extern void *breathing_space;
 

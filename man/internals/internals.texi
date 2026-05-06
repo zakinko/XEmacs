@@ -485,10 +485,10 @@ Allocation of Objects in XEmacs Lisp
 Garbage Collection - Step by Step
 
 * Invocation::                  
-* garbage_collect_1::           
+* garbage_collect::
 * mark_object::                 
 * gc_sweep::                    
-* sweep_lcrecords_1::           
+* sweep_lcrecords::
 * compact_string_chars::        
 * sweep_strings::               
 
@@ -8811,15 +8811,15 @@ this already-rarely-elicited bug further.
 
 @menu
 * Invocation::                  
-* garbage_collect_1::           
+* garbage_collect::
 * mark_object::                 
 * gc_sweep::                    
-* sweep_lcrecords_1::           
+* sweep_lcrecords::
 * compact_string_chars::        
 * sweep_strings::               
 @end menu
 
-@node Invocation, garbage_collect_1, Garbage Collection - Step by Step, Garbage Collection - Step by Step
+@node Invocation, garbage_collect, Garbage Collection - Step by Step, Garbage Collection - Step by Step
 @subsection Invocation
 @cindex garbage collection, invocation
 
@@ -8830,7 +8830,7 @@ created, but this is @emph{not} the case. Instead, we have the following
 situation:
 
 The entry point of any process of garbage collection is an invocation
-of the function @code{garbage_collect_1} in file @code{alloc.c}. The
+of the function @code{garbage_collect} in file @code{alloc.c}. The
 invocation can occur @emph{explicitly} by calling the function
 @code{Fgarbage_collect} (in addition this function provides information
 about the freed memory), or can occur @emph{implicitly} in four different
@@ -8853,7 +8853,7 @@ xemacs.
 In function @code{Feval / eval} in file @code{eval.c}. Each time the
 well known and often used function eval is called to evaluate a form,
 one of the first things that could happen, is a potential call of
-@code{garbage_collect_1}. There exist three global variables,
+@code{garbage_collect}. There exist three global variables,
 @code{consing_since_gc} (counts the created cons-cells since the last
 garbage collection), @code{gc_cons_threshold} (a specified threshold
 after which a garbage collection occurs) and @code{always_gc}. If
@@ -8868,7 +8868,7 @@ function evaluates calls of elisp functions and works according to
 The upshot is that garbage collection can basically occur everywhere
 @code{Feval} or @code{Ffuncall}, is used - either directly or
 through another function. Since calls to these two functions are hidden
-in various other functions, many calls to @code{garbage_collect_1} are
+in various other functions, many calls to @code{garbage_collect} are
 not obviously foreseeable, and therefore unexpected. Instances where
 they are used that are worth remembering are various elisp commands, as
 for example @code{or}, @code{and}, @code{if}, @code{cond}, @code{while},
@@ -8878,9 +8878,9 @@ everything related to @code{eval} (@code{Feval_buffer}, @code{call0},
 for example the ones raised by every @code{QUIT}-macro triggered after
 pressing Ctrl-g.
 
-@node garbage_collect_1, mark_object, Invocation, Garbage Collection - Step by Step
-@subsection @code{garbage_collect_1}
-@cindex @code{garbage_collect_1}
+@node garbage_collect, mark_object, Invocation, Garbage Collection - Step by Step
+@subsection @code{garbage_collect}
+@cindex @code{garbage_collect}
 
 We can now describe exactly what happens after the invocation takes
 place.
@@ -9052,7 +9052,7 @@ A small memory reserve is always held back that can be reached by
 and exit.
 @end enumerate
 
-@node mark_object, gc_sweep, garbage_collect_1, Garbage Collection - Step by Step
+@node mark_object, gc_sweep, garbage_collect, Garbage Collection - Step by Step
 @subsection @code{mark_object}
 @cindex @code{mark_object}
 
@@ -9079,7 +9079,7 @@ the object's memory description, @xref{Data descriptions}.
 In case another object was returned, as mentioned before, we reiterate
 the whole @code{mark_object} process beginning with this next object.
 
-@node gc_sweep, sweep_lcrecords_1, mark_object, Garbage Collection - Step by Step
+@node gc_sweep, sweep_lcrecords, mark_object, Garbage Collection - Step by Step
 @subsection @code{gc_sweep}
 @cindex @code{gc_sweep}
 
@@ -9103,7 +9103,7 @@ process, range-table, specifier, symbol-value-buffer-local,
 symbol-value-lisp-magic, symbol-value-varalias, toolbar-button,
 tooltalk-message, tooltalk-pattern, and window. We take care of them in the
 fist place in order to be able to handle and to finalize items stored in them
-more easily. The function @code{sweep_lcrecords_1} as described below is
+more easily. The function @code{sweep_lcrecords} as described below is
 doing the whole job for us.
 For a description about the internals: @xref{lrecords}.
 
@@ -9168,9 +9168,9 @@ whole block is empty. If so, the whole block is freed (using
 @code{xfree}) and the free list state is set to the state it had before
 handling this block.
 
-@node sweep_lcrecords_1, compact_string_chars, gc_sweep, Garbage Collection - Step by Step
-@subsection @code{sweep_lcrecords_1}
-@cindex @code{sweep_lcrecords_1}
+@node sweep_lcrecords, compact_string_chars, gc_sweep, Garbage Collection - Step by Step
+@subsection @code{sweep_lcrecords}
+@cindex @code{sweep_lcrecords}
 
 After nullifying the complete lcrecord statistics, we go over all
 lcrecords two separate times. They are all chained together in a list with
@@ -9189,7 +9189,7 @@ has to persist, otherwise it is manually freed by calling
 @code{xfree}. During this loop, the lcrecord statistics are kept up to
 date by calling @code{tick_lcrecord_stats} with the right arguments,
 
-@node compact_string_chars, sweep_strings, sweep_lcrecords_1, Garbage Collection - Step by Step
+@node compact_string_chars, sweep_strings, sweep_lcrecords, Garbage Collection - Step by Step
 @subsection @code{compact_string_chars}
 @cindex @code{compact_string_chars}
 
@@ -9312,7 +9312,7 @@ lrecord_type}, to allow the compiler to generate more efficient code for
 lrecord_implementation}, which is a structure containing method pointers and
 such.  There is only one of these for each type, and it is allocated and
 initialized by means of various @code{DEFINE_*_LISP_OBJECT()} macros.
-@code{DEFINE_ happens at dump time (and, accordingly, the
+@code{DEFINE_*_LISP_OBJECT} happens at dump time (and, accordingly, the
 lrecord_implementation structure is part of the dumped data), or at the point
 a dynamically loaded module is loaded.  In the latter case the
 lrecord_implementation structure is allocated on the heap.  The modules
@@ -9759,7 +9759,7 @@ symbols and conses.  A symbol is evaluated simply by calling
 
   Evaluating a cons means calling a function.  First, @code{eval} checks
 to see if garbage-collection is necessary, and calls
-@code{garbage_collect_1()} if so.  It then increases the evaluation
+@code{garbage_collect()} if so.  It then increases the evaluation
 depth by 1 (@code{lisp_eval_depth}, which is always less than
 @code{max_lisp_eval_depth}) and adds an element to the linked list of
 @code{struct backtrace}'s (@code{backtrace_list}).  Each such structure

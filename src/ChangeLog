@@ -1,3 +1,32 @@
+2026-05-06  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* alloc.c (sweep_lcrecords): Rename sweep_lcrecords_1() to
+	this. No longer take any arguments, just examine all_lcrecords
+	explicitly; the USED pointer argument was never actualy used in
+	our callers.
+	* alloc.c (gc_sweep): Rename gc_sweep_1 to this. Call
+	sweep_lcrecords() with its new name.
+	* alloc.c (disksave_object_finalization):
+	Call garbage_collect() with its new name. Correct documentation
+	before call to disksave_object_finalization_1().
+	* alloc.c (Fgarbage_collect):
+	Call garbage_collect() with its new name.
+	* emacs.c (initialize_temacs):
+	Ditto.
+	* eval.c (Feval):
+	Ditto.
+	* eval.c (Ffuncall):
+	Ditto.
+	* gc.c (garbage_collect):
+	Define this function with its new name. Call gc_sweep() rather
+	than gc_sweep_1().
+	* gc.h:
+	Declare gc_sweep() with its new name.
+	* lisp.h:
+	Declare garbage_collect() with its new name.
+	* redisplay.c:
+	Update a comment.
+
 2026-05-04  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* data.c:

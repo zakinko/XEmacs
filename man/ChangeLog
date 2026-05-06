@@ -1,3 +1,17 @@
+2026-05-06  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* internals/internals.texi (Top):
+	* internals/internals.texi (Garbage Collection - Step by Step):
+	* internals/internals.texi (Invocation):
+	* internals/internals.texi (garbage_collect):
+	* internals/internals.texi (mark_object):
+	* internals/internals.texi (gc_sweep):
+	* internals/internals.texi (sweep_lcrecords):
+	* internals/internals.texi (lrecords):
+	* internals/internals.texi (Evaluation):
+	Rename garbage_collect_1(), sweep_lcrecords_1() to their new names
+	without the trailing _1 in this file.
+
 2026-05-04  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* internals/internals.texi (Top):

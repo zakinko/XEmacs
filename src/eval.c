@@ -3780,7 +3780,7 @@ Evaluate FORM and return its value.
     {
       struct gcpro gcpro1;
       GCPRO1 (form);
-      garbage_collect_1 ();
+      garbage_collect ();
       UNGCPRO;
     }
 
@@ -4044,7 +4044,7 @@ arguments: (FUNCTION &rest ARGS)
     {
       if (need_to_garbage_collect)
 	/* Callers should gcpro lexpr args */
-	garbage_collect_1 ();
+	garbage_collect ();
       if (need_to_check_c_alloca)
 	{
 	  if (++funcall_alloca_count >= MAX_FUNCALLS_BETWEEN_ALLOCA_CLEANUP)

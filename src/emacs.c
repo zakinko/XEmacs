@@ -1749,7 +1749,7 @@ initialize_temacs (void)
   {
     extern EMACS_INT gc_cons_threshold;
     if (gc_cons_threshold < 0)       /* purification debugging hack */
-      garbage_collect_1 ();
+      garbage_collect ();
   }
 #endif
 }

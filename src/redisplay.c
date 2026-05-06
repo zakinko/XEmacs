@@ -6828,7 +6828,7 @@ commit_ritual_suicide (Lisp_Object UNUSED (ceci_nest_pas_une_pipe))
    ERROR_CHECK_TRAPPING_PROBLEMS is set) to crash automatically every time
    we execute QUIT or call Lisp code unless proper wrapping is in place, as
    well as further checks when we actually Fsignal(), Fthrow(),
-   garbage_collect_1().
+   garbage_collect().
 
    #### If a frame-size change does occur we should probably actually be
    preempting redisplay. */

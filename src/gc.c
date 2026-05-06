@@ -1411,7 +1411,7 @@ gc_finish (void)
 
 }
 
-void garbage_collect_1 (void)
+void garbage_collect (void)
 {
   if (gc_in_progress
       || gc_currently_forbidden
@@ -1438,7 +1438,7 @@ void garbage_collect_1 (void)
 #ifdef DEBUG_XEMACS
   kkcc_bt_free ();
 #endif
-  gc_sweep_1 ();
+  gc_sweep ();
   gc_finish ();
 
   remove_gc_cursor_and_message ();

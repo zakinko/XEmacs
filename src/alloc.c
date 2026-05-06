@@ -4637,11 +4637,10 @@ undef_lisp_object (int lrecord_type_index)
 
 /* Free all unmarked records */
 static void
-sweep_lcrecords_1 (struct old_lcrecord_header **prev, int *used)
+sweep_lcrecords (void)
 {
+  struct old_lcrecord_header **prev = &all_lcrecords;
   struct old_lcrecord_header *header;
-  int num_used = 0;
-  /* int total_size = 0; */
 
   /* First go through and call all the finalize methods.
      Then go through and free the objects.  There used to
@@ -4673,8 +4672,7 @@ sweep_lcrecords_1 (struct old_lcrecord_header **prev, int *used)
 	{
 	  if (! C_READONLY_RECORD_HEADER_P (h))
 	    UNMARK_RECORD_HEADER (h);
-	  num_used++;
-	  /* total_size += n->implementation->size_in_bytes (h);*/
+
 	  /* #### May modify header->next on a C_READONLY lcrecord */
 	  prev = &(header->next);
 	  header = *prev;
@@ -4690,8 +4688,6 @@ sweep_lcrecords_1 (struct old_lcrecord_header **prev, int *used)
 	  header = next;
 	}
     }
-  *used = num_used;
-  /* *total = total_size; */
 }
 
 /* And the Lord said: Thou shalt use the `c-backslash-region' command
@@ -5210,7 +5206,7 @@ sweep_strings (void)
 }
 
 void
-gc_sweep_1 (void)
+gc_sweep (void)
 {
   /* Reset all statistics to 0.  They will be incremented when
      sweeping lcrecords, frob-block lrecords and dumped objects. */
@@ -5218,13 +5214,10 @@ gc_sweep_1 (void)
 
   /* Free all unmarked records.  Do this at the very beginning,
      before anything else, so that the finalize methods can safely
-     examine items in the objects.  sweep_lcrecords_1() makes
+     examine items in the objects.  sweep_lcrecords() makes
      sure to call all the finalize methods *before* freeing anything,
      to complete the safety. */
-  {
-    int ignored;
-    sweep_lcrecords_1 (&all_lcrecords, &ignored);
-  }
+  sweep_lcrecords ();
 
   compact_string_chars ();
 
@@ -5287,7 +5280,7 @@ gc_sweep_1 (void)
 #ifdef ERROR_CHECK_GC
   {
     /* Unmark the free objects in the lcrecord_lists; since they are now in
-       the dump file this does not happen as part of sweep_lcrecords_1()
+       the dump file this does not happen as part of sweep_lcrecords()
        above. Likely a better approach is just to not mark them in the first
        place. */
     LIST_LOOP_2 (elt, Vall_lcrecord_lists)
@@ -5464,9 +5457,9 @@ disksave_object_finalization (void)
   disksave_finalize_memusage_stats ();
 #endif /* MEMORY_USAGE_STATS */
 
-  garbage_collect_1 ();
+  garbage_collect ();
 
-  /* Run the disksave finalization methods of all live objects. */
+  /* Run the disksave finalization methods of all live lcrecords. */
   disksave_object_finalization_1 ();
 
   /* There, that ought to be enough... */
@@ -5493,7 +5486,7 @@ Garbage collection happens automatically if you cons more than
        ())
 {
   /* Record total usage for purposes of determining next GC */
-  garbage_collect_1 ();
+  garbage_collect ();
 
   /* This will get set to 1, and total_gc_usage computed, as part of the
      call to object_memory_usage_stats() -- if ALLOC_TYPE_STATS is enabled. */
