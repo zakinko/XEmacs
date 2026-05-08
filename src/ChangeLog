@@ -1,3 +1,18 @@
+2026-05-08  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Move the relocation tables to just after the dumped objects,
+	making that section of the dumped file that is completely unused
+	after dump contiguous, giving better locality of reference for
+	GC.
+
+	* dumper.c:
+	Update the documentation of the structure of the dump file.
+	* dumper.c (pdump):
+	Move pdump_dump_rtables() just after
+	pdump_sort_hash_tables_for_reorganize().
+	* dumper.c (pdump_load_finish):
+	Move handling of the relocation table earlier in this function.
+
 2026-05-06  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* alloc.c (sweep_lcrecords): Rename sweep_lcrecords_1() to

@@ -381,18 +381,14 @@ pdump_objects_unmark (void)
 /* The structure of the dump file looks like this:
  0		- header
 		- dumped objects
- stab_offset	- nb_cv_data*struct(dest, adr) for in-object externally
+ stab_offset    - relocation table
+	        - nb_cv_data*struct(dest, adr) for in-object externally
 		  represented data
 		- nb_cv_ptr*(adr) for pointed-to externally represented data
  		- nb_root_block_ptrs*struct(void *, adr)
 		  for global pointers to heap blocks
 		- nb_root_blocks*struct(void *, size, info) for global
-		  data-segment blocks to restore
-		- relocation table
-		- root lisp object address/value couples with the count
-		  preceding the list
- */
-
+		  data-segment blocks to restore */
 
 #define PDUMP_SIGNATURE "XEmacsDP"
 #define PDUMP_SIGNATURE_LEN (sizeof (PDUMP_SIGNATURE) - 1)
@@ -2366,15 +2362,14 @@ pdump (void)
 			 build_ascstring (EMACS_DUMP_FILE_NAME));
     }
 
-  /* Needs to be done before both pdump_dump_root_blocks(),
-     pdump_dump_rtables(). */
+  /* Needs to be done before pdump_dump_rtables(). */
   pdump_sort_hash_tables_for_reorganize ();
 
+  pdump_dump_rtables ();
   pdump_dump_cv_data_info ();
   pdump_dump_cv_ptr_info ();
   pdump_dump_root_block_ptrs ();
   pdump_dump_root_blocks ();
-  pdump_dump_rtables ();
 
   retry_fclose (pdump_out);
   /* pdump_fd is already closed by the preceding call to fclose.
@@ -2435,6 +2430,43 @@ pdump_load_finish (void)
 
   p = pdump_start + header->stab_offset;
 
+  /* Relocate the heap objects */
+  pdump_rt_list = p;
+  count = 2;
+  for (;;)
+    {
+      pdump_reloc_table rt = PDUMP_READ_ALIGNED (p, pdump_reloc_table);
+      p = (Rawbyte *) ALIGN_PTR (p, Rawbyte *);
+      if (rt.desc)
+	{
+	  Rawbyte **reloc = (Rawbyte **) p;
+          rt.desc
+            = (const struct memory_description *) pdump_reloc_c_data (rt.desc);
+
+          if (rt.desc == hash_table_description)
+            {
+	      /* Make this available to elhash.c. */
+              pdump_hash_tables_for_reorganize = (Lisp_Object *) p;
+            }
+
+	  for (i = 0; i < rt.count; i++)
+	    {
+	      reloc[i]
+                = (Rawbyte *) pdump_reloc_lisp_data ((void *) reloc[i]);
+	      pdump_reloc_one (reloc[i], rt.desc);
+	    }
+	  p += rt.count * sizeof (Rawbyte *);
+	}
+      else if (!(--count))
+	{
+	  /* Finished the second zero-terminated array of pdump_reloc_tables.
+	     The first reflects Lisp_Object types, second reflects descriptions
+	     not directly associated with Lisp_Objects. See
+	     pdump_dump_rtables().  */
+	  break;
+	}
+    }
+
   /* Get the cv_data array */
   p = (Rawbyte *) ALIGN_PTR (p, pdump_cv_data_dump_info);
   pdump_loaded_cv_data = (pdump_cv_data_dump_info *)p;
@@ -2485,43 +2517,6 @@ pdump_load_finish (void)
       if (info.desc)
 	pdump_reloc_one ((void *) info.blockaddr, info.desc);
       p += info.size;
-    }
-
-  /* Relocate the heap objects */
-  pdump_rt_list = p;
-  count = 2;
-  for (;;)
-    {
-      pdump_reloc_table rt = PDUMP_READ_ALIGNED (p, pdump_reloc_table);
-      p = (Rawbyte *) ALIGN_PTR (p, Rawbyte *);
-      if (rt.desc)
-	{
-	  Rawbyte **reloc = (Rawbyte **) p;
-          rt.desc
-            = (const struct memory_description *) pdump_reloc_c_data (rt.desc);
-
-          if (rt.desc == hash_table_description)
-            {
-	      /* Make this available to elhash.c. */
-              pdump_hash_tables_for_reorganize = (Lisp_Object *) p;
-            }
-
-	  for (i = 0; i < rt.count; i++)
-	    {
-	      reloc[i]
-                = (Rawbyte *) pdump_reloc_lisp_data ((void *) reloc[i]);
-	      pdump_reloc_one (reloc[i], rt.desc);
-	    }
-	  p += rt.count * sizeof (Rawbyte *);
-	}
-      else if (!(--count))
-	{
-	  /* Finished the second zero-terminated array of pdump_reloc_tables.
-	     The first reflects Lisp_Object types, second reflects descriptions
-	     not directly associated with Lisp_Objects. See
-	     pdump_dump_rtables().  */
-	  break;
-	}
     }
 
   return 1;
