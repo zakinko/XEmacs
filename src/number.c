@@ -151,7 +151,7 @@ static const struct opaque_convert_functions bignum_opc = {
 
 static const struct memory_description bignum_description[] = {
   { XD_OPAQUE_DATA_CONVERTIBLE, offsetof (Lisp_Bignum, data),
-    0, { &bignum_opc }, XD_FLAG_NO_KKCC },
+    sizeof (bignum), { &bignum_opc }, XD_FLAG_NO_KKCC },
   { XD_END }
 };
 

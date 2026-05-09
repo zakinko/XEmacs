@@ -82,13 +82,16 @@ typedef struct
 
 typedef struct
 {
+  /* Pointer to the block containing the field of type
+     XD_OPAQUE_DATA_CONVERTIBLE. */
   const void *object;
+  /* Offset of the field within OBJECT. */
+  Bytecount offset;
+  /* Result of fcts->convert() called on ((Rawbyte *) OBJECT + OFFSET). */
   void *data;
+  /* Size of result of fcts->convert() called on (Rawbyte *) OBJECT +
+     OFFSET). */
   Bytecount size;
-  EMACS_INT offset;
-  EMACS_INT dest_offset;
-  EMACS_INT save_offset;
-  const struct opaque_convert_functions *fcts;
 } pdump_cv_data_info;
 
 typedef struct 
@@ -98,19 +101,36 @@ typedef struct
 
 typedef struct
 {
-  EMACS_INT dest_offset;
-  EMACS_INT save_offset;
-  Bytecount size;
-} pdump_cv_data_dump_info;
+  void *load_address;       /* Address within the dump file for
+			       deserialization. */
+  Bytecount size;           /* Size of serialized object. */
+} pdump_cv_load_data;	    /* Followed in the dump file by the serialized
+			       object of (aligned) SIZE. */
 
 typedef struct
 {
   const void *object;
+  Bytecount offset;
+} pointer_offset_pair;
+
+typedef struct
+{
+  Dynarr_declare (pointer_offset_pair);
+} pointer_offset_pair_dynarr;
+
+typedef struct
+{
+  /* Pointer (within a field described by XD_OPAQUE_PTR_CONVERTIBLE) that will
+     need be serialized and restored. */
+  const void *object; 
+  /* Result of fcts->convert() called on OBJECT. */
   void *data;
+  /* Size of result of fcts->convert() called on OBJECT. */
   Bytecount size;
-  EMACS_INT index;
-  EMACS_INT save_offset;
-  const struct opaque_convert_functions *fcts;
+  /* Dump-time addresses, described by a pointer to the block (see
+     pdump_get_block()) containing the field described by
+     XD_OPAQUE_PTR_CONVERTIBLE, and the offset of that field within it. */
+  pointer_offset_pair_dynarr *pointer_offset_pairs;
 } pdump_cv_ptr_info;
 
 typedef struct 
@@ -120,16 +140,37 @@ typedef struct
 
 typedef struct
 {
-  EMACS_INT save_offset;
   Bytecount size;
-} pdump_cv_ptr_dump_info;
+  Elemcount load_address_count;
+  /* Followed in the dump file by LOAD_ADDRESS_COUNT addresses to which the
+     serialized data should be restored, and then (aligned) SIZE bytes of
+     serialized data. */
+} pdump_cv_load_ptr;
+
+/* Used at dump time to allow XD_OPAQUE_PTR_CONVERTIBLE,
+   XD_OPAQUE_DATA_CONVERTIBLE objects to be serialized contiguously. */
+typedef struct
+{
+  const struct opaque_convert_functions *fcts;
+  pdump_cv_data_info_dynarr *data;
+  pdump_cv_ptr_info_dynarr *pointers;
+} pdump_cv_info;
+
+typedef struct 
+{
+  Dynarr_declare (pdump_cv_info);
+} pdump_cv_info_dynarr;
 
 typedef struct
 {
-  EMACS_INT save_offset;
-  Bytecount size;
-  void *adr;
-} pdump_cv_ptr_load_info;
+  void *(*deconvert) (void *object, void *data, Bytecount size);
+  Elemcount elt_count;
+  Elemcount ptr_count;
+  /* Followed by an array of length ELT_COUNT of pdump_cv_load_data (with the
+     serialized object after each element), then an array of length PTR_COUNT
+     of pdump_cv_load_ptr (similarly, with the serialized objects after each
+     element). */
+} pdump_cv_load_info;
 
 typedef struct
 {
@@ -147,8 +188,7 @@ static pdump_root_block_ptr_dynarr *pdump_root_block_ptrs;
 static Lisp_Object_ptr_dynarr *pdump_root_lisp_objects;
 static Lisp_Object_ptr_dynarr *pdump_nil_lisp_objects;
 static Lisp_Object_ptr_dynarr *pdump_weak_object_chains;
-static pdump_cv_data_info_dynarr *pdump_cv_data;
-static pdump_cv_ptr_info_dynarr *pdump_cv_ptr;
+static pdump_cv_info_dynarr *pdump_cv_infos;
 static Boolint_ptr_dynarr *pdump_zero_boolints;
 
 /* Mark SIZE bytes at non-heap address BLOCKADDR for dumping, described
@@ -382,9 +422,12 @@ pdump_objects_unmark (void)
  0		- header
 		- dumped objects
  stab_offset    - relocation table
-	        - nb_cv_data*struct(dest, adr) for in-object externally
-		  represented data
-		- nb_cv_ptr*(adr) for pointed-to externally represented data
+                - nb_cv_info*struct(deconvert_function, elt_count, ptr_count)
+                  for in-object externally represented data and pointers to
+                  externally represented data, followed by ELT_COUNT of
+                  serialized data with details of where to restore it, and
+                  PTR_COUNT of serialized data, with a list of offsets to which
+                  it should be restored.
  		- nb_root_block_ptrs*struct(void *, adr)
 		  for global pointers to heap blocks
 		- nb_root_blocks*struct(void *, size, info) for global
@@ -406,16 +449,12 @@ typedef struct
   EMACS_UINT lisp_object_description_address;	
   Elemcount nb_root_block_ptrs;
   Elemcount nb_root_blocks;
-  Elemcount nb_cv_data;
-  Elemcount nb_cv_ptr;
+  Elemcount nb_cv_info;
 } pdump_header;
 
 Rawbyte *pdump_start;
 Rawbyte *pdump_end;
 static Bytecount pdump_length;
-
-static pdump_cv_data_dump_info *pdump_loaded_cv_data;
-static pdump_cv_ptr_load_info  *pdump_loaded_cv_ptr;
 
 #ifdef WIN32_NATIVE
 /* Handle for the dump file */
@@ -626,14 +665,81 @@ pdump_get_block_list (const struct memory_description *desc)
   return &pdump_desc_table.list[pdump_desc_table.count++].list;
 }
 
-static pdump_cv_ptr_info *
-pdump_find_in_cv_ptr_dynarr(const void *object)
+static pdump_cv_info *
+pdump_get_cv_info (const struct opaque_convert_functions *fcts)
 {
-  int i;
-  for (i = 0; i < Dynarr_length (pdump_cv_ptr); i++)
-    if (Dynarr_at (pdump_cv_ptr, i).object == object)
-      return Dynarr_atp (pdump_cv_ptr, i);
-  return 0;
+  pdump_cv_info info;
+  Elemcount i;
+
+  for (i = 0; i < Dynarr_length (pdump_cv_infos); i++)
+    {
+      if (Dynarr_at (pdump_cv_infos, i).fcts == fcts)
+	{
+	  return Dynarr_atp (pdump_cv_infos, i);
+	}
+    }
+
+  info.fcts = fcts;
+  info.data = Dynarr_new (pdump_cv_data_info);
+  info.pointers = Dynarr_new (pdump_cv_ptr_info);
+  Dynarr_add (pdump_cv_infos, info);
+  return Dynarr_lastp (pdump_cv_infos);
+}
+
+static pdump_cv_ptr_info *
+pdump_get_cv_ptr_info (pdump_cv_info *cv_info, void *object)
+{
+  pdump_cv_ptr_info ptr_elt;
+  Elemcount ii;
+
+  for (ii = 0; ii < Dynarr_length (cv_info->pointers); ii++)
+    {
+      if (Dynarr_at (cv_info->pointers, ii).object == object)
+	{
+	  return Dynarr_atp (cv_info->pointers, ii);
+	}
+    }
+
+  ptr_elt.object = object;
+  ptr_elt.data = NULL;
+  ptr_elt.size = -1;
+  ptr_elt.pointer_offset_pairs = Dynarr_new (pointer_offset_pair);
+  Dynarr_add (cv_info->pointers, ptr_elt);
+  return Dynarr_lastp (cv_info->pointers);
+}
+
+static void
+pdump_convert_free_cv_infos (void)
+{
+  Elemcount ii, jj;
+
+  for (ii = 0; ii < Dynarr_length (pdump_cv_infos); ii++)
+    {
+      pdump_cv_info *elt = Dynarr_atp (pdump_cv_infos, ii);
+
+      if (elt->fcts->convert_free)
+	{
+	  for (jj = 0; jj < Dynarr_length (elt->data); jj++)
+	    {
+	      pdump_cv_data_info *data_info
+		= Dynarr_atp (elt->data, jj);
+
+	      elt->fcts->convert_free (data_info->object,
+				       data_info->data,
+				       data_info->size);
+	    }
+
+	  for (jj = 0; jj < Dynarr_length (elt->pointers); jj++)
+	    {
+	      pdump_cv_ptr_info *ptr_info
+		= Dynarr_atp (elt->pointers, jj);
+
+	      elt->fcts->convert_free (ptr_info->object,
+				       ptr_info->data,
+				       ptr_info->size);
+	    }
+	}
+    }
 }
 
 #define BACKTRACE_MAX 65536
@@ -922,29 +1028,30 @@ pdump_register_sub (const void *data, const struct memory_description *desc)
 	  break;
 	case XD_OPAQUE_PTR_CONVERTIBLE:
 	  {
-	    pdump_cv_ptr_info info;
-	    info.object = *(void **)rdata;
-	    info.index = 0;
-	    info.save_offset = 0;
-	    info.fcts = desc1->data2.funcs;
-	    if (!pdump_find_in_cv_ptr_dynarr (info.object))
+	    pdump_cv_info *infop = pdump_get_cv_info (desc1->data2.funcs);
+	    pdump_cv_ptr_info *elt
+	      = pdump_get_cv_ptr_info (infop, *((void **)rdata));
+	    pointer_offset_pair pop = { data, offset };
+
+	    if (elt->data == NULL)
 	      {
-		info.fcts->convert(info.object, &info.data, &info.size);
-		Dynarr_add (pdump_cv_ptr, info);
+		infop->fcts->convert (elt->object, &elt->data, &elt->size);
 	      }
+
+	    Dynarr_add (elt->pointer_offset_pairs, pop);
 	    break;
 	  }
 	case XD_OPAQUE_DATA_CONVERTIBLE:
 	  {
-	    pdump_cv_data_info info;
-	    info.object = data;
-	    info.offset = offset;
-	    info.dest_offset = 0;
-	    info.save_offset = 0;
-	    info.fcts = desc1->data2.funcs;
+	    pdump_cv_info *infop = pdump_get_cv_info (desc1->data2.funcs);
+	    pdump_cv_data_info elt;
 
-	    info.fcts->convert(rdata, &info.data, &info.size);
-	    Dynarr_add (pdump_cv_data, info);
+	    elt.object = data;
+	    elt.offset = offset;
+
+	    infop->fcts->convert (rdata, &elt.data, &elt.size);
+
+	    Dynarr_add (infop->data, elt);
 	    break;
 	  }
 
@@ -1256,11 +1363,17 @@ pdump_store_new_pointer_offsets (Elemcount count, void *data,
 	      break;
 
 	    case XD_OPAQUE_PTR_CONVERTIBLE:
-	      *(EMACS_INT *)rdata = pdump_find_in_cv_ptr_dynarr (*(void **)rdata)->index;
+	      /* Handled specially in pdump_load_finish(), to avoid the need to
+		 relocate the heap objects in a non-PIC binary; we don't
+		 actually need to do anything here. Will give better errors if
+		 we set it to NULL. */
+	      *(Rawbyte **) rdata = NULL;
 	      break;
 
 	    case XD_OPAQUE_DATA_CONVERTIBLE:
-	      /* in-object, nothing to do */
+	      /* In-object; in theory nothing to do. Deadbeef the memory for
+		 better error detection. */
+	      deadbeef_memory (rdata, desc1->data1);
 	      break;
 
 	    default:
@@ -1415,6 +1528,8 @@ pdump_reloc_one (void *data, const struct memory_description *desc)
 	case XD_INT:
 	case XD_LONG:
 	case XD_ELEMCOUNT_RESET:
+	case XD_OPAQUE_PTR_CONVERTIBLE:
+	case XD_OPAQUE_DATA_CONVERTIBLE:
 	  break;
 	case XD_OPAQUE_DATA_PTR:
 	case XD_ASCII_STRING:
@@ -1489,38 +1604,6 @@ pdump_reloc_one (void *data, const struct memory_description *desc)
 	    break;
 	  }
 
-	case XD_OPAQUE_PTR_CONVERTIBLE:
-	  {
-	    pdump_cv_ptr_load_info *p = pdump_loaded_cv_ptr + *(EMACS_INT *)rdata;
-	    if (!p->adr)
-	      p->adr = desc1->data2.funcs->deconvert(0, (void *) p->save_offset,
-						     p->size);
-	    *(void **)rdata = p->adr;
-	    break;
-	  }
-
-	case XD_OPAQUE_DATA_CONVERTIBLE:
-	  {
-	    EMACS_INT dest_offset = (EMACS_INT) rdata;
-	    pdump_cv_data_dump_info *p;
-
-	    /* #### This will have horrendous performance characteristics if we
-	       dump many bignums; the right thing to do with both this and
-	       XD_OPAQUE_PTR_CONVERTIBLE is to do the deconversion early in
-	       pdump_load_finish() at the point we examine
-	       pdump_loaded_cv_data, pdump_loaded_cv_ptr, and set the value at
-	       that point.
-
-	       #### EMACS_INT is the wrong type for dest_offset, save_offset,
-	       they both should just be void pointers. Similarly for the
-	       XD_OPAQUE_PTR_CONVERTIBLE above. */
-	    for(p = pdump_loaded_cv_data; p->dest_offset != dest_offset; p++);
-
-	    desc1->data2.funcs->deconvert(rdata, (void *) p->save_offset,
-					  p->size);
-	    break;
-	  }
-
 	default:
 	  pdump_unsupported_dump_type (desc1->type, 0);
 	}
@@ -1536,39 +1619,6 @@ pdump_allocate_offset (pdump_block_list_elt *elt,
   if (size > max_size)
     max_size = size;
   cur_offset += size;
-}
-
-/* Write out to global file descriptor PDUMP_OUT the result of an
-   external element.  It's just opaque data. */
-
-static void
-pdump_dump_cv_data (pdump_cv_data_info *elt)
-{
-  retry_fwrite (elt->data, elt->size, 1, pdump_out);
-}
-
-static void
-pdump_dump_cv_ptr (pdump_cv_ptr_info *elt)
-{
-  retry_fwrite (elt->data, elt->size, 1, pdump_out);
-}
-
-static void
-pdump_allocate_offset_cv_data (pdump_cv_data_info *elt)
-{
-  elt->save_offset = cur_offset;
-  if (elt->size>max_size)
-    max_size = elt->size;
-  cur_offset += elt->size;
-}
-
-static void
-pdump_allocate_offset_cv_ptr (pdump_cv_ptr_info *elt)
-{
-  elt->save_offset = cur_offset;
-  if (elt->size>max_size)
-    max_size = elt->size;
-  cur_offset += elt->size;
 }
 
 /* Traverse through all the heap blocks, once the "register" stage of
@@ -1603,9 +1653,7 @@ pdump_allocate_offset_cv_ptr (pdump_cv_ptr_info *elt)
 
 static void
 pdump_scan_by_alignment (void (*f)(pdump_block_list_elt *,
-				   const struct memory_description *),
-			 void (*g)(pdump_cv_data_info *),
-			 void (*h)(pdump_cv_ptr_info *))
+				   const struct memory_description *))
 {
   int align;
 
@@ -1630,14 +1678,6 @@ pdump_scan_by_alignment (void (*f)(pdump_block_list_elt *,
       for (elt = pdump_opaque_data_list.first; elt; elt = elt->next)
 	if (pdump_size_to_align (elt->size) == align)
 	  f (elt, 0);
-
-      for (i=0; i < Dynarr_length (pdump_cv_data); i++)
-	if (pdump_size_to_align (Dynarr_atp (pdump_cv_data, i)->size) == align)
-	  g (Dynarr_atp (pdump_cv_data, i));
-
-      for (i=0; i < Dynarr_length (pdump_cv_ptr); i++)
-	if (pdump_size_to_align (Dynarr_atp (pdump_cv_ptr, i)->size) == align)
-	  h (Dynarr_atp (pdump_cv_ptr, i));
     }
 }
 
@@ -1702,36 +1742,71 @@ pdump_sort_hash_tables_for_reorganize (void)
 
 
 static void
-pdump_dump_cv_data_info (void)
+pdump_dump_cv_info (void)
 {
-  int i;
-  Elemcount count = Dynarr_length (pdump_cv_data);
-  pdump_cv_data_dump_info *data = alloca_array (pdump_cv_data_dump_info, count);
-  for (i = 0; i < count; i++)
+  Elemcount ii, jj, kk;
+
+  for (ii = 0; ii < Dynarr_length (pdump_cv_infos); ii++)
     {
-      data[i].dest_offset = Dynarr_at (pdump_cv_data, i).dest_offset;
-      data[i].save_offset = Dynarr_at (pdump_cv_data, i).save_offset;
-      data[i].size        = Dynarr_at (pdump_cv_data, i).size;
+      pdump_cv_load_info metadata
+	= { Dynarr_atp (pdump_cv_infos, ii)->fcts->deconvert,
+	    Dynarr_length (Dynarr_atp (pdump_cv_infos, ii)->data),
+	    Dynarr_length (Dynarr_atp (pdump_cv_infos, ii)->pointers) };
+
+      PDUMP_WRITE_ALIGNED (pdump_cv_load_info, metadata);
+      for (jj = 0;
+	   jj < Dynarr_length (Dynarr_atp (pdump_cv_infos, ii)->data);
+	   jj++)
+	{
+	  EMACS_UINT load_offset
+	    = pdump_get_block (Dynarr_atp
+			       (Dynarr_atp (pdump_cv_infos, ii)->data,
+				jj)->object)->save_offset +
+	    Dynarr_atp (Dynarr_atp (pdump_cv_infos, ii)->data, jj)->offset;
+	  pdump_cv_load_data elt
+	    = { (void *) load_offset,
+		Dynarr_atp (Dynarr_atp (pdump_cv_infos,
+					ii)->data, jj)->size };
+
+	  PDUMP_WRITE_ALIGNED (pdump_cv_load_data, elt);
+	  PDUMP_ALIGN_OUTPUT (max_align_t);
+	  retry_fwrite (Dynarr_atp (Dynarr_atp
+				    (pdump_cv_infos, ii)->data, jj)->data,
+			Dynarr_atp (Dynarr_atp
+				    (pdump_cv_infos, ii)->data, jj)->size,
+			1, pdump_out);
+	}
+
+      for (jj = 0;
+	   jj < Dynarr_length (Dynarr_atp (pdump_cv_infos, ii)->pointers);
+	   jj++)
+	{
+	  pointer_offset_pair_dynarr *pops
+	    = Dynarr_atp (Dynarr_atp (pdump_cv_infos, ii)->pointers,
+			  jj)->pointer_offset_pairs;
+	  pdump_cv_load_ptr elt
+	    = { Dynarr_atp (Dynarr_atp (pdump_cv_infos,
+					ii)->pointers, jj)->size,
+		Dynarr_length (pops) };
+
+	  PDUMP_WRITE_ALIGNED (pdump_cv_load_ptr, elt);
+
+	  for (kk = 0; kk < Dynarr_length (pops); kk++)
+	    {
+	      EMACS_UINT load_offset =
+		pdump_get_block (Dynarr_atp (pops, kk)->object)->save_offset
+		+ Dynarr_atp (pops, kk)->offset;
+	      PDUMP_WRITE_ALIGNED (EMACS_UINT, load_offset);
+	    }
+
+	  PDUMP_ALIGN_OUTPUT (max_align_t);
+	  retry_fwrite (Dynarr_atp (Dynarr_atp (pdump_cv_infos,
+						ii)->pointers, jj)->data,
+			Dynarr_atp (Dynarr_atp (pdump_cv_infos,
+						ii)->pointers, jj)->size,
+			1, pdump_out);
+	}
     }
-
-  PDUMP_ALIGN_OUTPUT (pdump_cv_data_dump_info);
-  retry_fwrite (data, sizeof (pdump_cv_data_dump_info), count, pdump_out); 
-}
-
-static void
-pdump_dump_cv_ptr_info (void)
-{
-  int i;
-  Elemcount count = Dynarr_length (pdump_cv_ptr);
-  pdump_cv_ptr_dump_info *data = alloca_array (pdump_cv_ptr_dump_info, count);
-  for (i = 0; i < count; i++)
-    {
-      data[i].save_offset = Dynarr_at (pdump_cv_ptr, i).save_offset;
-      data[i].size        = Dynarr_at (pdump_cv_ptr, i).size;
-    }
-
-  PDUMP_ALIGN_OUTPUT (pdump_cv_ptr_dump_info);
-  retry_fwrite (data, sizeof (pdump_cv_ptr_dump_info), count, pdump_out); 
 }
 
 /* Dump out the root block pointers, part of stage 3 (the "WRITE" stage) of
@@ -2167,8 +2242,7 @@ pdump (void)
   pdump_opaque_data_list.count = 0;
   pdump_depth = 0;
 
-  pdump_cv_data = Dynarr_new2 (pdump_cv_data_info_dynarr, pdump_cv_data_info);
-  pdump_cv_ptr  = Dynarr_new2 (pdump_cv_ptr_info_dynarr,  pdump_cv_ptr_info);
+  pdump_cv_infos  = Dynarr_new (pdump_cv_info);
 
   /* (I) The "register" stage: Note all heap memory blocks to be relocated
      */
@@ -2278,8 +2352,7 @@ pdump (void)
     = (EMACS_UINT) (&lisp_object_description);
   header.nb_root_block_ptrs = Dynarr_length (pdump_root_block_ptrs);
   header.nb_root_blocks = Dynarr_length (pdump_root_blocks);
-  header.nb_cv_data = Dynarr_length (pdump_cv_data);
-  header.nb_cv_ptr =  Dynarr_length (pdump_cv_ptr);
+  header.nb_cv_info = Dynarr_length (pdump_cv_infos);
 
   cur_offset = initial_offset;
   cur_offset += MAX_ALIGN_SIZE (sizeof (header));
@@ -2287,9 +2360,7 @@ pdump (void)
 
   /* (2) Traverse all heap blocks and compute their offsets; keep track
          of maximum block size seen */
-  pdump_scan_by_alignment (pdump_allocate_offset,
-			   pdump_allocate_offset_cv_data,
-			   pdump_allocate_offset_cv_ptr);
+  pdump_scan_by_alignment (pdump_allocate_offset);
   cur_offset = MAX_ALIGN_SIZE (cur_offset);
   header.stab_offset = cur_offset - initial_offset;
 
@@ -2330,31 +2401,7 @@ pdump (void)
   retry_fwrite (&header, sizeof (header), 1, pdump_out);
   PDUMP_ALIGN_OUTPUT (max_align_t);
 
-  for (i = 0; i < Dynarr_length (pdump_cv_data); i++)
-    {
-      pdump_cv_data_info *elt = Dynarr_atp (pdump_cv_data, i);
-      elt->dest_offset =
-	pdump_get_block (elt->object)->save_offset + elt->offset;
-    }
-
-  for (i = 0; i < Dynarr_length (pdump_cv_ptr); i++)
-    Dynarr_at (pdump_cv_ptr, i).index = i;
-
-  pdump_scan_by_alignment (pdump_dump_data, pdump_dump_cv_data, pdump_dump_cv_ptr);
-
-  for (i = 0; i < Dynarr_length (pdump_cv_data); i++)
-    {
-      pdump_cv_data_info *elt = Dynarr_atp (pdump_cv_data, i);
-      if(elt->fcts->convert_free)
-	elt->fcts->convert_free(elt->object, elt->data, elt->size);
-    }
-
-  for (i = 0; i < Dynarr_length (pdump_cv_ptr); i++)
-    {
-      pdump_cv_ptr_info *elt = Dynarr_atp (pdump_cv_ptr, i);
-      if(elt->fcts->convert_free)
-	elt->fcts->convert_free(elt->object, elt->data, elt->size);
-    }
+  pdump_scan_by_alignment (pdump_dump_data);
 
   if (FSEEK (pdump_out, header.stab_offset, SEEK_SET) == -1)
     {
@@ -2366,10 +2413,11 @@ pdump (void)
   pdump_sort_hash_tables_for_reorganize ();
 
   pdump_dump_rtables ();
-  pdump_dump_cv_data_info ();
-  pdump_dump_cv_ptr_info ();
+  pdump_dump_cv_info ();
   pdump_dump_root_block_ptrs ();
   pdump_dump_root_blocks ();
+
+  pdump_convert_free_cv_infos ();
 
   retry_fclose (pdump_out);
   /* pdump_fd is already closed by the preceding call to fclose.
@@ -2467,33 +2515,51 @@ pdump_load_finish (void)
 	}
     }
 
-  /* Get the cv_data array */
-  p = (Rawbyte *) ALIGN_PTR (p, pdump_cv_data_dump_info);
-  pdump_loaded_cv_data = (pdump_cv_data_dump_info *)p;
-  for (i = 0; i < header->nb_cv_data; i++)
+  /* Deserialize the XD_OPAQUE_DATA_CONVERTIBLE, XD_OPAQUE_PTR_CONVERTIBLE
+     objects. */
+  for (i = 0; i < header->nb_cv_info; i++)
     {
-      pdump_loaded_cv_data[i].dest_offset
-	= (EMACS_INT) pdump_reloc_lisp_data
-	((const void *) pdump_loaded_cv_data[i].dest_offset);
-      pdump_loaded_cv_data[i].save_offset
-	= (EMACS_INT) pdump_reloc_lisp_data
-	((const void *) pdump_loaded_cv_data[i].save_offset);
-    }
+      pdump_cv_load_info cv_info = PDUMP_READ_ALIGNED (p, pdump_cv_load_info);
+      Elemcount jj, kk;
 
-  p += header->nb_cv_data*sizeof(pdump_cv_data_dump_info);
+      cv_info.deconvert
+	= (void *(*)(void *, void *, Bytecount))
+	pdump_reloc_c_func ((lisp_fn_t) (cv_info.deconvert));
 
-  /* Build the cv_ptr array */
-  p = (Rawbyte *) ALIGN_PTR (p, pdump_cv_ptr_dump_info);
-  pdump_loaded_cv_ptr =
-    alloca_array (pdump_cv_ptr_load_info, header->nb_cv_ptr);
-  for (i = 0; i < header->nb_cv_ptr; i++)
-    {
-      pdump_cv_ptr_dump_info info = PDUMP_READ (p, pdump_cv_ptr_dump_info);
-      pdump_loaded_cv_ptr[i].save_offset
-	= (EMACS_INT) pdump_reloc_lisp_data
-	((const void *) info.save_offset);
-      pdump_loaded_cv_ptr[i].size        = info.size;
-      pdump_loaded_cv_ptr[i].adr         = 0;
+      for (jj = 0; jj < cv_info.elt_count; jj++)
+	{
+	  pdump_cv_load_data elt = PDUMP_READ_ALIGNED (p, pdump_cv_load_data);
+
+	  p = (Rawbyte *) ALIGN_PTR (p, max_align_t);
+	  cv_info.deconvert (pdump_reloc_lisp_data (elt.load_address),
+			     p, elt.size);
+	  p += elt.size;
+	}
+
+      for (jj = 0; i < cv_info.ptr_count; jj++)
+	{
+	  pdump_cv_load_ptr ptr_info
+	    = PDUMP_READ_ALIGNED (p, pdump_cv_load_ptr);
+	  const void ***load_addresses;
+	  void **first_address;
+
+	  p = (Rawbyte *) ALIGN_PTR (p, void **);
+	  load_addresses = (const void ***) p;
+	  p += sizeof (void **) * ptr_info.load_address_count;
+
+	  p = (Rawbyte *) ALIGN_PTR (p, max_align_t);
+	  first_address = (void **) pdump_reloc_lisp_data (load_addresses[0]);
+	  *(first_address) = cv_info.deconvert (NULL, p, ptr_info.size);
+
+	  for (kk = 1; kk < ptr_info.load_address_count; kk++)
+	    {
+	      void **other_address
+		= (void **) pdump_reloc_lisp_data (load_addresses[kk]);
+	      *(other_address) = *(first_address);
+	    }
+
+	  p += ptr_info.size;
+	}
     }
 
   /* Put back the pdump_root_block_ptrs */

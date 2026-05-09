@@ -1,3 +1,82 @@
+2026-05-09  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Move the serialized XD_OPAQUE_DATA_CONVERTIBLE,
+	XD_OPAQUE_PTR_CONVERTIBLE objects after the dumped data.
+	De-serialize them explicitly in pdump_load_finish(), removing a
+	barrier to avoiding relocation of heap objects in a non-PIC
+	binary.
+
+	* dumper.c:
+	* dumper.c (struct pdump_cv_data_info): Simplify this structure.
+	* dumper.c (struct pdump_cv_load_info): New structure, data
+	necessary to restore a serialized XD_OPAQUE_DATA_CONVERTIBLE.
+	* dumper.c (struct pointer_offset_pair): New structure, used at
+	dump time for XD_OPAQUE_PTR_CONVERTIBLE.
+	* dumper.c (struct pointer_offset_pair_dynarr): New structure.
+	* dumper.c (struct pdump_cv_ptr_info): Revise this structure,
+	comment it.
+	* dumper.c (struct pdump_cv_load_ptr): New structure, used in
+	pdump_load_finish() for XD_OPAQUE_PTR_CONVERTIBLE.
+	* dumper.c (struct pdump_cv_info): New structure, for generalized
+	handling of XD_OPAQUE_DATA_CONVERTIBLE, XD_OPAQUE_PTR_CONVERTIBLE,
+	keyed by the relevant opaque_convert_functions.
+	* dumper.c (struct pdump_cv_info_dynarr): New structure, a Dynarr
+	of previous.
+	* dumper.c (struct pdump_cv_load_info): New structure, used in
+	pdump_load_finish() for XD_OPAQUE_DATA_CONVERTIBLE,
+	XD_OPAQUE_PTR_CONVERTIBLE.
+	* dumper.c (struct pdump_header): Update this to reflect
+	XD_OPAQUE_DATA_CONVERTIBLE and XD_OPAQUE_PTR_CONVERTIBLE are
+	treated together.
+	* dumper.c (pdump_get_cv_info): New function. Return a
+	pdump_cv_info reflecting a specific struct
+	opaque_convert_functions pointer, creating one if it doesn't
+	exist.
+	* dumper.c (pdump_get_cv_ptr_info): Renamed from
+	pdump_find_in_cv_ptr_dynarr(). Return a pdump_cv_ptr_info pointer
+	reflecting OBJECT, creating one if needed.
+	* dumper.c (pdump_convert_free_cv_infos): New. Called from
+	pdump(), calls the convert_free() method on
+	XD_OPAQUE_DATA_CONVERTIBLE and XD_OPAQUE_PTR_CONVERTIBLE objects
+	if needed.
+	* dumper.c (pdump_register_sub):
+	Change handling of XD_OPAQUE_DATA_CONVERTIBLE and
+	XD_OPAQUE_PTR_CONVERTIBLE here to fit with changes above.
+	* dumper.c (pdump_store_new_pointer_offsets):
+	Change handling of XD_OPAQUE_DATA_CONVERTIBLE and
+	XD_OPAQUE_PTR_CONVERTIBLE.
+	* dumper.c (pdump_reloc_one):
+	Remove handling of XD_OPAQUE_DATA_CONVERTIBLE and
+	XD_OPAQUE_PTR_CONVERTIBLE from this function.
+	* dumper.c (pdump_dump_cv_data): Removed.
+	* dumper.c (pdump_dump_cv_ptr): Removed.
+	* dumper.c (pdump_allocate_offset_cv_data): Removed.
+	* dumper.c (pdump_allocate_offset_cv_ptr): Removed.
+	No need for these with the current implementation.
+	* dumper.c (pdump_scan_by_alignment):
+	No need for the function arguments that deal with
+	XD_OPAQUE_DATA_CONVERTIBLE and XD_OPAQUE_PTR_CONVERTIBLE,
+	removed.
+	* dumper.c (pdump_dump_cv_data_info): Removed.
+	* dumper.c (pdump_dump_cv_info): New. Dump metadata and serialized
+	XD_OPAQUE_DATA_CONVERTIBLE and XD_OPAQUE_PTR_CONVERTIBLE objects.
+
+	* dumper.c (pdump):
+	Create pdump_cv_infos here. Set header.nb_cv_info
+	appropriately. Update calls to pdump_scan_by_alignment().
+	Call pdump_dump_cv_info() after pdump_dump_rtables().
+	Call pdump_convert_free_cv_infos() after we're done with the 
+	XD_OPAQUE_DATA_CONVERTIBLE and XD_OPAQUE_PTR_CONVERTIBLE objects.
+	* dumper.c (pdump_load_finish):
+	Deserialize the XD_OPAQUE_DATA_CONVERTIBLE and
+	XD_OPAQUE_PTR_CONVERTIBLE objects explicitly within this.
+	* lrecord.h:
+	Update documentation of XD_OPAQUE_DATA_CONVERTIBLE here, now we
+	want its size as well as its offset.
+	* number.c:
+	Specify the size of the data field in the memory description for
+	bignums.
+
 2026-05-08  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Move the relocation tables to just after the dumped objects,

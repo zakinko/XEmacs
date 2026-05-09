@@ -912,9 +912,9 @@ void tick_lrecord_stats (const struct lrecord_header *h,
 
     XD_OPAQUE_DATA_CONVERTIBLE
 
-  Data which is not directly dumpable but can be converted to a
-  dumpable, opaque external representation.  The parameter is a
-  pointer to an opaque_convert_functions struct.
+  Data which is not directly dumpable but can be converted to a dumpable,
+  opaque external representation. The first parameter is the size of the field,
+  and the second is a pointer to an opaque_convert_functions struct.
 
     XD_BLOCK_PTR
 
