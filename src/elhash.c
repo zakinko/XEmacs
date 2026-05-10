@@ -1552,7 +1552,9 @@ pdump_reorganize_hash_tables (void)
 {
   htentry *new_entries = NULL;
   Elemcount ii;
-  Bytecount page_size = qxegetpagesize ();
+  Bytecount page_size
+    = page_size_reorganize_threshold == MOST_POSITIVE_FIXNUM
+    ? ALIGNOF (max_align_t) : qxegetpagesize ();
 
   for (ii = 0; ii < pdump_hash_table_reorganize_count; ii++)
     {

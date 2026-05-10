@@ -57,6 +57,11 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 #endif
 #endif
 
+#ifndef DUMP_IN_EXEC
+static void (*pdump_free) (void);
+static void pdump_file_free (void);
+#endif
+
 typedef struct
 {
   const void *blockaddr;
@@ -2585,6 +2590,15 @@ pdump_load_finish (void)
       p += info.size;
     }
 
+#ifndef DUMP_IN_EXEC
+  if (pdump_free == pdump_file_free)
+    {
+      /* xnew_array() does not guarantee page alignment, force relocation of
+	 the hash tables. */
+      page_size_reorganize_threshold = MOST_POSITIVE_FIXNUM;
+    }
+#endif
+
   return 1;
 }
 
@@ -2695,8 +2709,6 @@ snprintf (char *output, size_t size, const char *format, ...)
 }
 
 #endif
-
-static void (*pdump_free) (void);
 
 static void
 pdump_file_free (void)

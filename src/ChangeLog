@@ -77,6 +77,23 @@
 	Specify the size of the data field in the memory description for
 	bignums.
 
+2026-05-10  Aidan Kehoe  <kehoea@parhasard.net>
+
+	In the unlikely event that both DUMP_IN_EXEC is not defined and
+	mmap() is unavailable or failed, force reorganization of hash
+	tables at runtime.
+	* dumper.c:
+	Declare pdump_free(), pdump_file_free() early in this file.
+	* dumper.c (pdump_load_finish):
+	If we are DUMP_IN_EXEC and pdump_free is pdump_file_free (meaning
+	we have used xnew_array() for the dumped data), force
+	reorganization of the hash tables by setting
+	page_size_reorganize_threshold to MOST_POSITIVE_FIXNUM.
+	* elhash.c (pdump_reorganize_hash_tables):
+	Check page_size_reorganize_threshold against MOST_POSITIVE_FIXNUM,
+	if it use ALIGNOF (max_align_t) to compare against, otherwise use
+	qxepagesize().
+
 2026-05-08  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Move the relocation tables to just after the dumped objects,
