@@ -1,3 +1,44 @@
+2026-05-15  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* internals/internals.texi (Top):
+	* internals/internals.texi (Dumping):
+	Add menu entries for the new node, Dumping and restoring hash
+	tables.
+	* internals/internals.texi (Overview):
+	Remove mention of a desire to change the name of the dump file, no
+	longer a priority given DUMP_IN_EXEC is the default.
+	Update documentation of systems where DUMP_IN_EXEC is impractical
+	and that turning it off can be attractive for development.
+	* internals/internals.texi (Object inventory):
+	Update and correct the roots used for the object
+	inventory. Correct documentation of possible problems with weak
+	lists and hash tables.
+	* internals/internals.texi (Address allocation):
+	Correct the spelling of pdump_block_list_elt. Correct the
+	documentation of the offset used after the pdump header, no longer
+	256.
+	* internals/internals.texi (The header):
+	Update and flesh out documentation of the header fields.
+	* internals/internals.texi (Data dumping):
+	Document some special handling for hash tables here.
+	* internals/internals.texi (Pointers dumping):
+	Flesh out and update the documentation of what these are,
+	mentioning the XD_OPAQUE_DATA_CONVERTIBLE,
+	XD_OPAQUE_PTR_CONVERTIBLE objects. Remove mention of
+	pdump_weak_object_chains, no longer handled at this point.
+	* internals/internals.texi (Reloading phase):
+	Update documentation of the Windows resource handling with
+	DUMP_IN_EXEC, which should be removed.
+	Document that relocation is not needed or done if DUMP_IN_EXEC and
+	!HAVE_ASLR. Document handling of XD_OPAQUE_DATA_CONVERTIBLE,
+	XD_OPAQUE_PTR_CONVERTIBLE.
+	* internals/internals.texi (Dumping and restoring hash tables):
+	New node, documenting the optimizations that mean that hash tables
+	do not, normally, need to be reorganized after dump, and the
+	special handling for #'eq, #'eql tables where the size is less
+	than the page size. Document that
+	pdump_reorganize_hash_tables() is call from main_1() if needed.
+
 2026-05-06  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* internals/internals.texi (Top):

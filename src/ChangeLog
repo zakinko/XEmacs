@@ -1,3 +1,48 @@
+2026-05-15  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Remove the need to relocate the dumped data on a no-ASLR,
+	DUMP_IN_EXEC build.
+
+	* config.h.in:
+	New entry here, HAVE_ASLR.
+
+	* dumper.c:
+	* dumper.c (struct pdump_header):
+	Rename stab_offset to rtab_offset, now it indicates where the
+	beginning of the relocation table is.
+	New field, rtab_end, used with DUMP_IN_EXEC and -no-pie. Move
+	nb_cv_info earlier in the structure for clarity.
+	If DUMP_IN_EXEC and !HAVE_ASLR, #define pdump_reloc_c_func(),
+	pdump_reloc_c_data, pdump_reloc_lisp_object(),
+	pdump_reloc_lisp_data() as identity (cast to the appropriate
+	type), helpful within pdump_load_finish(). #define
+	pdump_reloc_one() as just marking its arguments as
+	used. Otherwise, keep the existing definitiion.
+	* dumper.c (pdump_allocate_offset_rtables): New function. Work out
+	the offsets needed for the relocation table. Initialize
+	pdump_hash_tables_for_reorganize at dump time rather than at load time.
+	* dumper.c (pdump_prune_weak_object_chain_prefixes):
+	Call pdump_register_object() on *address here in passing, missed
+	on previous work of mine to that function.
+	* dumper.c (pdump):
+	Move pdump_sort_hash_tables_for_reorganize() earlier, which should
+	give better locality of reference at loadup that small minority of
+	times that pdump_reorganize_hash_tables() is called.
+	Set header.rtab_end after calling pdump_allocate_offset_rtables.
+	* dumper.c (pdump_load_finish):
+	Don't relocate anything if DUMP_IN_EXEC and !HAVE_ASLR. Assert
+	that dump_delta, c_code_delta, c_data_delta are all zero.
+
+	* elhash.c: Make hash_table_description static once more.
+	* elhash.c (static const struct sized_memory_description
+	pdump_hash_tables_for_reorganize_description): New. Needed now
+	pdump_hash_tables_for_reorganize is restored in the normal way.
+	* elhash.c (vars_of_elhash): Do a dump_add_root_block_ptr() on
+	&pdump_hash_tables_for_reorganize.
+	* elhash.h:
+	Remove the declaration for hash_table_description, no longer
+	needed.
+
 2026-05-09  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Move the serialized XD_OPAQUE_DATA_CONVERTIBLE,

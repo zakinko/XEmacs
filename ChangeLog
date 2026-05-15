@@ -1,3 +1,11 @@
+2026-05-15  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* configure.ac (have_aslr): New.
+	Pass the information as to whether ASLR is present at configure
+	time to C by means of a new HAVE_ASLR #define, to allow the dumper
+	to avoid relocating dumped data on -nopie builds with DUMP_IN_EXEC.
+	* configure: Regenerate.
+
 2026-02-28  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* configure.ac:

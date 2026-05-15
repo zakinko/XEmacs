@@ -131,8 +131,8 @@ Lisp_Object Vpdump_hash_table_reorganize_keys;
    reorganization, examined after pdump_load(). */
 Elemcount pdump_hash_table_reorganize_count = -1;
 
-/* Set by pdump_load_finish() to the beginning of the C vector of hash tables
-   needing reorganization. */
+/* Set by the dumper to the beginning of the vector of hash tables needing
+   reorganization. */
 Lisp_Object *pdump_hash_tables_for_reorganize;
 
 /* Either the dump time page size (if hash tables only need
@@ -140,6 +140,16 @@ Lisp_Object *pdump_hash_tables_for_reorganize;
    page size), or 1 + MOST_POSITIVE_FIXNUM (if there are dumped hash
    tables that will always need reorganization). Zero in temacs. */
 Bytecount page_size_reorganize_threshold = 0;
+
+static const struct memory_description pdump_hash_tables_for_reorganize_description_1[] = {
+  { XD_BLOCK_PTR, 0, 1, { &lisp_object_description } },
+  { XD_END }
+};
+
+static const struct sized_memory_description pdump_hash_tables_for_reorganize_description = {
+  sizeof (Lisp_Object *),
+  pdump_hash_tables_for_reorganize_description_1
+};
 
 /* A hash table test, with its associated hash function. EQUAL_FUNCTION may
    call LISP_EQUAL_FUNCTION, HASH_FUNCTION may call LISP_HASH_FUNCTION, and
@@ -781,7 +791,7 @@ static const struct sized_memory_description htentry_union_description = {
   htentry_union_description_1
 };
 
-const struct memory_description hash_table_description[] = {
+static const struct memory_description hash_table_description[] = {
   { XD_ELEMCOUNT,  offsetof (Lisp_Hash_Table, size) },
   { XD_INT,	   offsetof (Lisp_Hash_Table, weakness) },
   { XD_UNION,	   offsetof (Lisp_Hash_Table, hentries), XD_INDIRECT (1, 0),
@@ -3388,6 +3398,11 @@ use `mapatoms'.
 
   page_size_reorganize_threshold = qxegetpagesize ();
   dump_add_opaque_fixnum (&page_size_reorganize_threshold);
+
+  /* Set to something more useful by the dumper. */
+  pdump_hash_tables_for_reorganize = NULL;
+  dump_add_root_block_ptr (&pdump_hash_tables_for_reorganize,
+			   &pdump_hash_tables_for_reorganize_description);
 }
 
 void

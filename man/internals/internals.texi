@@ -701,6 +701,7 @@ Dumping
 * Data descriptions::           
 * Dumping phase::               
 * Reloading phase::             
+* Dumping and restoring hash tables::
 
 Dumping phase
 
@@ -22656,6 +22657,7 @@ Don't touch this code; something is liable to break if you do.
 * Data descriptions::           
 * Dumping phase::               
 * Reloading phase::             
+* Dumping and restoring hash tables::
 @end menu
 
 @node Dumping Justification, Overview, Dumping, Dumping
@@ -22702,17 +22704,21 @@ The portable dumping system has to:
 @enumerate
 @item
 At dump time, write all initialized, non-quickly-rebuildable data to a
-file [Note: currently named @file{xemacs.dmp}, but the name will
-change], along with all information needed for the reloading.
+file named @file{xemacs.dmp}, along with all information needed for the
+reloading.
 
 @item
-When starting xemacs, reload the dump file, relocate it to its new
-starting address if needed, and reinitialize all pointers to this
-data.  Also, rebuild all the quickly rebuildable data.
+When starting xemacs, reload the dump file, reinitialize all pointers to
+this data, and adjust pointers within the dump file to reflect their new
+addresses.  Also, rebuild all the quickly rebuildable data.
 @end enumerate
 
 Note: As of 21.5.18, the dump file has been moved inside of the
-executable, although there are still problems with this on some systems.
+executable. There are occasional problems with this on some, rare,
+systems. The configure script will pick up these problems and default to
+an external dump file there. The build process is slower with the dump
+file inside the executable, so using an external dump file can be of
+value in development.
 
 @node Data descriptions, Dumping phase, Overview, Dumping
 @section Data descriptions
@@ -22832,25 +22838,19 @@ function also checks if the address of a Lisp_Object encountered is in
 is relocated as an array of pointers in the data segment and needs to be
 handled differently to heap pointers.
 
-The hash table doubles as a map object to pdump_block_list_elmt (i.e.
-allows us to look up a pdump_block_list_elmt with the object it points
+The hash table doubles as a map object to pdump_block_list_elt (i.e.
+allows us to look up a pdump_block_list_elt with the object it points
 to).  Entries are added with @code{pdump_add_block()} and looked up with
-@code{pdump_get_block()}.  There is no need for entry removal.  The hash
-value is computed quite simply from the object pointer by
-@code{pdump_make_hash()}.
+@code{pdump_get_block()}.  The Lisp hash table implementation is used;
+objects are converted to Lisp_Objects using @code{STORE_VOID_IN_LISP()}
+or @code{make_opaque_ptr()} depending on whether the low-order bit is
+set.
 
 The roots for the marking are:
 
 @enumerate
 @item
-the @code{staticpro}'ed variables (there is a special
-@code{staticpro_nodump()} call for protected variables we do not want to
-dump).
-
-@item
 the Lisp_Object variables registered via @code{dump_add_root_lisp_object}
-(@code{staticpro()} is equivalent to @code{staticpro_nodump()} +
-@code{dump_add_root_lisp_object()}).
 
 @item
 the data-segment memory blocks registered via @code{dump_add_root_block}
@@ -22872,6 +22872,9 @@ from @code{dump_add_root_block} rather than writing the former as a call
 to the latter, since we don't have support for creating and using memory
 descriptions on the fly -- they must all be statically declared in the
 data-segment.
+
+@item the @code{staticpro}'ed variables, a special case of
+@code{dump_add_root_block_ptr}.
 @end enumerate
 
 This does not include the GCPRO'ed variables, the specbinds, the
@@ -22881,12 +22884,12 @@ the @code{dump-emacs} call, only the global variables.
 
 Weak lists and weak hash tables are dumped as if they were their
 non-weak equivalent (without changing their type, of course).  This has
-not yet been a problem.
+not yet been a problem, but may lead to small leaks if objects that
+would not otherwise be dumped are in those structures.
 
 @node Address allocation, The header, Object inventory, Dumping phase
 @subsection Address allocation
 @cindex dumping address allocation
-
 
 The next step is to allocate the offsets of each of the objects in the
 final dump file.  This is done by @code{pdump_allocate_offset()} which
@@ -22912,24 +22915,41 @@ requirement of 4.
 Hence, for each lrecord type, C struct type or opaque data block the
 alignment requirement is computed as a power of two, with a minimum of
 2^2 for lrecords.  @code{pdump_scan_by_alignment()} then scans all the
-@code{pdump_block_list_elmt}'s, the ones with the highest requirements
+@code{pdump_block_list_elt}'s, the ones with the highest requirements
 first.  This ensures the best packing.
 
 The maximum alignment requirement we take into account is 2^8.
 
 @code{pdump_allocate_offset()} only has to do a linear allocation,
-starting at offset 256 (this leaves room for the header and keeps the
-alignments happy).
+starting at an aligned address after the header.
 
 @node The header, Data dumping, Address allocation, Dumping phase
 @subsection The header
 @cindex dumping, the header
 
 The next step creates the file and writes a header with a signature and
-some random information in it.  The @code{reloc_address} field, which
-indicates at which address the file should be loaded if we want to avoid
-post-reload relocation, is set to 0.  It then seeks to offset 256 (base
-offset for the objects).
+some important information in it. 
+
+The @code{reloc_address} field, which indicates at which address the
+file should be loaded if we want to avoid post-reload relocation, is set
+to 0 (if the dump file is external) or the known address of the dump
+data (if dumping is into the executable file).
+
+The @code{rtab_offset} field gives the offset of the relocation table,
+allowing all objects to be relocated systematically. The @code{rtab_end}
+field gives the end of the relocation table, useful on systems without
+ASLR where this relocation is not needed.
+
+The @code{Fcons_address} field gives the dump-time address of the
+@code{Fcons()}, allowing a delta to be worked out for C functions.
+
+The @code{lisp_object_description_address} field gives the dump time
+address of lisp_object_description, guaranteed to be in the data
+segment, and allowing a delta to be worked out for C data segment
+addresses.
+
+There are also counts for the serialized objects, the root block
+pointers, and the root blocks.
 
 @node Data dumping, Pointers dumping, The header, Dumping phase
 @subsection Data dumping
@@ -22945,6 +22965,14 @@ if we are careful with lrecords whose size is not a multiple of 4, we
 are ensured that the object is always written at the offset in the file
 allocated in step Address Allocation.
 
+There is special handling for hash tables; since hashing routinely
+depends on pointer values, and pointer values differ from dump time to
+load time, @code{pdump_dump_data()} offers the hash table code the
+opportunity to reorganize a hash table's entries before they are
+written, after the offsets are determined. This is not always possible
+but as of 2026-05 there is normally no need for any load-time
+reorganization for the existing dumped hash tables.
+
 @node Pointers dumping,  , Data dumping, Dumping phase
 @subsection Pointers dumping
 @cindex pointers dumping
@@ -22955,14 +22983,18 @@ then written.  They are:
 
 @enumerate
 @item
+a vector of all the offsets to the objects in the file that include a
+description (to allow relocation at reload time, and, for dumped
+Lisp_Objects, to allow them to be traced for GC at run time).
+@item
+details of serialized objects (fields described by
+@code{XD_OPAQUE_DATA_CONVERTIBLE}, @code{XD_OPAQUE_PTR_CONVERTIBLE}),
+the addresses to which they should be restored, the functions needed to
+call to restore them, and the serialized data.
+@item
 the pdump_root_block_ptrs dynarr
 @item
-the pdump_opaques dynarr
-@item
-a vector of all the offsets to the objects in the file that include a
-description (for faster relocation at reload time)
-@item
-the pdump_root_objects and pdump_weak_object_chains dynarrs.
+the pdump_root_blocks dynarr
 @end enumerate
 
 For each of the dynarrs we write both the pointer to the variables and
@@ -22970,21 +23002,13 @@ the relocated offset of the object they point to.  Since these variables
 are global, the pointers are still valid when restarting the program and
 are used to regenerate the global pointers.
 
-The @code{pdump_weak_object_chains} dynarr is a special case.  The
-variables it points to are the head of weak linked lists of lisp objects
-of the same type.  Not all objects of this list are dumped so the
-relocated pointer we associate with them points to the first dumped
-object of the list, or Qnil if none is available.  This is also the
-reason why they are not used as roots for the purpose of object
-enumeration.
-
 Some very important information like
 @code{lrecord_implementations_table} is handled indirectly using
-@code{dump_add_opaque} or @code{dump_add_root_block_ptr}.
+@code{dump_add_root_block_ptr}.
 
 This is the end of the dumping part.
 
-@node Reloading phase,  , Dumping phase, Dumping
+@node Reloading phase, Dumping and restoring hash tables, Dumping phase, Dumping
 @section Reloading phase
 @cindex reloading phase
 @cindex dumping, reloading phase
@@ -23001,7 +23025,9 @@ searching is needed very early before we have any significant natural
 language processing available.
 
 This easily achieved on MS Windows by storing it in a ``resource'' at
-compile time and loading that at runtime.
+compile time and loading that at runtime. Unfortunately this only
+guarantees DWORD (UINT_32_BIT) alignment and this code needs to be
+removed for that reason.
 
 On other platforms this is more difficult. It is currently done using
 ``INCBIN'', a reasonably portable assembler macro from Dale Weiler that
@@ -23032,11 +23058,27 @@ difference between the address of lisp_object_description at dump time
 and at load time is computed and used for relocating C data pointers,
 necessary for ASLR support.
 
-@subsection Putting back the pdump_opaques
-@cindex dumping, putting back the pdump_opaques
+@subsection Object relocation
+@cindex dumping, object relocation
 
-The memory contents are restored in the obvious and trivial way.
+All the Lisp_Objects are relocated using their description and their
+offset by @code{pdump_reloc_one}.  Once this is done, all
+non-Lisp_Object blocks are relocated using their descriptions and
+offsets by @code{pdump_reloc_one} in the same way. Neither step is
+necessary if the dump file is in the executable and ASLR is not present,
+so they are not done in that case.
 
+@subsection Putting back the XD_OPAQUE_DATA_CONVERTIBLE, XD_OPAQUE_PTR_CONVERTIBLE objects
+@cindex dumping, putting back XD_OPAQUE_DATA_CONVERTIBLE, XD_OPAQUE_PTR_CONVERTIBLE
+
+The metadata for these objects is read, the address of the deconversion
+function is relocated appropriately, and then that function is called
+with the (relocated) addresses to which the XD_OPAQUE_DATA_CONVERTIBLE objects
+should be restored, together with the address of the serialized data and
+its size. The deconversion function is then called with the
+XD_OPAQUE_PTR_CONVERTIBLE serialized data, with NULL as the address to
+deconvert to, and the various addresses appropriate for that object are
+set to the result.
 
 @subsection Putting back the pdump_root_block_ptrs
 @cindex dumping, putting back the pdump_root_block_ptrs
@@ -23044,27 +23086,77 @@ The memory contents are restored in the obvious and trivial way.
 The variables pointed to by pdump_root_block_ptrs in the dump phase are
 reset to the right relocated object addresses.
 
+@subsection Putting back the pdump_root_blocks
+@cindex dumping, putting back the pdump_root_blocks
 
-@subsection Object relocation
-@cindex dumping, object relocation
+The pdump_root_blocks have their contents restored from the dump file
+(to the data segment address), and the relocation is performed on the
+data segment copy (if appropriate).
 
-All the objects are relocated using their description and their offset
-by @code{pdump_reloc_one}.  This step is unnecessary if the
-reloc_address is equal to the file loading address.
+@node Dumping and restoring hash tables,  , Reloading phase, Dumping
+@section Dumping and restoring hash tables
 
+Many, but not all, of the hash tables dumped by XEmacs use the pointer
+values of the Lisp_Object keys to hash those keys.  This makes it
+difficult to dump them in a way that will give reliable look-up after
+load (since the pointer values change), and a previous version of this
+code just reorganized every hash table at load time to reflect the new
+hashes.
 
-@subsection Putting back the pdump_root_objects and pdump_weak_object_chains
-@cindex dumping, putting back the pdump_root_objects and pdump_weak_object_chains
+Currently the dumper (in close co-operation with the hash table
+code) can usually avoid the need to reorganize hash tables at load
+time. This relies on several observations:
 
-Same as Putting back the pdump_root_block_ptrs.
+@enumerate
+@item Empty hash tables have no keys that might depend on pointer
+values, and so they do not need reorganization.
 
+@item @code{#'eq} hash tables where the keys comprise exclusively
+fixnums and characters do not depend on pointer values, so they do not
+need reorganization.
 
-@subsection Reorganize the hash tables
-@cindex dumping, reorganize the hash tables
+@item @code{#'eql} hash tables where the keys comprise exclusively
+numbers and characters do not depend on pointer values, so they do not
+need reorganization.
 
-Since some of the hash values in the lisp hash tables are
-address-dependent, their layout is now wrong.  So we go through each of
-them and have them resorted by calling @code{pdump_reorganize_hash_table}.
+@item @code{#'equal} hash tables where the keys comprise exclusively
+strings do not depend on pointer values, so they do not need
+reorganization. This is most relevant for @code{obarray}, mapping
+strings to symbols, the largest hash table currently dumped.
+
+@item The low-order bits of the dump file are the same from run to run,
+since @code{mmap()} gives a page-aligned address, and the XEmacs
+executable (when dumping into the executable) is similarly page-aligned.
+@end enumerate
+
+In the first four cases above, it suffices to just not reorganize the
+relevant hash tables. For other cases the fifth observation becomes
+relevant. The disksave method for a hash table, if it determines that
+the first four cases (and some very similar, related cases) do not
+apply, and that the ``size'' of the hash table is less than the (byte
+count) page size, can often resize that hash table to be a power of two
+in size, change its ``golden ratio'' to be one (meaning that the hash
+just depends on the key pointer value modulo the hash table size), and
+mark that the table's entries should be reorganized deep in the bowels
+of the dumper once the load-time addresses (or file offsets) are
+available.
+
+The hash table disksave method stores a key for sorting for each hash
+table, such that the largest hash table that may need reorganization
+will come first, and those that do not need reorganization come last. The
+dumper sorts the list of hash tables to be dumped using those keys, and
+stores the count of hash tables that may need reorganization in
+@code{pdump_hash_table_reorganize_count}. This sorted order is the same
+order that the pointers to the hash tables appear in the relocation
+table.
+
+At run time (after @code{pdump_load()}, @code{main_1()} in
+@code{emacs.c} checks the run time page size against
+@code{page_size_reorganize_threshold} (which is normally the dump time
+page size), and if the run time page threshold is less than this, it
+calls @code{pdump_reorganize_hash_tables()}. This will do any
+reorganization needed, but it will never reorganize e.g. empty hash
+tables or @code{obarray}.
 
 @node Future Work, Future Work Discussion, Dumping, Top
 @chapter Future Work

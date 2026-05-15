@@ -53,8 +53,6 @@ enum hash_table_weakness
   HASH_TABLE_WEAK
 };
 
-extern const struct memory_description hash_table_description[];
-
 EXFUN (Fcopy_hash_table, 1);
 EXFUN (Fhash_table_count, 1);
 EXFUN (Fgethash, 3);

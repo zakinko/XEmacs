@@ -178,6 +178,10 @@ things are arranged in config.h.in.  In particular:
 /* Define to 1 if you have `alloca', as a function or macro. */
 #undef HAVE_ALLOCA
 
+/* Define to 1 if the current build environment randomizes text or data
+   addresses from run to run. */
+#undef HAVE_ASLR
+
 /* Define to 1 if you have <alloca.h> and it should be used. */
 #undef HAVE_ALLOCA_H
 

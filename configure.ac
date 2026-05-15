@@ -2758,29 +2758,70 @@ if test "$opsys" = "sol2"; then
   fi
 fi
 
-xemacs_unpredictable=no
-AC_MSG_CHECKING([predictable run-time C data segment relative offsets])
+have_aslr=no
+AC_MSG_CHECKING([for ASLR of the data segment])
 AC_RUN_IFELSE([AC_LANG_SOURCE([#include <stdio.h>
+static struct { int foo; double bar; char baz; } quux = { 42, 3.13, 'z' };
+int main (int c, char **v) {
+	 if (--c) { printf ("%zud", (char *) (&quux)); };
+	 return 0;
+}])],
+[test_aslr_data=`./conftest t`
+if test "$test_aslr_data" = `./conftest t`    \
+        -a "$test_aslr_data" = `./conftest t` \
+        -a "$test_aslr_data" = `./conftest t` \
+        -a "$test_aslr_data" = `./conftest t`; then
+   AC_MSG_RESULT(no)
+else		
+   AC_MSG_RESULT(yes)
+   have_aslr=yes
+fi],[:])
+
+if test "$have_aslr" = no; then
+  AC_MSG_CHECKING([for ASLR of the C text segment])
+  AC_RUN_IFELSE([AC_LANG_SOURCE([#include <stdio.h>
+static double foo (int bar) { return (double) bar; };
+int main (int c, char **v) {
+  if (--c) { printf ("%zud", (char *) (&foo)); };
+  return 0;
+}
+])],
+    [test_aslr_delta=`./conftest t`
+    if test "$test_aslr_delta" = `./conftest t`    \
+       	-a "$test_aslr_delta" = `./conftest t` \
+        -a "$test_aslr_delta" = `./conftest t` \
+        -a "$test_aslr_delta" = `./conftest t`; then
+      AC_MSG_RESULT(no)
+    else
+      AC_MSG_RESULT(yes)
+      have_aslr=yes
+    fi], [:])
+fi
+
+if test "$have_aslr" = yes; then
+  xemacs_unpredictable=no
+  AC_MSG_CHECKING([predictable run-time C data segment relative offsets])
+  AC_RUN_IFELSE([AC_LANG_SOURCE([#include <stdio.h>
 static struct { int foo; double bar; char baz; } quux = { 42, 3.13, 'z' };
 static struct { int foo; double bar; char baz; } hello = { 43, 4.13, 'Z' };
 int main (int c, char **v) {
 	 if (--c) { printf ("%zud", ((char *) (&quux) - (char *) (&hello))); }
 	 return 0;
 }])],
-[test_data_delta=`./conftest t`
-if test "$test_data_delta" = `./conftest t`    \
+  [test_data_delta=`./conftest t`
+  if test "$test_data_delta" = `./conftest t`    \
         -a "$test_data_delta" = `./conftest t` \
         -a "$test_data_delta" = `./conftest t` \
         -a "$test_data_delta" = `./conftest t`; then
-    	AC_MSG_RESULT(yes)
- else		
-	AC_MSG_RESULT(no)
-	xemacs_unpredictable=yes
- fi],[:])
+    AC_MSG_RESULT(yes)
+  else		
+    AC_MSG_RESULT(no)
+    xemacs_unpredictable=yes
+  fi],[:])
 
-if test "$xemacs_unpredictable" = no; then
-	AC_MSG_CHECKING([predictable run-time C text segment relative offsets])
-        AC_RUN_IFELSE([AC_LANG_SOURCE([#include <stdio.h>
+  if test "$xemacs_unpredictable" = no; then
+    AC_MSG_CHECKING([predictable run-time C text segment relative offsets])
+    AC_RUN_IFELSE([AC_LANG_SOURCE([#include <stdio.h>
 static double foo (int bar) { return (double) bar; };
 static int baz (double quux);
 int main (int c, char **v) {
@@ -2789,23 +2830,23 @@ int main (int c, char **v) {
 }
 static int baz (double quux) { return (int) quux; }
 ])],
-	[test_func_delta=`./conftest t`
-if test "$test_func_delta" = `./conftest t`    \
+    [test_func_delta=`./conftest t`
+    if test "$test_func_delta" = `./conftest t`    \
        	-a "$test_func_delta" = `./conftest t` \
         -a "$test_func_delta" = `./conftest t` \
         -a "$test_func_delta" = `./conftest t`; then
-    	AC_MSG_RESULT(yes)
-else
-	xemacs_unpredictable=yes
-    	AC_MSG_RESULT(no)
-fi], [:])
-fi
+      AC_MSG_RESULT(yes)
+    else
+      xemacs_unpredictable=yes
+      AC_MSG_RESULT(no)
+    fi], [:])
+  fi
 
-if test "$xemacs_unpredictable" = yes; then
-   AC_MSG_CHECKING([how to disable ASLR given unpredictable run-time relative addresses])
-   for try_no_pie in "-no-pie" "-Wl,-no_pie" "-nopie"; do
-     xe_check_libs="${try_no_pie}"
-     AC_RUN_IFELSE([AC_LANG_SOURCE([#include <stdio.h>
+  if test "$xemacs_unpredictable" = yes; then
+    AC_MSG_CHECKING([how to disable ASLR given unpredictable run-time relative addresses])
+    for try_no_pie in "-no-pie" "-Wl,-no_pie" "-nopie"; do
+      xe_check_libs="${try_no_pie}"
+      AC_RUN_IFELSE([AC_LANG_SOURCE([#include <stdio.h>
 static int test_func(void) { return 42; }
 int main (int c, char **v) { if (--c) { printf ("%p", &test_func); } return 0; }])],
        [test_func_address=`./conftest t`
@@ -2815,20 +2856,24 @@ int main (int c, char **v) { if (--c) { printf ("%p", &test_func); } return 0; }
           -a "$test_func_address" = `./conftest t`; then
           no_pie="${try_no_pie}"
         fi])
-     xe_check_libs=""
-     if test -n "$no_pie"; then 
-       dnl Don't be tempted to apply XE_PROTECT_LINKER_FLAGS() to this.
-       dnl On Debian 9.2 Stretch the linker does not recognise -no-pie, it
-       dnl needs to be handled by the GCC invocation.
-       XE_APPEND($no_pie, start_flags)
-       break;
-     fi
-   done
-   if test -z "$no_pie"; then
-     AC_MSG_ERROR([don't know how to disable ASLR on $ac_cv_build])
-   fi
-   AC_MSG_RESULT([yes, disabling address space layout randomization with $no_pie, xemacs binary])
+      xe_check_libs=""
+      if test -n "$no_pie"; then 
+        dnl Don't be tempted to apply XE_PROTECT_LINKER_FLAGS() to this.
+        dnl On Debian 9.2 Stretch the linker does not recognise -no-pie, it
+        dnl needs to be handled by the GCC invocation.
+        XE_APPEND($no_pie, start_flags)
+        break;
+      fi
+    done
+    if test -z "$no_pie"; then
+      AC_MSG_ERROR([don't know how to disable ASLR on $ac_cv_build])
+    fi
+    AC_MSG_RESULT([yes, disabling address space layout randomization with $no_pie, xemacs binary])
+    have_aslr=no    
+  fi
 fi
+
+test "$have_aslr" = yes && AC_DEFINE(HAVE_ASLR)
 
 dnl ----------------------
 dnl Choose a window system
