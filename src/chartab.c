@@ -1041,9 +1041,9 @@ char_table_default_for_type (enum char_table_type type)
 struct ptemap
 {
   Lisp_Object printcharfun;
-  int first;
-  int num_printed;
-  int max;
+  Fixnum num_printed;
+  Fixnum max;
+  Boolint first;
 };
 
 static int
@@ -1084,6 +1084,10 @@ print_char_table (Lisp_Object obj, Lisp_Object printcharfun,
   range.type = CHARTAB_RANGE_ALL;
   arg.printcharfun = printcharfun;
   arg.first = 1;
+  arg.num_printed = 0;
+  arg.max
+    = FIXNUMP (Vprint_table_nonreadably_length) ?
+    XFIXNUM (Vprint_table_nonreadably_length) : 1 + MOST_POSITIVE_FIXNUM;
 
   write_ascstring (printcharfun, "#s(char-table :type ");
   /* write_lisp_string() is fine, we know it's not an uninterned symbol. */

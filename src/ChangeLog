@@ -1,5 +1,17 @@
 2026-05-15  Aidan Kehoe  <kehoea@parhasard.net>
 
+	* chartab.c (struct ptemap):
+	Change the type of NUM_PRINTED, MAX to fixnum, given the latter is
+	initialised from Vprint_table_nonreadably_length, and the former
+	is compared against the latter.
+	Change the type of FIRST to Boolint, which is clearer.
+	* chartab.c (print_char_table):
+	Initialize NUM_PRINTED, MAX appropriately, silence a
+	read-of-uninitialized-data warning from valgrind, thank you
+	valgrind.
+
+2026-05-15  Aidan Kehoe  <kehoea@parhasard.net>
+
 	Remove the need to relocate the dumped data on a no-ASLR,
 	DUMP_IN_EXEC build.
 
