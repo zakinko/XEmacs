@@ -1223,7 +1223,6 @@ void r_alloc_free (unsigned char **);
 #define BUFFER_REALLOC(data, size) \
   ((Ibyte *) r_re_alloc ((unsigned char **) &data, (size) * sizeof(Ibyte)))
 #define BUFFER_FREE(data) r_alloc_free ((unsigned char **) &(data))
-#define R_ALLOC_DECLARE(var,data) r_alloc_declare (&(var), data)
 
 #else /* !REL_ALLOC */
 
@@ -1233,7 +1232,6 @@ void r_alloc_free (unsigned char **);
 	((Ibyte *) xrealloc (data, (size) * sizeof(Ibyte)))
 /* Avoid excess parentheses, or syntax errors may rear their heads. */
 #define BUFFER_FREE(data) xfree (data)
-#define R_ALLOC_DECLARE(var,data)
 
 #endif /* !REL_ALLOC */
 

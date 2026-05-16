@@ -1,3 +1,42 @@
+2026-05-16  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* buffer.h:
+	Remove R_ALLOC_DECLARE() as a #define, not used, and calls
+	r_alloc_declare(), which does not exist.
+	* ralloc.c:
+	* ralloc.c (PAGE): #define this as qxegetpagesize() if emacs is
+	defined, otherwise as getpagesize().
+	* ralloc.c (ALIGNED):
+	Use size_t in this, a better type than unsigned long int.
+	* ralloc.c (ALIGNED): Ditto.
+	* ralloc.c (ROUNDUP): Ditto.
+	* ralloc.c (MEM_ALIGN): Use sizeof (max_align_t) here.
+	* ralloc.c (r_alloc_size_in_use): Removed, not used.
+	* ralloc.c (reorder_bloc): Removed, long #if 0'd out.
+	* ralloc.c (r_alloc_sbrk): Make this static. Don't check for
+	r_alloc_initialized, not necessary since we do this very early in
+	XEmacs.
+	* ralloc.c (r_alloc):
+	Don't check for r_alloc_initialized, not necessary since we do
+	this very early in XEmacs.
+	* ralloc.c (r_alloc_free): Ditto.
+	* ralloc.c (r_re_alloc): Ditto.
+	* ralloc.c (r_alloc_freeze): Make this static.  Don't check for
+	r_alloc_initialized, no need.
+	* ralloc.c (r_alloc_thaw): Ditto.
+	* ralloc.c (PAGES_FOR): Redefine this in terms of size_t.
+	* ralloc.c (ROUNDUP): Ditto.
+	* ralloc.c (new_mmap_handle):
+	No need to call init_MHASH_table() here.
+	* ralloc.c (init_MHASH_table): Remove this, it just set the
+	elements of MHASH_HITS to all zero, which the static
+	default initialization does anyway; no need to reinitialize now
+	unexec is gone.
+	* ralloc.c (MHASH): Simplify this.
+	* regex.c:
+	DOUG_LEA_MALLOC is long gone, no need to check for this when
+	deciding not to use REL_ALLOC for the failure stack.
+
 2026-05-15  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* chartab.c (struct ptemap):

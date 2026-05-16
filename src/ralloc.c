@@ -56,10 +56,12 @@ typedef unsigned char *POINTER;
 #include <malloc.h>
 #endif
 
-#include "getpagesize.h"
+#include "sysdep.h"
 
 #include <string.h>
 void refill_memory_reserve (void);
+
+#define PAGE (qxegetpagesize ())
 
 #else	/* Not emacs.  */
 
@@ -72,6 +74,8 @@ typedef void *POINTER;
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
+
+#define PAGE (getpagesize ())
 
 #endif	/* emacs.  */
 
@@ -110,15 +114,14 @@ static int extra_bytes;
 
 /* Macros for rounding.  Note that rounding to any value is possible
    by changing the definition of PAGE. */
-#define PAGE (getpagesize ())
-#define ALIGNED(addr) (((unsigned long int) (addr) & (page_size - 1)) == 0)
-#define ROUNDUP(size) (((unsigned long int) (size) + page_size - 1) \
-                       & ~(page_size - 1))
-#define ROUND_TO_PAGE(addr) (addr & (~(page_size - 1)))
+#define ALIGNED(addr) (((size_t) (addr) & (page_size - 1)) == 0)
+#define ROUNDUP(size) (((size_t) (size) + page_size - 1) \
+                       & ~((size_t) (page_size - 1)))
+#define ROUND_TO_PAGE(addr) (addr & ~((size_t) (page_size - 1)))
 
-#define MEM_ALIGN sizeof(double)
-#define MEM_ROUNDUP(addr) (((unsigned long int)(addr) + MEM_ALIGN - 1) \
-				   & ~(MEM_ALIGN - 1))
+#define MEM_ALIGN (sizeof (max_align_t))
+#define MEM_ROUNDUP(addr) (((size_t)(addr) + MEM_ALIGN - 1) \
+			   & ~(MEM_ALIGN - 1))
 
 /* Data structures of heaps and blocs.  */
 
@@ -376,15 +379,6 @@ relinquish (void)
     }
 }
 
-/* Return the total size in use by relocating allocator,
-   above where malloc gets space.  */
-
-long r_alloc_size_in_use (void);
-long
-r_alloc_size_in_use (void)
-{
-  return break_value - virtual_break_value;
-}
 
 /* The meat - allocating, freeing, and relocating blocs.  */
 
@@ -522,37 +516,6 @@ relocate_blocs (bloc_ptr bloc, heap_ptr heap, POINTER address)
 
   return 1;
 }
-
-#if 0 /* unused */
-/* Reorder the bloc BLOC to go before bloc BEFORE in the doubly linked list.
-   This is necessary if we put the memory of space of BLOC
-   before that of BEFORE.  */
-
-static void
-reorder_bloc (bloc_ptr bloc, bloc_ptr before)
-{
-  bloc_ptr prev, next;
-
-  /* Splice BLOC out from where it is.  */
-  prev = bloc->prev;
-  next = bloc->next;
-
-  if (prev)
-    prev->next = next;
-  if (next)
-    next->prev = prev;
-
-  /* Splice it in before BEFORE.  */
-  prev = before->prev;
-
-  if (prev)
-    prev->next = bloc;
-  bloc->prev = prev;
-
-  before->prev = bloc;
-  bloc->next = before;
-}
-#endif /* unused */
 
 /* Update the records of which heaps contain which blocs, starting
    with heap HEAP and bloc BLOC.  */
@@ -780,15 +743,11 @@ free_bloc (bloc_ptr bloc)
    __morecore hook values - in particular, __default_morecore in the
    GNU malloc package.  */
 
-POINTER r_alloc_sbrk (ptrdiff_t size);
-POINTER
+static POINTER
 r_alloc_sbrk (ptrdiff_t size)
 {
   register bloc_ptr b;
   POINTER address;
-
-  if (! r_alloc_initialized)
-    init_ralloc ();
 
   if (! use_relocatable_buffers)
     return (*real_morecore) (size);
@@ -939,9 +898,6 @@ r_alloc (POINTER *ptr, size_t size)
 
   REGEX_MALLOC_CHECK ();
 
-  if (! r_alloc_initialized)
-    init_ralloc ();
-
   new_bloc = get_bloc (size);
   if (new_bloc)
     {
@@ -964,9 +920,6 @@ r_alloc_free (POINTER *ptr)
   register bloc_ptr dead_bloc;
 
   REGEX_MALLOC_CHECK ();
-
-  if (! r_alloc_initialized)
-    init_ralloc ();
 
   dead_bloc = find_bloc (ptr);
   assert (dead_bloc != NIL_BLOC);
@@ -1000,9 +953,6 @@ r_re_alloc (POINTER *ptr, size_t size)
   register bloc_ptr bloc;
 
   REGEX_MALLOC_CHECK ();
-
-  if (! r_alloc_initialized)
-    init_ralloc ();
 
   if (!*ptr)
     return r_alloc (ptr, size);
@@ -1056,13 +1006,9 @@ r_re_alloc (POINTER *ptr, size_t size)
    guaranteed to hold still until thawed, even if this means that
    malloc must return a null pointer.  */
 
-void r_alloc_freeze (long size);
-void
-r_alloc_freeze (long size)
+static void
+r_alloc_freeze (ptrdiff_t size)
 {
-  if (! r_alloc_initialized)
-    init_ralloc ();
-
   /* If already frozen, we can't make any more room, so don't try.  */
   if (r_alloc_freeze_level > 0)
     size = 0;
@@ -1074,14 +1020,9 @@ r_alloc_freeze (long size)
     r_alloc_sbrk (-size);
 }
 
-void r_alloc_thaw (void);
-void
+static void
 r_alloc_thaw (void)
 {
-
-  if (! r_alloc_initialized)
-    init_ralloc ();
-
   assert (--r_alloc_freeze_level >= 0);
 
   /* This frees all unused blocs.  It is not too inefficient, as the resize
@@ -1272,9 +1213,8 @@ static int r_alloc_initialized = 0;
 
 /* (ptf): Macros for rounding.  Note that rounding to any value is possible
    by changing the definition of PAGE. */
-#define PAGE (getpagesize ())
-#define PAGES_FOR(size) (((unsigned long int) (size) + page_size - 1)/page_size)
-#define ROUNDUP(size) ((unsigned long int)PAGES_FOR(size)*page_size)
+#define PAGES_FOR(size) (((size_t) (size) + page_size - 1)/page_size)
+#define ROUNDUP(size) ((size_t)PAGES_FOR(size)*page_size)
 
 
 /* DEV_ZERO_FD is -1 normally, but for systems without MAP_ANONYMOUS
@@ -1296,8 +1236,6 @@ static int DEV_ZERO_FD = -1;
    yet another stupid datastructure.  The structure is maintained as a
    ring, and the singleton ring has the sole element as its left and
    right neighbours. */
-
-static void init_MHASH_table (void); /* Forward reference */
 
 typedef struct alloc_dll
 {
@@ -1322,7 +1260,6 @@ new_mmap_handle (size_t nsiz)
   h->size = nsiz;
   if (mmap_start == 0)
     {
-      init_MHASH_table ();
       mmap_start = h; mmap_start->left = h; mmap_start->right = h;
     }
   {
@@ -1384,30 +1321,13 @@ struct {
   VM_ADDR addr;			/* What is its VM address? */
 } MHASH_HITS[ MHASH_PRIME ];
 
-static void
-init_MHASH_table (void)
-{
-  int i = 0;
-  for (; i < MHASH_PRIME; i++)
-    {
-      MHASH_HITS[i].n_hits = 0;
-      MHASH_HITS[i].addr = 0;
-      MHASH_HITS[i].handle = 0;
-    }
-}
-
 /* Compute the hash value for an address. */
 static int
 MHASH (VM_ADDR addr)
 {
-#if (LONGBITS == 64)
-  unsigned long int addr_shift = (unsigned long int)(addr) >> USELESS_LOWER_ADDRESS_BITS;
-#else
-  unsigned int addr_shift = (unsigned int)(addr) >> USELESS_LOWER_ADDRESS_BITS;
-#endif
-  int hval = addr_shift % MHASH_PRIME; /* We could have addresses which are -ve
-					  when converted to signed ints */
-  return ((hval >= 0) ? hval : MHASH_PRIME + hval);
+  size_t addr_shift = (size_t)(addr) >> USELESS_LOWER_ADDRESS_BITS;
+  /* This is guaranteed nonnegative. */
+  return (int) (addr_shift % MHASH_PRIME);
 }
 
 /* Add a VM address with its corresponding handle to the table. */
