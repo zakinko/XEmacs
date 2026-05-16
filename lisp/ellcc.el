@@ -152,7 +152,7 @@
 	 ;; Then exit XEmacs with the same exit value that the underlying
 	 ;; program gave.
 	 (when (> verbose 0)
-	   (write-line (mapconcat #'identity arguments " ") t))
+	   (write-line (mapconcat #'identity (cons program arguments) " ") t))
 	 (let* ((stderr-buffer (generate-new-buffer " *exec-stderr*"))
 		(stdout-buffer (generate-new-buffer " *exec-stdout*"))
 		status process)

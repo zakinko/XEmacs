@@ -1,3 +1,9 @@
+2026-05-16  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* ellcc.el (call-process-and-exit):
+	Echo PROGRAM as well as ARGUMENTS when --mode=verbose, give
+	clearer messages.
+
 2026-04-23  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Revert 8943a7bad974 for now, restore support for old-eq and the
