@@ -43,9 +43,9 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
    frob-block object FROB_BLOCK_LISP_OBJECT_HEADER.
 
    FROB_BLOCK_LISP_OBJECT_HEADER boils down to a `struct lrecord_header'.
-   This is a 32-bit value made up of bit fields, where 8 bits are used to
-   hold the type, 2 or 3 bits are used for flags associated with the
-   garbage collector, and the remaining 21 or 22 bits hold the UID.
+   This is a 32-bit value made up of bit fields, where 16 bits are used to
+   hold the type, 3 bits are used for flags associated with the
+   garbage collector, and the remaining 13 bits hold the UID.
 
    NORMAL_LISP_OBJECT_HEADER resolves to a `struct old_lcrecord_header' (note
    the `c'), which is a larger structure -- on 32-bit machines it occupies 2
@@ -160,7 +160,7 @@ struct lrecord_header
   /* Index into lrecord_implementations_table[].  Objects that have been
      explicitly freed using e.g. free_cons() have lrecord_type_free in this
      field. */
-  unsigned int type :8;
+  unsigned int type :16;
 
   /* If `mark' is 0 after the GC mark phase, the object will be freed
      during the GC sweep phase.  There are 2 ways that `mark' can be 1:
@@ -179,7 +179,7 @@ struct lrecord_header
   /* The `uid' field is just for debugging/printing convenience.  Having
      this slot doesn't hurt us spacewise, since the bits are unused
      anyway. (The bits are used for strings, though.) */
-  unsigned int uid :21;
+  unsigned int uid :13;
 };
 
 struct lrecord_implementation;

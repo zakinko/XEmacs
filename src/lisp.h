@@ -2645,11 +2645,11 @@ struct Lisp_String
 	{
 	  /* WARNING: Everything before modiffp must agree exactly with
 	     struct lrecord_header. */
-	  unsigned int type :8;
+	  unsigned int type :16;
 	  unsigned int mark :1;
 	  unsigned int c_readonly :1;
 	  unsigned int lisp_readonly :1;
-#define NUM_ASCII_END_BITS 20
+#define NUM_ASCII_END_BITS 12
 	  /* A flag describing whether this string has ever been
 	     modified; the actual modified tick is stored on the plist
 	     if and only if this flag is non-zero. */
@@ -2861,7 +2861,7 @@ struct Lisp_Symbol
     {
       /* Everything before package_count must agree exactly with struct
          lrecord_header. */
-      unsigned int type :8;
+      unsigned int type :16;
       unsigned int mark :1;
       unsigned int c_readonly :1;
       unsigned int lisp_readonly :1;
@@ -2869,7 +2869,7 @@ struct Lisp_Symbol
       unsigned int package_count :2;
       /* ID of the first package this symbol was interned in. Zero is
          uninterned, one is obarray. */
-      unsigned int first_package_id :19;
+      unsigned int first_package_id :11;
     } v;
   } u;
 

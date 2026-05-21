@@ -357,6 +357,21 @@
 
 2026-05-21  Aidan Kehoe  <kehoea@parhasard.net>
 
+	Increase the bit width of struct lrecord_header.type to 16 from 8,
+	with a view to relaxing future pressure on the modules regarding
+	the number of types they can define.
+	* lisp.h (struct Lisp_String):
+	Increase the width of TYPE to 16 bits from 8, decrease
+	NUM_ASCII_END_BITS to 12 from 20.
+	* lisp.h (struct Lisp_Symbol):
+	Increase the width of TYPE to 16 bits, decrease first_package_id
+	bits to 11 from 19.
+	* lrecord.h (struct lrecord_header):
+	Increase the width of TYPE to 16 bits, decrease the width of UID
+	to 13 bits from 21 bits.
+
+2026-05-21  Aidan Kehoe  <kehoea@parhasard.net>
+
 	Support 4-byte (DWORD) alignment with DUMP_IN_EXEC, in preparation
 	for getting the hash table dump-time relocation support working on
 	Microsoft Windows.
