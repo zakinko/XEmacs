@@ -1,5 +1,23 @@
 2026-05-21  Aidan Kehoe  <kehoea@parhasard.net>
 
+	Get tip building as C++ under Visual Studio.
+
+	* emacs.c:
+	Declare Frun_emacs_from_temacs() as EXFUN_NORETURN.
+	* event-stream.c:
+	Use portable_offsetof() within the initialization of
+	event_stream_description_1, avoid spurious errors that
+	"error C2615: 'offsetof' cannot be applied to non-class type
+	'event_stream *'"; struct event_stream is indeed not a class, we
+	are not using a pointer at any point within this definition. Event
+	renaming the global variable event_stream to the_event_stream does
+	not silence this.
+	* lisp.h:
+	max_align_t can be made available in <cstddef> but not <stddef.h>;
+	this is stupid, but work around it if _MSC_VER is defined.
+
+2026-05-21  Aidan Kehoe  <kehoea@parhasard.net>
+
 	Support 4-byte (DWORD) alignment with DUMP_IN_EXEC, in preparation
 	for getting the hash table dump-time relocation support working on
 	Microsoft Windows.

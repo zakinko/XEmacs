@@ -114,6 +114,9 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 #include <stdio.h>		/* NULL, etc. */
 #include <ctype.h>
 #include <stdarg.h>
+#if defined (__cplusplus) && defined (_MSC_VER)
+#include <cstddef>
+#endif
 #include <stddef.h>		/* offsetof */
 #include <sys/types.h>
 #include <limits.h>

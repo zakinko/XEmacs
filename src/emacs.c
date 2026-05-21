@@ -2665,7 +2665,7 @@ Currently defined values:
   return Fnreverse (plist);
 }
 
-EXFUN (Frun_emacs_from_temacs, MANY) ATTRIBUTE_COLD;
+EXFUN_NORETURN (Frun_emacs_from_temacs, MANY) ATTRIBUTE_COLD;
 
 DEFUN_NORETURN ("run-emacs-from-temacs", Frun_emacs_from_temacs, 0, MANY, 0, /*
 Reinitialize XEmacs for use after initializing C and Lisp state.
