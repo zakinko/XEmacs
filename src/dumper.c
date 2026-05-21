@@ -345,10 +345,12 @@ static const struct sized_memory_description staticpros_nodump_description = {
   staticpros_nodump_description_1
 };
 
+static EMACS_UINT initial_offset;
+
 inline static void
 pdump_align_stream (FILE *stream, Bytecount alignment)
 {
-  OFF_T offset = FTELL (stream);
+  OFF_T offset = FTELL (stream) + initial_offset;
   OFF_T adjustment = ALIGN_SIZE (offset, alignment) - offset;
   if (adjustment)
     {
@@ -439,12 +441,30 @@ pdump_objects_unmark (void)
 		  data-segment blocks to restore */
 
 #define PDUMP_SIGNATURE "XEmacsDP"
-#define PDUMP_SIGNATURE_LEN (sizeof (PDUMP_SIGNATURE) - 1)
+#define PDUMP_SIGNATURE_LEN 8
+
+/* FindResourceA() only guarantees DWORD (UINT_32_BIT) alignment. There is no
+   other good way to store the dump file in the executable on WIN32_NATIVE
+   (there is no incbin assembler directive, and Visual Studio does not yet
+   support #embed; Dale Weiler suggests his incbin.c, which is equivalent to
+   xxd -i, very unwieldy for a 9 megabyte dump file). This is the most
+   restrictive alignment for the dump file that we must deal with.
+
+   Separate out the header into pdump_signature_header, which will work with
+   UINT_32_BIT alignment, and pdump_real_header, which will require 8-byte
+   alignment on a 64 bit machine. Find the address the dump file is mapped to
+   within temacs, add padding between the two based on the offset needed for
+   that, and use the same calculation for padding within
+   pdump_load_finish(). (The actual address will be different with ASLR, but
+   alignment requirements will be the same.) */
+typedef struct
+{
+  Ascbyte signature[PDUMP_SIGNATURE_LEN];
+  UINT_32_BIT id;
+} pdump_signature_header;
 
 typedef struct
 {
-  char signature[PDUMP_SIGNATURE_LEN];
-  unsigned int id;
   EMACS_UINT rtab_offset;
   EMACS_UINT rtab_end;
   /* Usually 0, reflecting an offset into the dump file. */
@@ -456,7 +476,7 @@ typedef struct
   Elemcount nb_cv_info;
   Elemcount nb_root_block_ptrs;
   Elemcount nb_root_blocks;
-} pdump_header;
+} pdump_real_header;
 
 Rawbyte *pdump_start;
 Rawbyte *pdump_end;
@@ -2260,10 +2280,10 @@ pdump (void)
 {
   int i;
   int none;
-  pdump_header header;
+  pdump_signature_header signature_header;
+  pdump_real_header header;
   int speccount = specpdl_depth ();
   struct gcpro gcpro1, gcpro2, gcpro3;
-  EMACS_UINT initial_offset = 0;
 
 #if defined(DUMP_IN_EXEC) && !defined (WIN32_NATIVE)
   initial_offset += (EMACS_UINT) dumped_data_get ();
@@ -2441,8 +2461,14 @@ pdump (void)
   /* (II) The "layout" stage: Compute the offsets and max-size */
 
   /* (1) Determine header size */
-  memcpy (header.signature, PDUMP_SIGNATURE, PDUMP_SIGNATURE_LEN);
-  header.id = dump_id;
+  memcpy (signature_header.signature, PDUMP_SIGNATURE, PDUMP_SIGNATURE_LEN);
+  signature_header.id = dump_id;
+
+  cur_offset = initial_offset;
+  cur_offset += sizeof (signature_header);
+
+  cur_offset = ALIGN_FOR_TYPE (cur_offset, pdump_real_header);
+
   header.reloc_address = initial_offset;
   header.Fcons_address = (EMACS_UINT) (&Fcons);
   header.lisp_object_description_address
@@ -2451,8 +2477,9 @@ pdump (void)
   header.nb_root_blocks = Dynarr_length (pdump_root_blocks);
   header.nb_cv_info = Dynarr_length (pdump_cv_infos);
 
-  cur_offset = initial_offset;
-  cur_offset += MAX_ALIGN_SIZE (sizeof (header));
+  cur_offset += sizeof (header);
+  cur_offset = MAX_ALIGN_SIZE (cur_offset);
+
   max_size = 0;
 
   /* (2) Traverse all heap blocks and compute their offsets; keep track
@@ -2498,7 +2525,9 @@ pdump (void)
     report_file_error ("Unable to open dump file for writing",
 		       build_ascstring (EMACS_DUMP_FILE_NAME));
 
-  retry_fwrite (&header, sizeof (header), 1, pdump_out);
+  retry_fwrite (&signature_header, sizeof (signature_header), 1, pdump_out);
+  PDUMP_WRITE_ALIGNED (pdump_real_header, header);
+
   PDUMP_ALIGN_OUTPUT (max_align_t);
 
   pdump_scan_by_alignment (pdump_dump_data);
@@ -2531,7 +2560,7 @@ pdump (void)
 static Boolint
 pdump_load_check (Boolint diep)
 {
-  if (memcmp (((pdump_header *) pdump_start)->signature,
+  if (memcmp (((pdump_signature_header *) pdump_start)->signature,
               PDUMP_SIGNATURE, PDUMP_SIGNATURE_LEN))
     {
       if (diep)
@@ -2541,7 +2570,7 @@ pdump_load_check (Boolint diep)
       return 0;
    }
 
-  if (((pdump_header *) pdump_start)->id != dump_id)
+  if (((pdump_signature_header *) pdump_start)->id != dump_id)
     {
       if (diep)
         {
@@ -2550,6 +2579,16 @@ pdump_load_check (Boolint diep)
         }
       return 0;
       
+    }
+
+  if (pdump_length <= ((Bytecount) sizeof (pdump_signature_header)
+		       + (Bytecount) sizeof (pdump_real_header)))
+    {
+      if (diep)
+	{
+	  fatal ("dump data too small");
+	}
+      return 0;
     }
 
   return 1;
@@ -2563,7 +2602,10 @@ pdump_load_finish (void)
 {
   int i;
   Rawbyte *p;
-  pdump_header *header = (pdump_header *) pdump_start;
+  pdump_real_header *header
+    = (pdump_real_header *) ALIGN_PTR (pdump_start
+				       + sizeof (pdump_signature_header),
+				       pdump_real_header);
 
   pdump_end = pdump_start + pdump_length;
 
@@ -2744,12 +2786,6 @@ pdump_resource_get (void)
     }
 
   pdump_length = SizeofResource (NULL, hRes);
-  if (pdump_length <= (Bytecount) sizeof (pdump_header))
-    {
-      fatal ("dump data too small");
-      pdump_start = 0;
-      return 0;
-    }
 
   if (!VirtualProtect(pdump_start, pdump_length, PAGE_READWRITE,
 		      &previous_protection))
@@ -2769,12 +2805,6 @@ pdump_resource_get (void)
 {
   pdump_start = dumped_data_get ();
   pdump_length = dumped_data_size ();
-
-  if (pdump_length <= (Bytecount) sizeof (pdump_header))
-    {
-      fatal ("dump data too small");
-      return 0;
-    }
 
   return 1;
 }
@@ -2836,15 +2866,6 @@ pdump_file_get (const Extbyte *path, Boolint diep)
     }
 
   pdump_length = lseek (fd, 0, SEEK_END);
-  if (pdump_length < (Bytecount) sizeof (pdump_header))
-    {
-      if (diep)
-        {
-          fatal ("dump file too short: `%s'", path);
-        }
-      retry_close (fd);
-      return 0;
-    }
 
   if (lseek (fd, 0, SEEK_SET) == -1)
     {

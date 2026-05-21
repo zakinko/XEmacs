@@ -33,7 +33,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 # define RAWBYTE Rawbyte
 #endif
 
-alignas (16) static RAWBYTE dumped_data[] = {
+alignas (4) static RAWBYTE dumped_data[] = {
 #embed EMACS_DUMP_FILE_NAME
 };
 
@@ -47,7 +47,7 @@ dumped_data_size (void)
 #define INCBIN_PREFIX /* Nothing. */
 #define INCBIN_STYLE INCBIN_STYLE_SNAKE
 #define INCBIN_OUTPUT_SECTION ".data"
-#define INCBIN_ALIGNMENT_INDEX 4 /* 16-byte alignment. */
+#define INCBIN_ALIGNMENT_INDEX 2 /* 4-byte alignment. */
 #define INCBIN_SILENCE_BITCODE_WARNING /* Unlikely to be building XEmacs for an iPhone. */
 #include "incbin.h"
 

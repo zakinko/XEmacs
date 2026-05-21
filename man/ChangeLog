@@ -1,3 +1,11 @@
+2026-05-21  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* internals/internals.texi (Object inventory): Add a missing
+	preposition to a paragraph here.
+	* internals/internals.texi (Reloading phase): Update documentation
+	for the approach to dump-in-exec, to reflect that the code now
+	handles the DWORD alignment of Window's FindResourceA() .
+
 2026-05-15  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* internals/internals.texi (Top):

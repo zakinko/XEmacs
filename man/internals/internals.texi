@@ -22838,13 +22838,13 @@ function also checks if the address of a Lisp_Object encountered is in
 is relocated as an array of pointers in the data segment and needs to be
 handled differently to heap pointers.
 
-The hash table doubles as a map object to pdump_block_list_elt (i.e.
-allows us to look up a pdump_block_list_elt with the object it points
-to).  Entries are added with @code{pdump_add_block()} and looked up with
-@code{pdump_get_block()}.  The Lisp hash table implementation is used;
-objects are converted to Lisp_Objects using @code{STORE_VOID_IN_LISP()}
-or @code{make_opaque_ptr()} depending on whether the low-order bit is
-set.
+The hash table doubles as a map from an object to pdump_block_list_elt
+(i.e.  allows us to look up a pdump_block_list_elt with the object it
+points to).  Entries are added with @code{pdump_add_block()} and looked
+up with @code{pdump_get_block()}.  The Lisp hash table implementation is
+used; objects are converted to Lisp_Objects using
+@code{STORE_VOID_IN_LISP()} or @code{make_opaque_ptr()} depending on
+whether the low-order bit is set.
 
 The roots for the marking are:
 
@@ -23024,20 +23024,23 @@ motivation; ld.so(8) on Linux); this also has the benefit that no path
 searching is needed very early before we have any significant natural
 language processing available.
 
-This easily achieved on MS Windows by storing it in a ``resource'' at
-compile time and loading that at runtime. Unfortunately this only
-guarantees DWORD (UINT_32_BIT) alignment and this code needs to be
-removed for that reason.
+This is easily achieved on MS Windows by storing it in a ``resource'' at
+compile time and loading that at runtime. This only guarantees DWORD
+(UINT_32_BIT) alignment. Unfortunately there is no better way to do this
+with Visual Studio, and so the platform-independent dump code has been
+adjusted to deal with this worst-case alignment scenario.
 
-On other platforms this is more difficult. It is currently done using
-``INCBIN'', a reasonably portable assembler macro from Dale Weiler that
-includes an external binary in the executable with a given alignment;
-this requires re-linking the executable after the dump file is
-generated. If the current compiler supports C23's @code{#embed}
-directive that is used in preference to @code{INCBIN}.
+On other platforms, if the current compiler supports C23's @code{#embed}
+directive, that is used. That directive is not yet universal, and if it
+is unavailable, we use ``INCBIN'', a reasonably portable assembler macro
+from Dale Weiler that is equivalent. Both of these require re-linking
+the executable after the dump file (of the correct size!) is generated.
+We only request four byte alignment with @code{#embed} and ``INCBIN'',
+with a view to eliciting likely problems on native Windows builds when
+building on non-Windows platforms.
 
-In these days of reproducible builds this works well. The previous
-approach, from Olivier Galibert, binary-patched the generated
+In these days of reproducible builds these approaches work well. The
+previous approach, from Olivier Galibert, binary-patched the generated
 executable, which interacts poorly with signed executables, as is
 standard with macOS and the ARM architecture.
 
@@ -23046,7 +23049,7 @@ directory in which the XEmacs executable was found (for in-place
 execution) or in ``exec-directory'', usually under ../lib under the same
 prefix. It is then mmap'ed in memory (which ensures a PAGESIZE
 alignment, at least 4096), or if mmap is unavailable or fails, a
-256-bytes aligned malloc is done and the file is loaded.
+@code{max_align_t}-aligned malloc is done and the file is loaded.
 
 Some variables are reinitialized from the values found in the header.
 

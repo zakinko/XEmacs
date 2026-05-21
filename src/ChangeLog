@@ -1,3 +1,52 @@
+2026-05-21  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Support 4-byte (DWORD) alignment with DUMP_IN_EXEC, in preparation
+	for getting the hash table dump-time relocation support working on
+	Microsoft Windows.
+
+	* dump-data.c:
+	* dump-data.c (INCBIN_ALIGNMENT_INDEX):
+	Request four byte, rather than sixteen byte alignment for the dump
+	file, with a view to flushing out any alignment issues that the
+	native Windows build would encounter, even if building on POSIX.
+
+	* dumper.c:
+	Declare initial_offset as a static, top-level variable, now it is
+	needed by pdump_align_stream().
+	* dumper.c (pdump_align_stream):
+	Align the stream based on the current file position plus
+	initial_offset, which allows detection of the actual alignment of
+	the dumped data with DUMP_IN_EXEC.
+	* dumper.c (PDUMP_SIGNATURE_LEN):
+	This always was 8, but declare it explicitly as such for clarity.
+	* dumper.c (struct): Separate out pdump_header into
+	pdump_signature_header (which is happy with four byte alignment)
+	and pdump_real_header (which will require eight byte alignment on
+	64-bit machines). Motivate this in a comment.
+	* dumper.c (pdump):
+	Declare the signature header here. Change the type of header to
+	pdump_real_header. Remove the declaration of initial_offset from
+	this function.
+	Initialize the signature header appropriately, then determine the
+	offset for the pdump_real_header based on the alignment needed
+	after the signature header.
+	Determine cur_offset after setting header appropriately.
+	Write signature_header first to the dump file, then do an aligned
+	write for header.
+	* dumper.c (pdump_load_check):
+	Cast pdump_start to a pdump_signature_header as is now
+	appropriate. Check the length of the dump file in this function
+	and error appropriately, rather than in pdump_resource_get(),
+	pdump_file_get().
+	* dumper.c (pdump_load_finish):
+	Use the values in the pdump_real_header for relocation,
+	determining its offset within the dump file using ALIGN_PTR().
+	* dumper.c (pdump_resource_get):
+	Remove the length check from here, leave that to
+	pdump_load_check().
+	* dumper.c (pdump_file_get):
+	Ditto.
+
 2026-05-16  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* buffer.h:
