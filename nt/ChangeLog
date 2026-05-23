@@ -1,3 +1,23 @@
+2026-05-23  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Remove FASTCALL as a suggested build option, Windows Native;
+	irrelevant with 64 bit Windows, not actually faster, needlessly
+	complicates the implementation (functions passed to qsort() need
+	to be marked as STDCALL).
+
+	* config.inc.samp:
+	* config.inc.samp (USE_FASTCALL): Removed.
+	* xemacs.mak:
+	* xemacs.mak (OPTIMIZED_BUILD):
+	* xemacs.mak (USE_FASTCALL): Removed.
+	* xemacs.mak (OPTFLAGS_FASTCALL): Removed.
+	* xemacs.mak (OPTFLAGS_CDECL): Removed.
+	* xemacs.mak (OPTFLAGS): Always initialized to what was previously
+	OPTFLAGS_FASTCALL.
+	* xemacs.mak (CFLAGS_CDECL_NO_LIB): Removed.
+	* xemacs.mak (CFLAGS_CDECL): Removed.
+	* xemacs.mak (TEMACS_CPP_CDECL_FLAGS): Removed.
+
 2026-02-08  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* xemacs.mak (LIB_SRC_TOOLS):

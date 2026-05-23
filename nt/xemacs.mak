@@ -184,10 +184,6 @@ BUILD_BIGNUM_NATIVE_SHARED=0
 !if !defined(OPTIMIZED_BUILD)
 OPTIMIZED_BUILD=1
 !endif
-!if !defined(USE_FASTCALL)
-# #### Change to 1 when I check in the ws with support for fastcall
-USE_FASTCALL=0
-!endif
 !if !defined(PROFILE_SUPPORT)
 PROFILE_SUPPORT=0
 !endif
@@ -709,25 +705,17 @@ LIBC_LIB=libc.lib
 !if $(SUPPORT_EDIT_AND_CONTINUE)
 !error Edit-and-continue is not compatible with optimization.
 !endif
-# -GF means put strings in read-only memory; -Gr means use fastcall convention.
+
+# -GF means put strings in read-only memory; -Gr means use fastcall convention
+# (do not use; not actually any speed benefit, irrelevant on 64-bit, needs
+# special annotation of any function pointers passed to qsort()).
 # Another possible addition: -Ob2 -- allows inlining of any function, not just
 # those declared inline.  Potential code size increase, though.
 #
-# #### Note: fastcall doesn't actually seem to make any difference, at least
-# not using the (admittedly unscientific) test of (hanoi 6).  The
-# optimization article claims 1-2% improvement in both speed and size.
 # -GL should be strongly considered for link time optimization.
-OPTFLAGS_FASTCALL =-O2 -Gr -Ob2
-OPTFLAGS_CDECL    =-O2 -Ob2
+OPTFLAGS    =-O2 -Ob2
 !else
-OPTFLAGS_FASTCALL =-Od
-OPTFLAGS_CDECL    =-Od
-!endif
-
-!if $(USE_FASTCALL)
-OPTFLAGS = $(OPTFLAGS_FASTCALL)
-!else
-OPTFLAGS = $(OPTFLAGS_CDECL)
+OPTFLAGS    =-Od
 !endif
 
 !if $(PROFILE_SUPPORT)
@@ -755,9 +743,6 @@ CFLAGS_NO_OPT=-nologo -W3 -DSTRICT $(DEBUG_FLAGS_COMPILE)
 CFLAGS_NO_LIB=$(CFLAGS_NO_OPT) $(OPTFLAGS)
 CFLAGS=$(CFLAGS_NO_LIB) $(C_LIBFLAG)
 
-CFLAGS_CDECL_NO_LIB=$(CFLAGS_NO_OPT) $(OPTFLAGS_CDECL)
-CFLAGS_CDECL=$(CFLAGS_CDECL_NO_LIB) $(C_LIBFLAG)
-
 ########################### Determine flags for XEmacs object files.
 
 # This may not exist
@@ -783,7 +768,6 @@ TEMACS_CPP_FLAGS_NO_CFLAGS=-c $(CPLUSPLUS_COMPILE_FLAGS) \
 !endif
  -DEMACS_CONFIGURATION=\"$(EMACS_CONFIGURATION)\"
 TEMACS_CPP_FLAGS=$(CFLAGS) $(TEMACS_CPP_FLAGS_NO_CFLAGS)
-TEMACS_CPP_CDECL_FLAGS=$(CFLAGS_CDECL) $(TEMACS_CPP_FLAGS_NO_CFLAGS)
 
 ########################### Determine XEmacs object files.
 
@@ -960,7 +944,7 @@ TEMACS_DOC_SOURCES= \
 $(OUTDIR)\emacs.obj: $(SRCROOT)\version.sh
 
 $(OUTDIR)\libinterface.obj: $(SRC)\libinterface.c
-	$(CCV) $(TEMACS_CPP_CDECL_FLAGS) $(SRC)\$(@B).c -Fo$@ $(BROWSERFLAGS)
+	$(CCV) $(TEMACS_CPP_FLAGS) $(SRC)\$(@B).c -Fo$@ $(BROWSERFLAGS)
 
 $(OUTDIR)\postgresql.obj: $(SRCROOT)\modules\postgresql\postgresql.c
 	$(CCV) -I$(SRC) $(TEMACS_CPP_FLAGS) $(SRCROOT)\modules\postgresql\postgresql.c -Fo$@ $(BROWSERFLAGS)
@@ -1054,9 +1038,8 @@ $(BLDLIB_SRC)/etags.exe : $(LIB_SRC)/etags.c $(ETAGS_DEPS)
 
 $(BLDLIB_SRC)/movemail.exe : $(LIB_SRC)/movemail.c $(LIB_SRC)/pop.c $(ETAGS_DEPS)
 
-# Minitar uses zlib so just use cdecl to simplify things
 $(BLDLIB_SRC)/minitar.exe : $(NT)/minitar.c
-	$(CCV) -I$(SRC) -I"$(ZLIB_DIR)" $(LIB_SRC_DEFINES) $(CFLAGS_CDECL_NO_LIB) -MD $(LINK_DEPENDENCY_ARGS) "$(ZLIB_DIR)\zlib.lib"
+	$(CCV) -I$(SRC) -I"$(ZLIB_DIR)" $(LIB_SRC_DEFINES) $(CFLAGS_NO_LIB) -MD $(LINK_DEPENDENCY_ARGS) "$(ZLIB_DIR)\zlib.lib"
 # If we're using Visual Studio 2005 or greater,
 # embed the manifest into the executable.
 !if $(MSC_VER) >= 1400

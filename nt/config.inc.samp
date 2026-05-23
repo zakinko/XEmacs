@@ -206,11 +206,6 @@ OPTIMIZED_BUILD=0
 OPTIMIZED_BUILD=1
 !endif
 
-# Set this to build with the fastcall calling convention, which uses registers
-# instead of the stack and should speed things up a bit
-# #### Change to 1 when I check in the ws with support for fastcall
-USE_FASTCALL=0
-
 # Set this in order to avoid building against MSVCRTD.dll, since we can't
 # ship that DLL and since it requires VC installed on the target computer
 BUILD_FOR_SETUP_KIT=0
