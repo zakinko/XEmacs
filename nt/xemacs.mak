@@ -4,7 +4,7 @@
 #   Copyright (C) 1995, 1996, 2000, 2001, 2002, 2003, 2004, 2005 Ben Wing.
 #   Copyright (C) 1997, 1998, 2000 Jonathan Harris.
 #   Copyright (C) 1995 Sun Microsystems, Inc.
-#   Copyright (C) 1998 Free Software Foundation, Inc.
+#   Copyright (C) 1998, 2026 Free Software Foundation, Inc.
 #
 # This file is part of XEmacs.
 # 
@@ -112,9 +112,6 @@ LWLIB_SRCDIR=$(SRCROOT)\lwlib
 
 ########################### Process the config.inc options.
 
-!if !defined(INFODOCK)
-INFODOCK=0
-!endif
 !if !defined(HAVE_MS_WINDOWS)
 HAVE_MS_WINDOWS=1
 !endif
@@ -235,14 +232,6 @@ DEPEND=0
 USE_MINITAR=$(HAVE_ZLIB)
 !endif
 
-# A little bit of adhockery. Default to use system malloc and
-# DLL version of the C runtime library when using portable
-# dumping. These are the optimal settings.
-#
-# NOTE: The various graphics libraries are generally compiled to use
-# MSVCRT.DLL (the same that we use in USE_CRTDLL, more or less), so using
-# this is a good thing.
-
 !if !defined(USE_CRTDLL)
 USE_CRTDLL=1
 !endif
@@ -250,10 +239,6 @@ USE_CRTDLL=1
 ########################### Check for incompatible options.
 
 CONFIG_ERROR=0
-!if $(INFODOCK) && !exist("..\..\Infodock.rules")
-!message Cannot build InfoDock without InfoDock sources
-CONFIG_ERROR=1
-!endif
 !if !$(HAVE_MS_WINDOWS) && !$(HAVE_GTK)
 !message Please specify at least one HAVE_MS_WINDOWS=1 and/or HAVE_GTK=1
 CONFIG_ERROR=1
@@ -387,18 +372,6 @@ CONFIG_ERROR=1
 
 ########################### Set version strings.
 
-!if $(INFODOCK)
-INFODOCK_VERSION_STRING=$(infodock_major_version).$(infodock_minor_version).$(infodock_build_version)
-PROGRAM_DEFINES=-DINFODOCK 					\
-	-DPATH_VERSION=\"$(INFODOCK_VERSION_STRING)\"		\
-	-DPATH_PROGNAME=\"infodock\" 				\
-	-DEMACS_PROGNAME=\"infodock\"				\
-	-DSHEBANG_PROGNAME=\"infodock-script\"			\
-	-DEMACS_VERSION=\"$(INFODOCK_VERSION_STRING)\"		\
-	-DINFODOCK_MAJOR_VERSION=$(infodock_major_version)	\
-	-DINFODOCK_MINOR_VERSION=$(infodock_minor_version)	\
-	-DINFODOCK_BUILD_VERSION=$(infodock_build_version)
-!else
 XEMACS_VERSION_STRING=$(emacs_major_version).$(emacs_minor_version)
 !if "$(emacs_beta_version)" != ""
 !if "$(emacs_is_beta)" != ""
@@ -413,16 +386,11 @@ PROGRAM_DEFINES=						\
 	-DEMACS_VERSION=\"$(XEMACS_VERSION_STRING)\"		\
 	-DEMACS_PROGNAME=\"xemacs\" -DSHEBANG_PROGNAME=\"xemacs-script\"\
 	-DEMACS_DUMP_FILE_NAME=\"xemacs.dmp\"
-!endif
 
 ########################### Set up installation and package directories.
 
 !if !defined(INSTALL_DIR)
-! if $(INFODOCK)
-INSTALL_DIR=c:\Program Files\Infodock\Infodock-$(INFODOCK_VERSION_STRING)
-! else
 INSTALL_DIR=c:\Program Files\XEmacs\XEmacs-$(XEMACS_VERSION_STRING)
-! endif
 !endif
 
 # If PACKAGE_PREFIX was defined, use it to generate a package path.
@@ -430,11 +398,7 @@ INSTALL_DIR=c:\Program Files\XEmacs\XEmacs-$(XEMACS_VERSION_STRING)
 PATH_LATE_PACKAGE_DIRECTORIES="$(PACKAGE_PREFIX:\=\\)"
 !endif
 
-!if $(INFODOCK)
-PATH_PREFIX=../..
-!else
 PATH_PREFIX="$(INSTALL_DIR)"
-!endif
 
 PATH_DEFINES=-DPATH_PREFIX=\"$(PATH_PREFIX:\=\\)\"
 
@@ -710,9 +674,10 @@ LIBC_LIB=libc.lib
 # (do not use; not actually any speed benefit, irrelevant on 64-bit, needs
 # special annotation of any function pointers passed to qsort()).
 # Another possible addition: -Ob2 -- allows inlining of any function, not just
-# those declared inline.  Potential code size increase, though.
-#
-# -GL should be strongly considered for link time optimization.
+# those declared inline.  Potential code size increase, though. 
+# -GL specifies link-time optimization, supported from an MSC_VER >= 1300
+# (Visual Studion .NET of 2002), and is something we should specify as a
+# standard thing. Will need to also have /LTCG in the linker flags.
 OPTFLAGS    =-O2 -Ob2
 !else
 OPTFLAGS    =-Od
@@ -1077,25 +1042,29 @@ OS: $(OS)
 
 XEmacs $(XEMACS_VERSION_STRING) $(xemacs_codename) $(xemacs_extra_name:"=) configured for `$(EMACS_CONFIGURATION)'.
 
-  Building XEmacs using "$(MAKE:\=\\)".
-  Building XEmacs using make flags "$(MAKEFLAGS)".
-  Building XEmacs in source tree "$(SRCROOT:\=\\)".
+  Building XEmacs using:
+    $(MAKE:\=\\)
+  Building XEmacs using make flags:
+    $(MAKEFLAGS)
+  Building XEmacs in source tree:
+    $(SRCROOT:\=\\)
 !if $(SEPARATE_BUILD)
-  Building XEmacs into compiled tree "$(BLDROOT:\=\\)".
+  Building XEmacs into compiled tree:
+    $(BLDROOT:\=\\)
 !endif
 !if defined(CCV)
-  For src, using compiler "$(CC) $(TEMACS_CPP_FLAGS)".
-  For lib-src, using compiler "$(CC) $(LIB_SRC_CFLAGS)".
+  For src, using compiler:
+    $(CC) $(TEMACS_CPP_FLAGS)
+  For lib-src, using compiler:
+    $(CC) $(LIB_SRC_CFLAGS)
 !endif
 !if $(CPLUSPLUS_COMPILE)
   Compiling as C++.
 !endif
-  Installing XEmacs in "$(INSTALL_DIR:\=\\)".
+  Installing XEmacs in:
+    $(INSTALL_DIR:\=\\)
 !if defined(PATH_LATE_PACKAGE_DIRECTORIES)
   Package path is $(PATH_LATE_PACKAGE_DIRECTORIES).
-!endif
-!if $(INFODOCK)
-  Building InfoDock.
 !endif
 !if $(HAVE_MS_WINDOWS)
   Compiling in support for Microsoft Windows native GUI.

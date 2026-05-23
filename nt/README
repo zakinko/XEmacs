@@ -198,11 +198,6 @@ Directions for building the various libraries:
     config.inc.samp to config.inc.  Make any necessary modifications.  This
     file controls the options that XEmacs is built with:
 
-    -- If you want international (aka "Mule") support, modify the appropriate
-       line in config.inc as follows:
-
-       MULE=1
-
     -- If you're using the pre-supplied optional library pack, all you should
        have to do is set OPTIONAL_LIBRARY_DIR to the top-level directory
        where you unpacked everything.

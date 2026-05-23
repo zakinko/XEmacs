@@ -1,5 +1,28 @@
 2026-05-23  Aidan Kehoe  <kehoea@parhasard.net>
 
+	Minor cleanups, nt/.
+	* README:
+	Remove mention of MULE as an option, always on.
+	* xemacs.mak:
+	Update copyright.
+	* xemacs.mak (INFODOCK): Removed, long gone.
+	* xemacs.mak (CONFIG_ERROR): Remove check for InfoDock with this.
+	* xemacs.mak (XEMACS_VERSION_STRING): Remove check for InfoDock
+	with this.
+	* xemacs.mak (INFODOCK_VERSION_STRING): Removed.
+	* xemacs.mak (PROGRAM_DEFINES): Remove check for InfoDock with this.
+	* xemacs.mak (INSTALL_DIR): Ditto.
+	* xemacs.mak (PATH_PREFIX): Ditto.
+	* xemacs.mak (OPTFLAG): Document that we should use link time
+	optimization by default when optimizing.
+	* xemacs.mak (  Building XEmacs using):
+	When echoing the build configuration, don't use extra double
+	quotes; this makes it needlessly difficult to copy and paste from
+	the cmd.exe window. Print the various options on their own lines
+	instead.
+
+2026-05-23  Aidan Kehoe  <kehoea@parhasard.net>
+
 	Remove FASTCALL as a suggested build option, Windows Native;
 	irrelevant with 64 bit Windows, not actually faster, needlessly
 	complicates the implementation (functions passed to qsort() need
