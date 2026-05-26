@@ -88,7 +88,7 @@ typedef struct
 typedef struct
 {
   /* Pointer to the block containing the field of type
-     XD_OPAQUE_DATA_CONVERTIBLE. */
+     XD_SERIALIZABLE_DATA. */
   const void *object;
   /* Offset of the field within OBJECT. */
   Bytecount offset;
@@ -97,19 +97,19 @@ typedef struct
   /* Size of result of fcts->convert() called on (Rawbyte *) OBJECT +
      OFFSET). */
   Bytecount size;
-} pdump_cv_data_info;
+} pdump_serialize_data_info;
 
 typedef struct 
 {
-  Dynarr_declare (pdump_cv_data_info);
-} pdump_cv_data_info_dynarr;
+  Dynarr_declare (pdump_serialize_data_info);
+} pdump_serialize_data_info_dynarr;
 
 typedef struct
 {
   void *load_address;       /* Address within the dump file for
 			       deserialization. */
   Bytecount size;           /* Size of serialized object. */
-} pdump_cv_load_data;	    /* Followed in the dump file by the serialized
+} pdump_deserialize_data;   /* Followed in the dump file by the serialized
 			       object of (aligned) SIZE. */
 
 typedef struct
@@ -125,7 +125,7 @@ typedef struct
 
 typedef struct
 {
-  /* Pointer (within a field described by XD_OPAQUE_PTR_CONVERTIBLE) that will
+  /* Pointer (within a field described by XD_SERIALIZABLE_PTR) that will
      need be serialized and restored. */
   const void *object; 
   /* Result of fcts->convert() called on OBJECT. */
@@ -134,14 +134,14 @@ typedef struct
   Bytecount size;
   /* Dump-time addresses, described by a pointer to the block (see
      pdump_get_block()) containing the field described by
-     XD_OPAQUE_PTR_CONVERTIBLE, and the offset of that field within it. */
+     XD_SERIALIZABLE_PTR, and the offset of that field within it. */
   pointer_offset_pair_dynarr *pointer_offset_pairs;
-} pdump_cv_ptr_info;
+} pdump_serialize_ptr_info;
 
 typedef struct 
 {
-  Dynarr_declare (pdump_cv_ptr_info);
-} pdump_cv_ptr_info_dynarr;
+  Dynarr_declare (pdump_serialize_ptr_info);
+} pdump_serialize_ptr_info_dynarr;
 
 typedef struct
 {
@@ -150,32 +150,32 @@ typedef struct
   /* Followed in the dump file by LOAD_ADDRESS_COUNT addresses to which the
      serialized data should be restored, and then (aligned) SIZE bytes of
      serialized data. */
-} pdump_cv_load_ptr;
+} pdump_deserialize_ptr;
 
-/* Used at dump time to allow XD_OPAQUE_PTR_CONVERTIBLE,
-   XD_OPAQUE_DATA_CONVERTIBLE objects to be serialized contiguously. */
+/* Used at dump time to allow XD_SERIALIZABLE_PTR, XD_SERIALIZABLE_DATA objects
+   to be serialized contiguously. */
 typedef struct
 {
-  const struct opaque_convert_functions *fcts;
-  pdump_cv_data_info_dynarr *data;
-  pdump_cv_ptr_info_dynarr *pointers;
-} pdump_cv_info;
+  const struct serialize_convert_functions *fcts;
+  pdump_serialize_data_info_dynarr *data;
+  pdump_serialize_ptr_info_dynarr *pointers;
+} pdump_serialize_info;
 
 typedef struct 
 {
-  Dynarr_declare (pdump_cv_info);
-} pdump_cv_info_dynarr;
+  Dynarr_declare (pdump_serialize_info);
+} pdump_serialize_info_dynarr;
 
 typedef struct
 {
   void *(*deconvert) (void *object, void *data, Bytecount size);
   Elemcount elt_count;
   Elemcount ptr_count;
-  /* Followed by an array of length ELT_COUNT of pdump_cv_load_data (with the
+  /* Followed by an array of length ELT_COUNT of pdump_deserialize_data (with the
      serialized object after each element), then an array of length PTR_COUNT
-     of pdump_cv_load_ptr (similarly, with the serialized objects after each
+     of pdump_deserialize_ptr (similarly, with the serialized objects after each
      element). */
-} pdump_cv_load_info;
+} pdump_deserialize_info;
 
 typedef struct
 {
@@ -193,7 +193,7 @@ static pdump_root_block_ptr_dynarr *pdump_root_block_ptrs;
 static Lisp_Object_ptr_dynarr *pdump_root_lisp_objects;
 static Lisp_Object_ptr_dynarr *pdump_nil_lisp_objects;
 static Lisp_Object_ptr_dynarr *pdump_weak_object_chains;
-static pdump_cv_info_dynarr *pdump_cv_infos;
+static pdump_serialize_info_dynarr *pdump_serialize_infos;
 static Boolint_ptr_dynarr *pdump_zero_boolints;
 
 /* Mark SIZE bytes at non-heap address BLOCKADDR for dumping, described
@@ -429,9 +429,9 @@ pdump_objects_unmark (void)
  0		- header
 		- dumped objects
  rtab_offset    - relocation table
-                - nb_cv_info*struct(deconvert_function, elt_count, ptr_count)
+                - nb_serialize_info*struct(deconvert_function, elt_count, ptr_count)
                   for in-object externally represented data and pointers to
-                  externally represented data, followed by ELT_COUNT of
+                  externally represented data, each followed by ELT_COUNT of
                   serialized data with details of where to restore it, and
                   PTR_COUNT of serialized data, with a list of offsets to which
                   it should be restored.
@@ -473,7 +473,7 @@ typedef struct
   EMACS_UINT Fcons_address;			
   /* Known address in the data segment, for ASLR. */
   EMACS_UINT lisp_object_description_address;	
-  Elemcount nb_cv_info;
+  Elemcount nb_serialize_info;
   Elemcount nb_root_block_ptrs;
   Elemcount nb_root_blocks;
 } pdump_real_header;
@@ -691,38 +691,39 @@ pdump_get_block_list (const struct memory_description *desc)
   return &pdump_desc_table.list[pdump_desc_table.count++].list;
 }
 
-static pdump_cv_info *
-pdump_get_cv_info (const struct opaque_convert_functions *fcts)
+static pdump_serialize_info *
+pdump_get_serialize_info (const struct serialize_convert_functions *fcts)
 {
-  pdump_cv_info info;
+  pdump_serialize_info info;
   Elemcount i;
 
-  for (i = 0; i < Dynarr_length (pdump_cv_infos); i++)
+  for (i = 0; i < Dynarr_length (pdump_serialize_infos); i++)
     {
-      if (Dynarr_at (pdump_cv_infos, i).fcts == fcts)
+      if (Dynarr_at (pdump_serialize_infos, i).fcts == fcts)
 	{
-	  return Dynarr_atp (pdump_cv_infos, i);
+	  return Dynarr_atp (pdump_serialize_infos, i);
 	}
     }
 
   info.fcts = fcts;
-  info.data = Dynarr_new (pdump_cv_data_info);
-  info.pointers = Dynarr_new (pdump_cv_ptr_info);
-  Dynarr_add (pdump_cv_infos, info);
-  return Dynarr_lastp (pdump_cv_infos);
+  info.data = Dynarr_new (pdump_serialize_data_info);
+  info.pointers = Dynarr_new (pdump_serialize_ptr_info);
+  Dynarr_add (pdump_serialize_infos, info);
+  return Dynarr_lastp (pdump_serialize_infos);
 }
 
-static pdump_cv_ptr_info *
-pdump_get_cv_ptr_info (pdump_cv_info *cv_info, void *object)
+static pdump_serialize_ptr_info *
+pdump_get_serialize_ptr_info (pdump_serialize_info *serialize_info,
+			      void *object)
 {
-  pdump_cv_ptr_info ptr_elt;
+  pdump_serialize_ptr_info ptr_elt;
   Elemcount ii;
 
-  for (ii = 0; ii < Dynarr_length (cv_info->pointers); ii++)
+  for (ii = 0; ii < Dynarr_length (serialize_info->pointers); ii++)
     {
-      if (Dynarr_at (cv_info->pointers, ii).object == object)
+      if (Dynarr_at (serialize_info->pointers, ii).object == object)
 	{
-	  return Dynarr_atp (cv_info->pointers, ii);
+	  return Dynarr_atp (serialize_info->pointers, ii);
 	}
     }
 
@@ -730,24 +731,24 @@ pdump_get_cv_ptr_info (pdump_cv_info *cv_info, void *object)
   ptr_elt.data = NULL;
   ptr_elt.size = -1;
   ptr_elt.pointer_offset_pairs = Dynarr_new (pointer_offset_pair);
-  Dynarr_add (cv_info->pointers, ptr_elt);
-  return Dynarr_lastp (cv_info->pointers);
+  Dynarr_add (serialize_info->pointers, ptr_elt);
+  return Dynarr_lastp (serialize_info->pointers);
 }
 
 static void
-pdump_convert_free_cv_infos (void)
+pdump_convert_free_serialize_infos (void)
 {
   Elemcount ii, jj;
 
-  for (ii = 0; ii < Dynarr_length (pdump_cv_infos); ii++)
+  for (ii = 0; ii < Dynarr_length (pdump_serialize_infos); ii++)
     {
-      pdump_cv_info *elt = Dynarr_atp (pdump_cv_infos, ii);
+      pdump_serialize_info *elt = Dynarr_atp (pdump_serialize_infos, ii);
 
       if (elt->fcts->convert_free)
 	{
 	  for (jj = 0; jj < Dynarr_length (elt->data); jj++)
 	    {
-	      pdump_cv_data_info *data_info
+	      pdump_serialize_data_info *data_info
 		= Dynarr_atp (elt->data, jj);
 
 	      elt->fcts->convert_free (data_info->object,
@@ -757,7 +758,7 @@ pdump_convert_free_cv_infos (void)
 
 	  for (jj = 0; jj < Dynarr_length (elt->pointers); jj++)
 	    {
-	      pdump_cv_ptr_info *ptr_info
+	      pdump_serialize_ptr_info *ptr_info
 		= Dynarr_atp (elt->pointers, jj);
 
 	      elt->fcts->convert_free (ptr_info->object,
@@ -1052,11 +1053,13 @@ pdump_register_sub (const void *data, const struct memory_description *desc)
 	  if (desc1)
 	    goto union_switcheroo;
 	  break;
-	case XD_OPAQUE_PTR_CONVERTIBLE:
+	case XD_SERIALIZABLE_PTR:
 	  {
-	    pdump_cv_info *infop = pdump_get_cv_info (desc1->data2.funcs);
-	    pdump_cv_ptr_info *elt
-	      = pdump_get_cv_ptr_info (infop, *((void **)rdata));
+	    pdump_serialize_info *infop
+	      = pdump_get_serialize_info (desc1->data2.funcs);
+	    pdump_serialize_ptr_info *elt
+	      = pdump_get_serialize_ptr_info (infop,
+					      *((void **)rdata));
 	    pointer_offset_pair pop = { data, offset };
 
 	    if (elt->data == NULL)
@@ -1067,10 +1070,11 @@ pdump_register_sub (const void *data, const struct memory_description *desc)
 	    Dynarr_add (elt->pointer_offset_pairs, pop);
 	    break;
 	  }
-	case XD_OPAQUE_DATA_CONVERTIBLE:
+	case XD_SERIALIZABLE_DATA:
 	  {
-	    pdump_cv_info *infop = pdump_get_cv_info (desc1->data2.funcs);
-	    pdump_cv_data_info elt;
+	    pdump_serialize_info *infop
+	      = pdump_get_serialize_info (desc1->data2.funcs);
+	    pdump_serialize_data_info elt;
 
 	    elt.object = data;
 	    elt.offset = offset;
@@ -1197,8 +1201,8 @@ pdump_register_block (const void *data,
    With a non-ASLR build (e.g. -no-pie in CFLAGS, or an obsolescent system that
    doesn't offer ASLR) there is no need with DUMP_IN_EXEC to recalculate the
    pointer offsets at pdump_load() time, so all pdump_load_finish() has to do
-   is to restore serialized objects (XD_OPAQUE_DATA_CONVERTIBLE,
-   XD_OPAQUE_PTR_CONVERTIBLE), restore the root block pointers, and restore the
+   is to restore serialized objects (XD_SERIALIZABLE_DATA,
+   XD_SERIALIZABLE_PTR), restore the root block pointers, and restore the
    root blocks. With an ASLR build this delta needs to be added even with
    DUMP_IN_EXEC.
 
@@ -1219,17 +1223,17 @@ pdump_register_block (const void *data,
    This is not ideal; see that obarray is intentionally larger than it would
    otherwise default to, because its old htentries will leak on resize, giving
    more memory usage than we want. It would be of value to reuse dumped data
-   (obvious candidates are the cv_data_info, cv_ptr_info, root_block_ptrs,
-   root_blocks in the dump file); what occurs to me as a useful starting point
-   for this would be to move the relocation tables before the above values,
-   and put all the rest on the lcrecord_list for buffers, since we know
-   buffers are going to be allocated and cannot be dumped (because of
-   ralloc.c). This would have the advantage for DUMP_IN_EXEC that we could
-   round up to a larger dump size for temacs and usually reduce the current
-   three link steps to two, with the confidence that the memory would (likely)
-   be used. Further work would involve a more generalised scheme to reuse dump
-   data, including dumped Lisp_Objects; see above regarding the Common Lisp
-   specification for packages. */
+   (obvious candidates are the pdump_deserialize_data, pdump_deserialize_ptr,
+   root_block_ptrs, root_blocks in the dump file); what occurs to me as a
+   useful starting point for this would be to move the relocation tables before
+   the above values, and put all the rest on the lcrecord_list for buffers,
+   since we know buffers are going to be allocated and cannot be dumped
+   (because of ralloc.c). This would have the advantage for DUMP_IN_EXEC that
+   we could round up to a larger dump size for temacs and usually reduce the
+   current three link steps to two, with the confidence that the memory would
+   (likely) be used. Further work would involve a more generalised scheme to
+   reuse dump data, including dumped Lisp_Objects; see above regarding the
+   Common Lisp specification for packages. */
 static void
 pdump_store_new_pointer_offsets (Elemcount count, void *data,
 				 const void *orig_data,
@@ -1387,7 +1391,7 @@ pdump_store_new_pointer_offsets (Elemcount count, void *data,
 		goto union_switcheroo;
 	      break;
 
-	    case XD_OPAQUE_PTR_CONVERTIBLE:
+	    case XD_SERIALIZABLE_PTR:
 	      /* Handled specially in pdump_load_finish(), to avoid the need to
 		 relocate the heap objects in a non-PIC binary; we don't
 		 actually need to do anything here. Will give better errors if
@@ -1395,7 +1399,7 @@ pdump_store_new_pointer_offsets (Elemcount count, void *data,
 	      *(Rawbyte **) rdata = NULL;
 	      break;
 
-	    case XD_OPAQUE_DATA_CONVERTIBLE:
+	    case XD_SERIALIZABLE_DATA:
 	      /* In-object; in theory nothing to do. Deadbeef the memory for
 		 better error detection. */
 	      deadbeef_memory (rdata, desc1->data1);
@@ -1563,8 +1567,8 @@ pdump_reloc_one (void *data, const struct memory_description *desc)
 	case XD_INT:
 	case XD_LONG:
 	case XD_ELEMCOUNT_RESET:
-	case XD_OPAQUE_PTR_CONVERTIBLE:
-	case XD_OPAQUE_DATA_CONVERTIBLE:
+	case XD_SERIALIZABLE_PTR:
+	case XD_SERIALIZABLE_DATA:
 	  break;
 	case XD_OPAQUE_DATA_PTR:
 	case XD_ASCII_STRING:
@@ -1854,54 +1858,54 @@ pdump_sort_hash_tables_for_reorganize (void)
 
 
 static void
-pdump_dump_cv_info (void)
+pdump_dump_serialize_info (void)
 {
   Elemcount ii, jj, kk;
 
-  for (ii = 0; ii < Dynarr_length (pdump_cv_infos); ii++)
+  for (ii = 0; ii < Dynarr_length (pdump_serialize_infos); ii++)
     {
-      pdump_cv_load_info metadata
-	= { Dynarr_atp (pdump_cv_infos, ii)->fcts->deconvert,
-	    Dynarr_length (Dynarr_atp (pdump_cv_infos, ii)->data),
-	    Dynarr_length (Dynarr_atp (pdump_cv_infos, ii)->pointers) };
+      pdump_deserialize_info metadata
+	= { Dynarr_atp (pdump_serialize_infos, ii)->fcts->deconvert,
+	    Dynarr_length (Dynarr_atp (pdump_serialize_infos, ii)->data),
+	    Dynarr_length (Dynarr_atp (pdump_serialize_infos, ii)->pointers) };
 
-      PDUMP_WRITE_ALIGNED (pdump_cv_load_info, metadata);
+      PDUMP_WRITE_ALIGNED (pdump_deserialize_info, metadata);
       for (jj = 0;
-	   jj < Dynarr_length (Dynarr_atp (pdump_cv_infos, ii)->data);
+	   jj < Dynarr_length (Dynarr_atp (pdump_serialize_infos, ii)->data);
 	   jj++)
 	{
 	  EMACS_UINT load_offset
 	    = pdump_get_block (Dynarr_atp
-			       (Dynarr_atp (pdump_cv_infos, ii)->data,
+			       (Dynarr_atp (pdump_serialize_infos, ii)->data,
 				jj)->object)->save_offset +
-	    Dynarr_atp (Dynarr_atp (pdump_cv_infos, ii)->data, jj)->offset;
-	  pdump_cv_load_data elt
+	    Dynarr_atp (Dynarr_atp (pdump_serialize_infos, ii)->data, jj)->offset;
+	  pdump_deserialize_data elt
 	    = { (void *) load_offset,
-		Dynarr_atp (Dynarr_atp (pdump_cv_infos,
+		Dynarr_atp (Dynarr_atp (pdump_serialize_infos,
 					ii)->data, jj)->size };
 
-	  PDUMP_WRITE_ALIGNED (pdump_cv_load_data, elt);
+	  PDUMP_WRITE_ALIGNED (pdump_deserialize_data, elt);
 	  PDUMP_ALIGN_OUTPUT (max_align_t);
 	  retry_fwrite (Dynarr_atp (Dynarr_atp
-				    (pdump_cv_infos, ii)->data, jj)->data,
+				    (pdump_serialize_infos, ii)->data, jj)->data,
 			Dynarr_atp (Dynarr_atp
-				    (pdump_cv_infos, ii)->data, jj)->size,
+				    (pdump_serialize_infos, ii)->data, jj)->size,
 			1, pdump_out);
 	}
 
       for (jj = 0;
-	   jj < Dynarr_length (Dynarr_atp (pdump_cv_infos, ii)->pointers);
+	   jj < Dynarr_length (Dynarr_atp (pdump_serialize_infos, ii)->pointers);
 	   jj++)
 	{
 	  pointer_offset_pair_dynarr *pops
-	    = Dynarr_atp (Dynarr_atp (pdump_cv_infos, ii)->pointers,
+	    = Dynarr_atp (Dynarr_atp (pdump_serialize_infos, ii)->pointers,
 			  jj)->pointer_offset_pairs;
-	  pdump_cv_load_ptr elt
-	    = { Dynarr_atp (Dynarr_atp (pdump_cv_infos,
+	  pdump_deserialize_ptr elt
+	    = { Dynarr_atp (Dynarr_atp (pdump_serialize_infos,
 					ii)->pointers, jj)->size,
 		Dynarr_length (pops) };
 
-	  PDUMP_WRITE_ALIGNED (pdump_cv_load_ptr, elt);
+	  PDUMP_WRITE_ALIGNED (pdump_deserialize_ptr, elt);
 
 	  for (kk = 0; kk < Dynarr_length (pops); kk++)
 	    {
@@ -1912,9 +1916,9 @@ pdump_dump_cv_info (void)
 	    }
 
 	  PDUMP_ALIGN_OUTPUT (max_align_t);
-	  retry_fwrite (Dynarr_atp (Dynarr_atp (pdump_cv_infos,
+	  retry_fwrite (Dynarr_atp (Dynarr_atp (pdump_serialize_infos,
 						ii)->pointers, jj)->data,
-			Dynarr_atp (Dynarr_atp (pdump_cv_infos,
+			Dynarr_atp (Dynarr_atp (pdump_serialize_infos,
 						ii)->pointers, jj)->size,
 			1, pdump_out);
 	}
@@ -2355,7 +2359,7 @@ pdump (void)
   pdump_opaque_data_list.count = 0;
   pdump_depth = 0;
 
-  pdump_cv_infos  = Dynarr_new (pdump_cv_info);
+  pdump_serialize_infos  = Dynarr_new (pdump_serialize_info);
 
   /* (I) The "register" stage: Note all heap memory blocks to be relocated
      */
@@ -2475,7 +2479,7 @@ pdump (void)
     = (EMACS_UINT) (&lisp_object_description);
   header.nb_root_block_ptrs = Dynarr_length (pdump_root_block_ptrs);
   header.nb_root_blocks = Dynarr_length (pdump_root_blocks);
-  header.nb_cv_info = Dynarr_length (pdump_cv_infos);
+  header.nb_serialize_info = Dynarr_length (pdump_serialize_infos);
 
   cur_offset += sizeof (header);
   cur_offset = MAX_ALIGN_SIZE (cur_offset);
@@ -2539,11 +2543,11 @@ pdump (void)
     }
 
   pdump_dump_rtables ();
-  pdump_dump_cv_info ();
+  pdump_dump_serialize_info ();
   pdump_dump_root_block_ptrs ();
   pdump_dump_root_blocks ();
 
-  pdump_convert_free_cv_infos ();
+  pdump_convert_free_serialize_infos ();
 
   retry_fclose (pdump_out);
   /* pdump_fd is already closed by the preceding call to fclose.
@@ -2659,31 +2663,32 @@ pdump_load_finish (void)
   structure_checking_assert (p == pdump_start + header->rtab_end);
 #endif
 
-  /* Deserialize the XD_OPAQUE_DATA_CONVERTIBLE, XD_OPAQUE_PTR_CONVERTIBLE
-     objects. */
-  for (i = 0; i < header->nb_cv_info; i++)
+  /* Deserialize the XD_SERIALIZABLE_DATA, XD_SERIALIZABLE_PTR objects. */
+  for (i = 0; i < header->nb_serialize_info; i++)
     {
-      pdump_cv_load_info cv_info = PDUMP_READ_ALIGNED (p, pdump_cv_load_info);
+      pdump_deserialize_info serialize_info
+	= PDUMP_READ_ALIGNED (p, pdump_deserialize_info);
       Elemcount jj, kk;
 
-      cv_info.deconvert
+      serialize_info.deconvert
 	= (void *(*)(void *, void *, Bytecount))
-	pdump_reloc_c_func ((lisp_fn_t) (cv_info.deconvert));
+	pdump_reloc_c_func ((lisp_fn_t) (serialize_info.deconvert));
 
-      for (jj = 0; jj < cv_info.elt_count; jj++)
+      for (jj = 0; jj < serialize_info.elt_count; jj++)
 	{
-	  pdump_cv_load_data elt = PDUMP_READ_ALIGNED (p, pdump_cv_load_data);
+	  pdump_deserialize_data elt
+	    = PDUMP_READ_ALIGNED (p, pdump_deserialize_data);
 
 	  p = (Rawbyte *) ALIGN_PTR (p, max_align_t);
-	  cv_info.deconvert (pdump_reloc_lisp_data (elt.load_address),
+	  serialize_info.deconvert (pdump_reloc_lisp_data (elt.load_address),
 			     p, elt.size);
 	  p += elt.size;
 	}
 
-      for (jj = 0; i < cv_info.ptr_count; jj++)
+      for (jj = 0; i < serialize_info.ptr_count; jj++)
 	{
-	  pdump_cv_load_ptr ptr_info
-	    = PDUMP_READ_ALIGNED (p, pdump_cv_load_ptr);
+	  pdump_deserialize_ptr ptr_info
+	    = PDUMP_READ_ALIGNED (p, pdump_deserialize_ptr);
 	  const void ***load_addresses;
 	  void **first_address;
 
@@ -2693,7 +2698,7 @@ pdump_load_finish (void)
 
 	  p = (Rawbyte *) ALIGN_PTR (p, max_align_t);
 	  first_address = (void **) pdump_reloc_lisp_data (load_addresses[0]);
-	  *(first_address) = cv_info.deconvert (NULL, p, ptr_info.size);
+	  *(first_address) = serialize_info.deconvert (NULL, p, ptr_info.size);
 
 	  for (kk = 1; kk < ptr_info.load_address_count; kk++)
 	    {

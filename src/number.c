@@ -143,15 +143,15 @@ bignum_deconvert (void *object, void *data, Bytecount UNUSED (size))
   return object;
 }
 
-static const struct opaque_convert_functions bignum_opc = {
+static const struct serialize_convert_functions bignum_scf = {
   bignum_convert,
   bignum_convfree,
   bignum_deconvert
 };
 
 static const struct memory_description bignum_description[] = {
-  { XD_OPAQUE_DATA_CONVERTIBLE, offsetof (Lisp_Bignum, data),
-    sizeof (bignum), { &bignum_opc }, XD_FLAG_NO_KKCC },
+  { XD_SERIALIZABLE_DATA, offsetof (Lisp_Bignum, data),
+    sizeof (bignum), { &bignum_scf }, XD_FLAG_NO_KKCC },
   { XD_END }
 };
 

@@ -1,3 +1,10 @@
+2026-05-26  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* internals/internals.texi (Pointers dumping):
+	* internals/internals.texi (Reloading phase):
+	Rename XD_OPAQUE_DATA_CONVERTIBLE to XD_SERIALIZE_DATA,
+	XD_OPAQUE_PTR_CONVERTIBLE to XD_SERIALIZE_PTR.
+
 2026-05-21  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* internals/internals.texi (Object inventory): Add a missing

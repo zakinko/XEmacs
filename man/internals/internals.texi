@@ -22988,7 +22988,7 @@ description (to allow relocation at reload time, and, for dumped
 Lisp_Objects, to allow them to be traced for GC at run time).
 @item
 details of serialized objects (fields described by
-@code{XD_OPAQUE_DATA_CONVERTIBLE}, @code{XD_OPAQUE_PTR_CONVERTIBLE}),
+@code{XD_SERIALIZABLE_DATA}, @code{XD_SERIALIZABLE_PTR}),
 the addresses to which they should be restored, the functions needed to
 call to restore them, and the serialized data.
 @item
@@ -23071,15 +23071,15 @@ offsets by @code{pdump_reloc_one} in the same way. Neither step is
 necessary if the dump file is in the executable and ASLR is not present,
 so they are not done in that case.
 
-@subsection Putting back the XD_OPAQUE_DATA_CONVERTIBLE, XD_OPAQUE_PTR_CONVERTIBLE objects
-@cindex dumping, putting back XD_OPAQUE_DATA_CONVERTIBLE, XD_OPAQUE_PTR_CONVERTIBLE
+@subsection Putting back the XD_SERIALIZABLE_DATA, XD_SERIALIZABLE_PTR objects
+@cindex dumping, putting back XD_SERIALIZABLE_DATA, XD_SERIALIZABLE_PTR
 
 The metadata for these objects is read, the address of the deconversion
 function is relocated appropriately, and then that function is called
-with the (relocated) addresses to which the XD_OPAQUE_DATA_CONVERTIBLE objects
+with the (relocated) addresses to which the XD_SERIALIZABLE_DATA objects
 should be restored, together with the address of the serialized data and
 its size. The deconversion function is then called with the
-XD_OPAQUE_PTR_CONVERTIBLE serialized data, with NULL as the address to
+XD_SERIALIZABLE_PTR serialized data, with NULL as the address to
 deconvert to, and the various addresses appropriate for that object are
 set to the result.
 

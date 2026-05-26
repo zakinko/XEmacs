@@ -16,6 +16,42 @@
 	max_align_t can be made available in <cstddef> but not <stddef.h>;
 	this is stupid, but work around it if _MSC_VER is defined.
 
+2026-05-26  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Rename XD_OPAQUE_DATA_CONVERTIBLE to XD_SERIALIZE_DATA,
+	XD_OPAQUE_PTR_CONVERTIBLE to XD_SERIALIZE_PTR (we use OPAQUE as a
+	concept for multiple unrelated things, so the previous name was
+	confusing); rename the functions that deal with them accordingly.
+
+	* dumper.c:
+	* dumper.c (struct):
+	* dumper.c (pdump_get_serialize_info): Renamed from
+	pdump_get_cv_info().
+	* dumper.c (pdump_get_serialize_ptr_info): Renamed from
+	pdump_get_cv_ptr_info().
+	* dumper.c (pdump_convert_free_serialize_infos): Renamed from
+	pdump_convert_free_cv_infos().
+	* dumper.c (pdump_store_new_pointer_offsets):
+	* dumper.c (pdump_register_sub):
+	Rename XD_OPAQUE_DATA_CONVERTIBLE to XD_SERIALIZE_DATA,
+	XD_OPAQUE_PTR_CONVERTIBLE to XD_SERIALIZE_PTR.
+
+	* dumper.c (pdump_reloc_one):
+	* dumper.c (pdump_dump_serialize_info): Renamed from
+	pdump_dump_cv_info().
+	* dumper.c (pdump):
+	* dumper.c (pdump_load_finish):
+	* lrecord.h:
+	* lrecord.h (enum memory_description_type):
+	* lrecord.h (union memory_contents_description):
+	* lrecord.h (struct serialize_convert_functions): Changed name of
+	this from opaque_convert_functions.
+	* number.c:
+	* number.c (static const struct opaque_convert_functions
+	bignum_opc): Removed.
+	* number.c (static const struct serialize_convert_functions
+	bignum_scf): New.
+
 2026-05-21  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Support 4-byte (DWORD) alignment with DUMP_IN_EXEC, in preparation

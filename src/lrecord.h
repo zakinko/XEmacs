@@ -904,17 +904,17 @@ void tick_lrecord_stats (const struct lrecord_header *h,
 
   Pointer to undumpable data.  Must be NULL when dumping.
 
-    XD_OPAQUE_PTR_CONVERTIBLE
+    XD_SERIALIZABLE_PTR
 
   Pointer to data which is not directly dumpable but can be converted
   to a dumpable, opaque external representation.  The parameter is
-  a pointer to an opaque_convert_functions struct.
+  a pointer to a serialize_convert_functions struct.
 
-    XD_OPAQUE_DATA_CONVERTIBLE
+    XD_SERIALIZABLE_DATA
 
   Data which is not directly dumpable but can be converted to a dumpable,
   opaque external representation. The first parameter is the size of the field,
-  and the second is a pointer to an opaque_convert_functions struct.
+  and the second is a pointer to a serialize_convert_functions struct.
 
     XD_BLOCK_PTR
 
@@ -1088,9 +1088,9 @@ enum memory_description_type
   XD_LISP_OBJECT_ARRAY,
   XD_LISP_OBJECT,
   XD_LO_LINK,
+  XD_SERIALIZABLE_PTR,
+  XD_SERIALIZABLE_DATA,
   XD_OPAQUE_PTR,
-  XD_OPAQUE_PTR_CONVERTIBLE,
-  XD_OPAQUE_DATA_CONVERTIBLE,
   XD_OPAQUE_DATA_PTR,
   XD_BLOCK_PTR,
   XD_BLOCK_DATA_PTR,
@@ -1164,7 +1164,7 @@ union memory_contents_description
      from one of the other two pointers. */
   const void *write_only;
   const struct sized_memory_description *descr;
-  const struct opaque_convert_functions *funcs;
+  const struct serialize_convert_functions *funcs;
 };
 
 struct memory_description
@@ -1185,10 +1185,9 @@ struct sized_memory_description
 };
 
 
-struct opaque_convert_functions
+struct serialize_convert_functions
 {
-  /* Used by XD_OPAQUE_PTR_CONVERTIBLE and
-     XD_OPAQUE_DATA_CONVERTIBLE */
+  /* Used by XD_SERIALIZABLE_PTR and XD_SERIALIZABLE_DATA */
 
   /* Converter to external representation, for those objects from
      external libraries that can't be directly dumped as opaque data
@@ -1213,7 +1212,7 @@ struct opaque_convert_functions
   void *(*deconvert) (void *object, void *data, Bytecount size);
 
   /* There is no current (2024) need for memory_description or
-     sized_memory_descriptions for struct opaque_convert_functions, the one
+     sized_memory_descriptions for struct serialize_convert_functions, the one
      use in number.c is constructed statically at compile time. This may
      change. */
 };
