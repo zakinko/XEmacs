@@ -214,6 +214,8 @@ Lisp_Object Qfind_file_compare_truenames;
 
 Lisp_Object Qswitch_to_buffer, Qgenerated_modeline_string;
 
+Lisp_Object Q_frame;
+
 /* Two thresholds controlling how much undo information to keep.  */
 Fixnum undo_threshold;
 Fixnum undo_high_threshold;
@@ -321,6 +323,63 @@ returned instead.
   args[1] = EQ (frame, Qt) ?
     Vbuffer_alist : decode_frame (frame)->buffer_alist;
   return FmapcarX (countof (args), args);
+}
+
+DEFUN ("reduce-across-buffers", Freduce_across_buffers, 1, KEYWORDS, 0, /*
+Reduce FUNCTION, a binary operation, across all live buffers.
+
+This is equivalent to:
+
+  (reduce FUNCTION (buffer-list FRAME))
+
+but it does not cons (heap-allocate) a new buffer list, which is
+helpful in reducing garbage collection and thus improving XEmacs
+performance.  Consider this for functions called, e.g. at every
+redisplay. FRAME can be specified by means of a keyword argument.
+
+See `reduce' for documentation of the other keyword arguments.
+
+arguments: (FUNCTION &key (START 0) (END (length (buffer-list))) FROM-END INITIAL-VALUE (KEY #'identity) FRAME)
+*/
+       (int nargs, Lisp_Object *args))
+{
+  Lisp_Object alist, *argz = alloca_array (Lisp_Object, nargs + 3);
+  Lisp_Vector *buffers;
+  Elemcount ii = 0, len;
+  struct gcpro gcpro1;
+
+  PARSE_KEYWORDS (Freduce_across_buffers,
+                  (start, end, from_end, initial_value, key, frame),
+                  (start = Qzero, initial_value = Qunbound,
+		   USED (start), USED (end), USED (from_end),
+		   USED (initial_value), USED (key)));
+
+  alist = EQ (frame, Qt)
+    ? Vbuffer_alist : decode_frame (frame)->buffer_alist;
+  len = XFIXNUM (Flength (alist));
+  buffers
+    = (Lisp_Vector *) MALLOC_OR_ALLOCA
+    (FLEXIBLE_ARRAY_STRUCT_SIZEOF (Lisp_Vector, Lisp_Object,
+				   contents, len));
+  set_lheader_implementation (&buffers->header.lheader,
+			      LRECORD_IMPLEMENTATION (vector));
+  buffers->size = len;
+  {
+    LIST_LOOP_2 (elt, alist)
+      {
+	vector_data (buffers) [ii++] = XCDR (elt);
+      }
+  }
+
+  argz[0] = args[0];
+  argz[1] = wrap_vector (buffers);
+  argz[2] = Q_allow_other_keys;
+  argz[3] = Qt;
+  memcpy (argz + 4, args + 1, (nargs - 1) * sizeof (Lisp_Object));
+
+  GCPRO1 (*argz);
+  gcpro1.nvars = nargs + 3;
+  RETURN_UNGCPRO (Freduce (nargs + 3, argz));
 }
 
 Lisp_Object
@@ -1900,9 +1959,11 @@ syms_of_buffer (void)
 
   DEFSYMBOL (Qswitch_to_buffer);
   DEFSYMBOL (Qgenerated_modeline_string);
+  DEFKEYWORD (Q_frame);
 
   DEFSUBR (Fbuffer_live_p);
   DEFSUBR (Fbuffer_list);
+  DEFSUBR (Freduce_across_buffers);
   DEFSUBR (Fdecode_buffer);
   DEFSUBR (Fget_buffer);
   DEFSUBR (Fget_file_buffer);

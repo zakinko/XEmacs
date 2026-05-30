@@ -29,8 +29,8 @@ Lisp_Object Qnset_difference, Qnsubstitute, Qnunion, Qposition, QrassocX;
 Lisp_Object Qreduce, QremoveX, Qreplace, Qset_difference, Qsome, QsortX;
 Lisp_Object Qstring_lessp, Qsubsetp;
 
-Lisp_Object Q_count, Q_descend_structures, Q_end1, Q_end2, Q_from_end;
-Lisp_Object Q_if_, Q_if_not, Q_initial_value, Q_stable, Q_start1, Q_start2;
+Lisp_Object Q_count, Q_descend_structures, Q_end1, Q_end2;
+Lisp_Object Q_if_, Q_if_not, Q_stable, Q_start1, Q_start2;
 Lisp_Object Q_test_not;
 
 Lisp_Object safe_copy_tree (Lisp_Object arg, Lisp_Object vecp, int depth);
@@ -8845,8 +8845,6 @@ syms_of_sequence (void)
   DEFSYMBOL (Qnset_difference);
   DEFSYMBOL (Qnunion);
 
-  DEFKEYWORD (Q_from_end);
-  DEFKEYWORD (Q_initial_value);
   DEFKEYWORD (Q_start1);
   DEFKEYWORD (Q_start2);
   DEFKEYWORD (Q_end1);

@@ -6013,6 +6013,7 @@ EXFUN (Ffill, KEYWORDS);
 EXFUN (Fclear_string, 1);
 EXFUN (Freplace, KEYWORDS);
 EXFUN (Fposition, KEYWORDS);
+EXFUN (Freduce, KEYWORDS);
 EXFUN (Fmapconcat, MANY);
 EXFUN (FassocX, KEYWORDS);
 

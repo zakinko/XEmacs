@@ -738,7 +738,9 @@ Major modes that edit things other than ordinary files may change this
 (defvar modeline-max-buffer-name-size 30)
 
 (defun modeline-update-buffer-names (frame)
-  (mapc #'(lambda (buf)
+  (reduce-across-buffers
+   #'ignore
+   :key #'(lambda (buf)
 	    (when (or (not (eq (buffer-name buf)
 			       (symbol-value-in-buffer
 				'modeline-recorded-buffer-name buf)))
@@ -773,9 +775,8 @@ Major modes that edit things other than ordinary files may change this
 					")")
 			      ""))
 			  modeline-modified-buffer-highlighted-name
-				  (file-name-nondirectory fn))))
-		(redraw-modeline))))
-	(buffer-list)))
+			  (file-name-nondirectory fn))))
+		(redraw-modeline))))))
 
 (defcustom modeline-new-buffer-id-format t
   "Whether the new format for the modeline buffer ID (with directory) is used.

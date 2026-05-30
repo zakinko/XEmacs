@@ -1,3 +1,9 @@
+2026-05-30  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* modeline.el (modeline-update-buffer-names):
+	Implement this in terms of #'reduce-across-buffers, just added,
+	reducing the need for heap allocation at every redisplay.
+
 2026-05-16  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* ellcc.el (call-process-and-exit):

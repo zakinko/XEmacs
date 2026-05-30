@@ -1,3 +1,23 @@
+2026-05-30  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Add #'reduce-across-buffers, allow Lisp to examine all live
+	buffers without consing.
+	Added because (profile-expression '(hanoi 8)) was dominated by the
+	GC from #'modeline-update-buffer-names.
+
+	* buffer.c: Declare Q_frame.
+	* buffer.c (Freduce_across_buffers): New.
+	* buffer.c (syms_of_buffer):
+	Add a DEFSUBR() 
+	* general-slots.h: Move Q_from_end, Q_initial_value here, now they
+	are used in buffer.c.
+	* lisp.h:
+	Declare Freduce() as an EXFUN.
+	* sequence.c:
+	* sequence.c (syms_of_sequence):
+	Move declaration, definition of Q_from_end, Q_initial_value from
+	this file now they are in general-slots.h.
+
 2026-05-21  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Get tip building as C++ under Visual Studio.
