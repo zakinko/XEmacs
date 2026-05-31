@@ -98,13 +98,13 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
   /* frame property list */
   MARKED_SLOT (plist)
 
-  /* buffer_alist at last redisplay. */
-  MARKED_SLOT (old_buffer_alist)
+  /* buffer_list at last redisplay. */
+  MARKED_SLOT (old_buffer_list)
 
   /* A copy of the global Vbuffer_list, to maintain a per-frame buffer
      ordering.  The Vbuffer_list variable and the buffer_list slot of each
      frame contain exactly the same data, just in different orders.  */
-  MARKED_SLOT (buffer_alist)
+  MARKED_SLOT (buffer_list)
 
   /* Predicate for selecting buffers for other-buffer.  */
   MARKED_SLOT (buffer_predicate)

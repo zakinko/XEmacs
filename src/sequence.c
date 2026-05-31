@@ -1250,7 +1250,7 @@ memq_no_quit (Lisp_Object elt, Lisp_Object list)
    Error if LIST is ill-formed, or if START is not a valid index in LIST. If
    END is non-nil and the list is determined to be shorter than its fixnum
    value, error.  If LIST is circular and ITEM is not found in it, error. */
-static Lisp_Object
+Lisp_Object
 list_position_cons_before (Lisp_Object *cons_out,
                            Lisp_Object item, Lisp_Object list,
                            check_test_func_t check_test,

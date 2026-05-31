@@ -365,7 +365,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 #include <config.h>
 #include "lisp.h"
 
-#include "buffer.h"             /* for Vbuffer_alist */
+#include "buffer.h"             /* for Vbuffer_list */
 #include "console.h"
 #include "device-impl.h"
 #include "events.h"
@@ -613,7 +613,7 @@ allocate_frame_core (Lisp_Object device)
   f->device = device;
   f->framemeths = XDEVICE (device)->devmeths;
   f->frametype = get_console_variant (XDEVICE_TYPE (device));
-  f->buffer_alist = Fcopy_list (Vbuffer_alist);
+  f->buffer_list = Fcopy_list (Vbuffer_list);
 
   root_window = allocate_window ();
   XWINDOW (root_window)->frame = frame;

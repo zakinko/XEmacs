@@ -6983,18 +6983,18 @@ redisplay_frame (struct frame *f, int preemption_check)
 	return 1;
     }
 
-  if (!internal_equal (f->old_buffer_alist, f->buffer_alist, 0))
+  if (!internal_equal (f->old_buffer_list, f->buffer_list, 0))
     {
-      Lisp_Object argz[] = { f->old_buffer_alist,
-                             f->buffer_alist };
-      Lisp_Object old_len = Flength (f->old_buffer_alist);
+      Lisp_Object argz[] = { f->old_buffer_list,
+                             f->buffer_list };
+      Lisp_Object old_len = Flength (f->old_buffer_list);
 
-      f->old_buffer_alist
+      f->old_buffer_list
        /* No need for GCPRO, the result of Freplace() will be reachable via
-          f->old_buffer_alist, and nconc2() will GCPRO the result of
+          f->old_buffer_list, and nconc2() will GCPRO the result of
           Fsubseq(). */
         = nconc2 (Freplace (countof (argz), argz),
-		  Fcopy_list (Fnthcdr (old_len, f->buffer_alist)));
+		  Fcopy_list (Fnthcdr (old_len, f->buffer_list)));
 
       va_run_hook_with_args (Qbuffer_list_changed_hook, 1, wrap_frame (f));
     }

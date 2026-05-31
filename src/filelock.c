@@ -393,11 +393,9 @@ unlock_file (Lisp_Object fn)
 void
 unlock_all_files (void)
 {
-  REGISTER Lisp_Object tail;
-
-  for (tail = Vbuffer_alist; CONSP (tail); tail = XCDR (tail))
+  LIST_LOOP_2 (elt, Vbuffer_list)
     {
-      struct buffer *b = XBUFFER (XCDR (XCAR (tail)));
+      struct buffer *b = XBUFFER (elt);
       if (STRINGP (b->file_truename)
           && buf_tick_arithcompare (BUF_SAVE_MODIFF (b), BUF_MODIFF (b)) < 0)
 	unlock_file (b->file_truename);

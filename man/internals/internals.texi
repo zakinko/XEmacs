@@ -10392,9 +10392,8 @@ on windows.)
 
   Recall earlier that buffers are @dfn{permanent} objects, i.e.  that
 they remain around until explicitly deleted.  This entails that there is
-a list of all the buffers in existence.  This list is actually an
-assoc-list (mapping from the buffer's name to the buffer) and is stored
-in the global variable @code{Vbuffer_alist}.
+a list of all the buffers in existence.  This list is stored in the
+global variable @code{Vbuffer_list}.
 
   The order of the buffers in the list is important: the buffers are
 ordered approximately from most-recently-used to least-recently-used.
@@ -10406,9 +10405,9 @@ etc. look at the beginning of the list to find an alternative buffer to
 suggest.  You can also explicitly move a buffer to the end of the list
 using @code{bury-buffer}.
 
-  In addition to the global ordering in @code{Vbuffer_alist}, each frame
+  In addition to the global ordering in @code{Vbuffer_list}, each frame
 has its own ordering of the list.  These lists always contain the same
-elements as in @code{Vbuffer_alist} although possibly in a different
+elements as in @code{Vbuffer_list} although possibly in a different
 order.  @code{buffer-list} normally returns the list for the selected
 frame.  This allows you to work in separate frames without things
 interfering with each other.

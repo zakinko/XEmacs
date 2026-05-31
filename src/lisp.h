@@ -4177,7 +4177,7 @@ MODULE_API void unstaticpro_nodump (Lisp_Object *);
 
 /* Call staticpro_dump_nil (&var) to protect static variable VAR pre-dump.
    Post pdump_load(), ensure that it is protected via STATICPROS but that its
-   initial value is Qnil. Useful for variables like Vbuffer_alist where the
+   initial value is Qnil. Useful for variables like Vbuffer_list where the
    value is guaranteed to be distinct at dump time and at run time. Do not
    call it after pdump_load(), you will crash.  */
 void staticpro_dump_nil (Lisp_Object *) ATTRIBUTE_COLD;
@@ -4368,7 +4368,7 @@ extern Lisp_Object Qbuffer_or_string_p, Qdefault_directory, Qfirst_change_hook;
 extern Lisp_Object Qpermanent_local, Vafter_change_function;
 extern Lisp_Object Qbuffer_live_p, Qswitch_to_buffer;
 extern Lisp_Object Vafter_change_functions, Vbefore_change_function;
-extern Lisp_Object Vbefore_change_functions, Vbuffer_alist, Vbuffer_defaults;
+extern Lisp_Object Vbefore_change_functions, Vbuffer_list, Vbuffer_defaults;
 extern Lisp_Object Vinhibit_read_only, Vtransient_mark_mode;
 
 /* Defined in bytecode.c */
@@ -6019,6 +6019,14 @@ EXFUN (FassocX, KEYWORDS);
 
 Lisp_Object concatenate (int nsequences, Lisp_Object *sequences,
                          Lisp_Object result_type, Boolint reuse_last_listp);
+
+Lisp_Object list_position_cons_before (Lisp_Object *cons_out,
+				       Lisp_Object item, Lisp_Object list,
+				       check_test_func_t check_test,
+				       Boolint test_not_unboundp,
+				       Lisp_Object test, Lisp_Object key,
+				       Boolint reverse_test_order,
+				       Lisp_Object start, Lisp_Object end);
 
 /* Defined in signal.c */
 void init_interrupts_late (void);

@@ -149,14 +149,19 @@ static Ibyte *initial_directory;
    buffer-local.  It is indexed and accessed in the same way as the above. */
 static Lisp_Object Vbuffer_local_symbols;
 
-/* Alist of all buffer names vs the buffers. */
-/* This used to be a variable, but is no longer,
-   to prevent lossage due to user rplac'ing this alist or its elements.
-   Note that there is a per-frame copy of this as well; the frame slot
-   and the global variable contain the same data, but possibly in different
-   orders, so that the buffer ordering can be per-frame.
-  */
-Lisp_Object Vbuffer_alist;
+/* This used to be an alist mapping from buffer names to buffers, and long,
+   long ago it was a Lisp variable.  Exposing it directly to Lisp was unwise
+   since modifying its conses put us in an inconsistent state. There is no
+   longer any point to having it as an alist given the buffer name is
+   accessible through the buffer object itself, and lookup in that way is just
+   as cheap from C.
+
+   Note that there is a per-frame copy of this as well; the frame slot and the
+   global variable contain the same data, but possibly in different orders, so
+   that the buffer ordering can be per-frame.
+
+   Use #'reduce-across-buffers to access the buffer list without consing. */
+Lisp_Object Vbuffer_list;
 
 /* Functions to call before and after each text change. */
 Lisp_Object Qbefore_change_functions;
@@ -279,11 +284,8 @@ cleanup_buffer_undo_lists (void)
 {
   /* Truncate undo information at GC time.  Used to be in mark_object() but
      moved here for KKCC purposes. */
-
-  ALIST_LOOP_3 (name, buf, Vbuffer_alist)
+  LIST_LOOP_2 (buf, Vbuffer_list)
     {
-      USED (name); /* Silence warning. */
-
       XBUFFER (buf)->undo_list = truncate_undo_list (XBUFFER (buf)->undo_list,
 						     undo_threshold,
 						     undo_high_threshold);
@@ -309,6 +311,21 @@ nsberror (Lisp_Object spec)
   invalid_argument ("Invalid buffer argument", spec);
 }
 
+static Lisp_Object
+decode_buffer_list (Lisp_Object *frame_in_out)
+{
+  struct frame *ff;
+
+  if (EQ (*frame_in_out, Qt))
+    {
+      return Vbuffer_list;
+    }
+
+  ff = decode_frame (*frame_in_out);
+  *frame_in_out = wrap_frame (ff);
+  return ff->buffer_list;
+}
+
 DEFUN ("buffer-list", Fbuffer_list, 0, 1, 0, /*
 Return a list of all existing live buffers.
 The order is specific to the selected frame; if the optional FRAME
@@ -318,11 +335,7 @@ returned instead.
 */
        (frame))
 {
-  Lisp_Object args[2];
-  args[0] = Qcdr;
-  args[1] = EQ (frame, Qt) ?
-    Vbuffer_alist : decode_frame (frame)->buffer_alist;
-  return FmapcarX (countof (args), args);
+  return Fcopy_list (decode_buffer_list (&frame));
 }
 
 DEFUN ("reduce-across-buffers", Freduce_across_buffers, 1, KEYWORDS, 0, /*
@@ -343,43 +356,23 @@ arguments: (FUNCTION &key (START 0) (END (length (buffer-list))) FROM-END INITIA
 */
        (int nargs, Lisp_Object *args))
 {
-  Lisp_Object alist, *argz = alloca_array (Lisp_Object, nargs + 3);
-  Lisp_Vector *buffers;
-  Elemcount ii = 0, len;
-  struct gcpro gcpro1;
+  Lisp_Object *argz = alloca_array (Lisp_Object, nargs + 3);
 
   PARSE_KEYWORDS (Freduce_across_buffers,
                   (start, end, from_end, initial_value, key, frame),
-                  (start = Qzero, initial_value = Qunbound,
-		   USED (start), USED (end), USED (from_end),
+                  (USED (start), USED (end), USED (from_end),
 		   USED (initial_value), USED (key)));
 
-  alist = EQ (frame, Qt)
-    ? Vbuffer_alist : decode_frame (frame)->buffer_alist;
-  len = XFIXNUM (Flength (alist));
-  buffers
-    = (Lisp_Vector *) MALLOC_OR_ALLOCA
-    (FLEXIBLE_ARRAY_STRUCT_SIZEOF (Lisp_Vector, Lisp_Object,
-				   contents, len));
-  set_lheader_implementation (&buffers->header.lheader,
-			      LRECORD_IMPLEMENTATION (vector));
-  buffers->size = len;
-  {
-    LIST_LOOP_2 (elt, alist)
-      {
-	vector_data (buffers) [ii++] = XCDR (elt);
-      }
-  }
-
   argz[0] = args[0];
-  argz[1] = wrap_vector (buffers);
+  argz[1] = decode_buffer_list (&frame);
   argz[2] = Q_allow_other_keys;
   argz[3] = Qt;
   memcpy (argz + 4, args + 1, (nargs - 1) * sizeof (Lisp_Object));
 
-  GCPRO1 (*argz);
-  gcpro1.nvars = nargs + 3;
-  RETURN_UNGCPRO (Freduce (nargs + 3, argz));
+  /* No need for GCPRO; all the args are reachable, either by our caller
+     protecting them, by Vbuffer_list or XFRAME (frame)->buffer_list, or the
+     DEFKEYWORD() of Q_allow_other_keys.  */
+  return Freduce (nargs + 3, argz);
 }
 
 Lisp_Object
@@ -397,11 +390,20 @@ get_buffer (Lisp_Object name, int error_if_deleted_or_does_not_exist)
     }
   else
     {
-      Lisp_Object buf;
+      Lisp_Object buf = Qnil;
 
       CHECK_STRING (name);
       name = LISP_GETTEXT (name);
-      buf = Fcdr (assoc_no_quit (name, Vbuffer_alist));
+      {
+	LIST_LOOP_2 (elt, Vbuffer_list)
+	  {
+	    if (internal_equal (XBUFFER (elt)->name, name, 0))
+	      {
+		buf = elt;
+		break;
+	      }
+	  }
+      }
 
       if (NILP (buf) && error_if_deleted_or_does_not_exist)
 	nsberror (name);
@@ -518,7 +520,7 @@ the search will still be done on `buffer-file-name'.
     }
 
   {
-    ALIST_LOOP_3 (name, buf, Vbuffer_alist)
+    LIST_LOOP_2 (buf, Vbuffer_list)
       {
 	if (!STRINGP (XBUFFER (buf)->filename)) continue;
 	if (internal_equal (filename,
@@ -526,8 +528,6 @@ the search will still be done on `buffer-file-name'.
                              ? XBUFFER (buf)->file_truename
                              : XBUFFER (buf)->filename), 0))
 	  return buf;
-
-        USED (name); /* Silence warning. */
       }
   }
   return Qnil;
@@ -535,34 +535,30 @@ the search will still be done on `buffer-file-name'.
 
 
 static void
-push_buffer_alist (Lisp_Object name, Lisp_Object buf)
+push_buffer_list (Lisp_Object name, Lisp_Object buf)
 {
-  Lisp_Object cons = Fcons (name, buf);
   Lisp_Object frmcons, devcons, concons;
 
-  Vbuffer_alist = nconc2 (Vbuffer_alist, Fcons (cons, Qnil));
+  Vbuffer_list = nconc2 (Vbuffer_list, Fcons (buf, Qnil));
   FRAME_LOOP_NO_BREAK (frmcons, devcons, concons)
     {
       struct frame *f;
       f = XFRAME (XCAR (frmcons));
-      f->buffer_alist = nconc2 (f->buffer_alist, Fcons (cons, Qnil));
+      f->buffer_list = nconc2 (f->buffer_list, Fcons (buf, Qnil));
     }
 }
 
 static void
-delete_from_buffer_alist (Lisp_Object buf)
+delete_from_buffer_list (Lisp_Object buf)
 {
-  Lisp_Object cons = Frassq (buf, Vbuffer_alist);
   Lisp_Object frmcons, devcons, concons;
-  if (NILP (cons))
-    return; /* ABORT() ? */
-  Vbuffer_alist = delq_no_quit (cons, Vbuffer_alist);
+  Vbuffer_list = delq_no_quit (buf, Vbuffer_list);
 
   FRAME_LOOP_NO_BREAK (frmcons, devcons, concons)
     {
       struct frame *f;
       f = XFRAME (XCAR (frmcons));
-      f->buffer_alist = delq_no_quit (cons, f->buffer_alist);
+      f->buffer_list = delq_no_quit (buf, f->buffer_list);
     }
 }
 
@@ -614,8 +610,8 @@ finish_init_buffer (struct buffer *b, Lisp_Object name)
   /* initialize the extent list */
   b->extent_info = allocate_extent_info ();
 
-  /* Put this in the alist of all live buffers.  */
-  push_buffer_alist (name, buf);
+  /* Put this in the list of all live buffers.  */
+  push_buffer_list (name, buf);
   note_object_created (buf);
 
   init_buffer_markers (b);
@@ -841,10 +837,12 @@ is first appended to NAME, to speed up finding a non-existent buffer.
       else
         {
           Boolint seen = 0;
-          ALIST_LOOP_3 (bufname, bufobj, Vbuffer_alist)
+          LIST_LOOP_2 (bufobj, Vbuffer_list)
             {
-              if (XSTRING_LENGTH (bufname) == clen
-                  && !qxememcmp (candidate, XSTRING_DATA (bufname), clen))
+              if (XSTRING_LENGTH (XBUFFER (bufobj)->name) == clen
+                  && !qxememcmp (candidate,
+				 XSTRING_DATA (XBUFFER (bufobj)->name),
+				 clen))
                 {
                   seen = 1;
                   break;
@@ -1049,7 +1047,7 @@ This does not change the name of the visited file (if any).
        (newname, unique))
 {
   /* This function can GC */
-  Lisp_Object tem, buf;
+  Lisp_Object tem;
 
 #ifdef I18N3
   /* #### Doc string should indicate that the buffer name will get
@@ -1083,12 +1081,6 @@ This does not change the name of the visited file (if any).
      any windows displaying current_buffer will stay unchanged.  */
   MARK_MODELINE_CHANGED;
 
-  buf = Fcurrent_buffer ();
-
-  /* The aconses in the Vbuffer_alist are shared with frame->buffer_alist,
-     so this will change it in the per-frame ordering as well. */
-  Fsetcar (Frassq (buf, Vbuffer_alist), newname);
-
   if (NILP (current_buffer->filename)
       && !NILP (current_buffer->auto_save_file_name))
     call0 (Qrename_auto_save_file);
@@ -1114,24 +1106,10 @@ VISIBLE-OK.
        (buffer, frame, visible_ok))
 {
   /* This function can GC */
-  Lisp_Object tail, buf, notsogood, tem;
-  Lisp_Object alist;
+  Lisp_Object notsogood = Qnil, tem = Qnil;
 
-  notsogood = Qnil;
-
-  if (EQ (frame, Qt))
-    alist = Vbuffer_alist;
-  else
+  GC_EXTERNAL_LIST_LOOP_2 (buf, decode_buffer_list (&frame))
     {
-      struct frame *f = decode_frame (frame);
-
-      frame = wrap_frame (f);
-      alist = f->buffer_alist;
-    }
-
-  for (tail = alist; !NILP (tail); tail = Fcdr (tail))
-    {
-      buf = Fcdr (Fcar (tail));
       if (EQ (buf, buffer))
 	continue;
       if (string_byte (XBUFFER (buf)->name, 0) == ' ')
@@ -1157,10 +1135,15 @@ VISIBLE-OK.
       else
 	tem = Qnil;
       if (NILP (tem))
-	return buf;
+	{
+	  XUNGCPRO (buf);
+	  return buf;
+	}
       if (NILP (notsogood))
 	notsogood = buf;
     }
+  END_GC_EXTERNAL_LIST_LOOP (buf);
+
   if (!NILP (notsogood))
     return notsogood;
   return Fget_buffer_create (QSscratch);
@@ -1366,7 +1349,7 @@ with `delete-process'.
 
     kill_buffer_processes (buf);
 
-    delete_from_buffer_alist (buf);
+    delete_from_buffer_list (buf);
 
     /* #### This is a problem if this buffer is in a dedicated window.
        Need to undedicate any windows of this buffer first (and delete them?)
@@ -1435,7 +1418,35 @@ with `delete-process'.
   }
   return Qt;
 }
+
 
+static void
+record_buffer_1 (Lisp_Object buffer, Lisp_Object *liszt)
+{
+  Lisp_Object cons_before = Qnil;
+  Lisp_Object position
+    = list_position_cons_before (&cons_before, buffer, *liszt,
+				 check_eq_nokey, 0, Qnil, Qnil, 0,
+				 Qzero, Qnil);
+  if (EQ (position, Qzero))
+    {
+      return;
+    }
+
+  if (NILP (position))
+    {
+      *liszt = Fcons (buffer, *liszt);
+    }
+  else
+    {
+      Lisp_Object this_cons = XCDR (cons_before);
+
+      XSETCDR (cons_before, XCDDR (cons_before));
+      XSETCDR (this_cons, *liszt);
+      *liszt = this_cons;
+    }
+}
+
 DEFUN ("record-buffer", Frecord_buffer, 1, 1, 0, /*
 Place buffer BUFFER first in the buffer order.
 Call this function when a buffer is selected "visibly".
@@ -1447,62 +1458,14 @@ buffer.  See `other-buffer' for more information.
 */
        (buffer))
 {
-  REGISTER Lisp_Object lynk, prev;
   struct frame *f = selected_frame ();
-  int buffer_found = 0;
 
   CHECK_BUFFER (buffer);
   if (!BUFFER_LIVE_P (XBUFFER (buffer)))
     return Qnil;
-  prev = Qnil;
-  for (lynk = Vbuffer_alist; CONSP (lynk); lynk = XCDR (lynk))
-    {
-      if (EQ (XCDR (XCAR (lynk)), buffer))
-	{
-	  buffer_found = 1;
-	  break;
-	}
-      prev = lynk;
-    }
-  if (buffer_found)
-    {
-      /* Effectively do Vbuffer_alist = delq_no_quit (lynk, Vbuffer_alist) */
-      if (NILP (prev))
-	Vbuffer_alist = XCDR (Vbuffer_alist);
-      else
-	XCDR (prev) = XCDR (XCDR (prev));
-      XCDR (lynk) = Vbuffer_alist;
-      Vbuffer_alist = lynk;
-    }
-  else
-    Vbuffer_alist = Fcons (Fcons (Fbuffer_name(buffer), buffer), Vbuffer_alist);
 
-  /* That was the global one.  Now do the same thing for the
-     per-frame buffer-alist. */
-  buffer_found = 0;
-  prev = Qnil;
-  for (lynk = f->buffer_alist; CONSP (lynk); lynk = XCDR (lynk))
-    {
-      if (EQ (XCDR (XCAR (lynk)), buffer))
-	{
-	  buffer_found = 1;
-	  break;
-	}
-      prev = lynk;
-    }
-  if (buffer_found)
-    {
-      /* Effectively do f->buffer_alist = delq_no_quit (lynk, f->buffer_alist) */
-      if (NILP (prev))
-	f->buffer_alist = XCDR (f->buffer_alist);
-      else
-	XCDR (prev) = XCDR (XCDR (prev));
-      XCDR (lynk) = f->buffer_alist;
-      f->buffer_alist = lynk;
-    }
-  else
-    f->buffer_alist = Fcons (Fcons (Fbuffer_name(buffer), buffer),
-			     f->buffer_alist);
+  record_buffer_1 (buffer, &Vbuffer_list);
+  record_buffer_1 (buffer, &f->buffer_list);
 
   return Qnil;
 }
@@ -1644,22 +1607,21 @@ discussion.
 
 static void
 bury_buffer_1 (Lisp_Object buffer, Lisp_Object before,
-	       Lisp_Object *buffer_alist)
+	       Lisp_Object *buffer_list)
 {
-  Lisp_Object aelt = rassq_no_quit (buffer, *buffer_alist);
-  Lisp_Object lynk = memq_no_quit (aelt, *buffer_alist);
+  Lisp_Object lynk = memq_no_quit (buffer, *buffer_list);
   Lisp_Object iter, before_before;
 
-  *buffer_alist = delq_no_quit (aelt, *buffer_alist);
-  for (before_before = Qnil, iter = *buffer_alist;
-       !NILP (iter) && !EQ (XCDR (XCAR (iter)), before);
+  *buffer_list = delq_no_quit (buffer, *buffer_list);
+  for (before_before = Qnil, iter = *buffer_list;
+       !NILP (iter) && !EQ (XCAR (iter), before);
        before_before = iter, iter = XCDR (iter))
     ;
   XCDR (lynk) = iter;
   if (!NILP (before_before))
     XCDR (before_before) = lynk;
   else
-    *buffer_alist = lynk;
+    *buffer_list = lynk;
 }
 
 DEFUN ("bury-buffer", Fbury_buffer, 0, 2, "", /*
@@ -1697,8 +1659,8 @@ will be placed, instead of being placed at the end.
   if (EQ (before, buffer))
     invalid_operation ("Cannot place a buffer before itself", Qunbound);
 
-  bury_buffer_1 (buffer, before, &Vbuffer_alist);
-  bury_buffer_1 (buffer, before, &selected_frame ()->buffer_alist);
+  bury_buffer_1 (buffer, before, &Vbuffer_list);
+  bury_buffer_1 (buffer, before, &selected_frame ()->buffer_list);
 
   return Qnil;
 }
@@ -2152,8 +2114,8 @@ List of functions called with no args to query before killing a buffer.
 */ );
   delete_auto_save_files = 1;
 
-  Vbuffer_alist = Qnil;
-  staticpro_dump_nil (&Vbuffer_alist);
+  Vbuffer_list = Qnil;
+  staticpro_dump_nil (&Vbuffer_list);
 
   Vbuffer_defaults = Qnil;
   staticpro (&Vbuffer_defaults);

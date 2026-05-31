@@ -1,3 +1,82 @@
+2026-05-31  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Change Vbuffer_alist, Lisp_Frame.buffer_alist into simple
+	lists. Simplify #'reduce-across-buffers accordingly, avoid the
+	need to stack-allocate a vector.
+	Simplify the implementation of other functions too, remove the
+	need to suppress warnings.
+
+	* buffer.c:
+	Rename Vbuffer_alist to Vbuffer_list. Update its documentation.
+
+	* buffer.c (cleanup_buffer_undo_lists):
+	Loop across it as a normal list.
+	* buffer.c (decode_buffer_list): New. Given FRAME_IN_OUT, either
+	Qt, Qnil (for the selected frame), or a frame object, return
+	Vbuffer_list or the frame's buffer list. Set FRAME_IN_OUT to a
+	frame object if it was non-Qt.
+	* buffer.c (Fbuffer_list):
+	Use it. Just call Fcopy_list on its result.
+	* buffer.c (Freduce_across_buffers):
+	Greatly simplify this.
+	* buffer.c (get_buffer):
+	Loop across Vbuffer_list as a normal list.
+	* buffer.c (Fget_file_buffer):
+	Ditto.
+	* buffer.c (push_buffer_list): Rename push_buffer_alist() to
+	this. Update its body accordingly.
+	* buffer.c (delete_from_buffer_list): Rename
+	delete_from_buffer_alist() to this. Simplify its implementation
+	accordingly.
+	* buffer.c (finish_init_buffer):
+	Call push_buffer_list() with its new name.
+	* buffer.c (Fgenerate_new_buffer_name):
+	Loop across Vbuffer_list as a normal list.
+	* buffer.c (Frename_buffer): No longer a need to modify the alist
+	when we do this.
+	* buffer.c (Fother_buffer):
+	Use decode_buffer_list() here. GC-protect the elements of the list
+	using GC_EXTERNAL_LIST_LOOP_2(); we should have been doing this
+	all along, but have yet to be bitten by it since frames'
+	buffer-predicates are so rare.
+	* buffer.c (Fkill_buffer):
+	Call delete_from_buffer_list() with its new name.
+	* buffer.c (record_buffer_1): New. Implement the body of
+	Frecord_buffer() using list_position_cons_before(). Respect the
+	new format of Vbuffer_list.
+	* buffer.c (Frecord_buffer):
+	Call record_buffer_1() on Vbuffer_list, f->buffer_list.
+	* buffer.c (bury_buffer_1):
+	Rename the BUFFER_ALIST argument to BUFFER_LIST. Respect its new
+	format.
+	* buffer.c (Fbury_buffer):
+	Call bury_buffer_1() on &Vbuffer_list,
+	&selected_frame()->buffer_list.
+	* buffer.c (vars_of_buffer):
+	Initialize, staticpro() Vbuffer_list with its new name.
+	* fileio.c (Fdo_auto_save):
+	Use the new name, format for Vbuffer_list.
+	* filelock.c (unlock_all_files):
+	Ditto.
+	* frame.c:
+	* frame.c (allocate_frame_core):
+	Use the new names for f->buffer_list, Vbuffer_list.
+	* frameslots.h:
+	Rename relevant slots to old_buffer_list, buffer_list.
+	* lisp.h:
+	Update the declaration for Vbuffer_list.
+	Declare list_position_cons_before(), now non-static.
+	* redisplay.c (redisplay_frame):
+	Use the new names for the frame slots.
+	* sequence.c (list_position_cons_before):
+	Make this non-static now it's used from buffer.c
+	* symbols.c (set_default_buffer_slot_variable):
+	Use the new name, format for Vbuffer_list.
+	* unicode.c (free_precedence_array):
+	Ditto.
+	* unicode.c (recalculate_unicode_precedence):
+	Ditto.
+
 2026-05-30  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Add #'reduce-across-buffers, allow Lisp to examine all live

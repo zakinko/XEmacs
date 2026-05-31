@@ -1,3 +1,8 @@
+2026-05-31  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* internals/internals.texi (Buffer Lists):
+	Document Vbuffer_list, remove documentation of Vbuffer_alist.
+
 2026-05-26  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* internals/internals.texi (Pointers dumping):

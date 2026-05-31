@@ -864,9 +864,9 @@ set_default_buffer_slot_variable (Lisp_Object sym,
   if (mask > 0)		/* Not always per-buffer */
     {
       /* Set value in each buffer which hasn't shadowed the default */
-      LIST_LOOP_2 (elt, Vbuffer_alist)
+      LIST_LOOP_2 (elt, Vbuffer_list)
 	{
-	  struct buffer *b = XBUFFER (XCDR (elt));
+	  struct buffer *b = XBUFFER (elt);
 	  if (!(b->local_var_flags & mask))
 	    {
 	      if (magicfun)

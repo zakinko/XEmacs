@@ -4128,7 +4128,7 @@ Non-nil second argument means save only current buffer.
   Vquit_flag = Qnil;
 
   /* No further GCPRO needed, because (when it matters) all Lisp_Object
-     variables point to non-strings reached from Vbuffer_alist.  */
+     variables point to non-strings reached from Vbuffer_list.  */
 
   if (minibuf_level != 0 || preparing_for_armageddon)
     no_message = Qt;
@@ -4150,12 +4150,11 @@ Non-nil second argument means save only current buffer.
      ange-ftp'd file.  */
   for (do_handled_files = 0; do_handled_files < 2; do_handled_files++)
     {
-      /* Vbuffer_alist is not actually external format, but that doesn't
+      /* Vbuffer_list is not actually external format, but that doesn't
          matter for our purposes. The big thing is GC protection for BUF and
          for TAIL, the handlers may make them unreachable. */
-      GC_EXTERNAL_LIST_LOOP_3 (buf, Vbuffer_alist, tail)
+      GC_EXTERNAL_LIST_LOOP_3 (buf, Vbuffer_list, tail)
 	{
-	  buf = XCDR (buf); /* Preserve GCPRO of BUF. */
 	  b = XBUFFER (buf);
 
 	  if (!NILP (current_only)
