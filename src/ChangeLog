@@ -1,3 +1,13 @@
+2026-06-01  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* buffer.c (record_buffer_1):
+	Revert to the previous algorithm in this, avoid infinite loop in
+	switch-to-previous-buffer-in-group in region-tests.el. Needs
+	further investigation to get to the root of this;
+	list_position_cons_before() may theoretically be buggy despite
+	Paul Dietz' excellent test suite used at the time of its
+	implementation.
+
 2026-05-31  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Change Vbuffer_alist, Lisp_Frame.buffer_alist into simple
