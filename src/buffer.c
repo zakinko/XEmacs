@@ -1423,32 +1423,28 @@ with `delete-process'.
 static void
 record_buffer_1 (Lisp_Object buffer, Lisp_Object *liszt)
 {
-  Boolint buffer_found = 0;
-  Lisp_Object lynk, prev = Qnil;
-
-  prev = Qnil;
-  for (lynk = *liszt; CONSP (lynk); lynk = XCDR (lynk))
+  Lisp_Object cons_before = Qnil;
+  Lisp_Object position
+    = list_position_cons_before (&cons_before, buffer, *liszt,
+				 check_eq_nokey, 1, Qnil, Qnil, 0,
+				 Qzero, Qnil);
+  if (EQ (position, Qzero))
     {
-      if (EQ (XCAR (lynk), buffer))
-	{
-	  buffer_found = 1;
-	  break;
-	}
-      prev = lynk;
+      return;
     }
 
-  if (buffer_found)
+  if (NILP (position))
     {
-      /* Effectively do *liszt = delq_no_quit (lynk, *liszt) */
-      if (NILP (prev))
-	*liszt = XCDR (*liszt);
-      else
-	XCDR (prev) = XCDR (XCDR (prev));
-      XCDR (lynk) = *liszt;
-      *liszt = lynk;
+      *liszt = Fcons (buffer, *liszt);
     }
   else
-    *liszt = Fcons (buffer, *liszt);
+    {
+      Lisp_Object this_cons = XCDR (cons_before);
+
+      XSETCDR (cons_before, XCDDR (cons_before));
+      XSETCDR (this_cons, *liszt);
+      *liszt = this_cons;
+    }
 }
 
 DEFUN ("record-buffer", Frecord_buffer, 1, 1, 0, /*

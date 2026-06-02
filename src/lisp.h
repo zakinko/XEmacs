@@ -6020,6 +6020,7 @@ EXFUN (FassocX, KEYWORDS);
 Lisp_Object concatenate (int nsequences, Lisp_Object *sequences,
                          Lisp_Object result_type, Boolint reuse_last_listp);
 
+/* Note that TEST_NOT_UNBOUNDP should usually be 1 when calling this. */
 Lisp_Object list_position_cons_before (Lisp_Object *cons_out,
 				       Lisp_Object item, Lisp_Object list,
 				       check_test_func_t check_test,

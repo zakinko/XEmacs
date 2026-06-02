@@ -52,4 +52,23 @@
 (Assert (equal " *Echo Area*"
 	       (buffer-name (decode-buffer (get-buffer " *Echo Area*")))))
 
+(let* ((buffer-list (buffer-list))
+       (first (car buffer-list))
+       (second (cadr buffer-list))
+       (last (car (last buffer-list)))
+       (dead-buffer (with-temp-buffer (current-buffer))))
+  
+  (Assert (equal (progn (bury-buffer first) (buffer-list))
+                 (nconc (subseq buffer-list 1) (list first))))
+
+  (Assert (equal (progn (bury-buffer first second) (buffer-list))
+                 buffer-list))
+
+  (Assert (equal (progn (record-buffer last) (buffer-list))
+                 (cons last (subseq buffer-list 0 -1))))
+
+  ;; Dead buffer shouldn't be put in the list.
+  (Assert (equal (progn (record-buffer dead-buffer) (buffer-list))
+                 (cons last (subseq buffer-list 0 -1)))))
+
 ;;; end of buffer-tests.el

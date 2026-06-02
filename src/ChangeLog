@@ -1,3 +1,15 @@
+2026-06-02  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* buffer.c:
+	* buffer.c (record_buffer_1):
+	No bug in list_position_cons_before(), the issue was that I had
+	been passing the wrong value for the TEST_NOT_UNBOUNDP
+	arg. Restore the revised algorithm of 2026-06-01, correct the
+	TEST_NOT_UNBOUNDP.
+	* lisp.h:
+	Document this pitfall at the declaration of
+	list_position_cons_before().
+
 2026-06-01  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* buffer.c (record_buffer_1):
