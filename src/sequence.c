@@ -7777,42 +7777,70 @@ mismatch_string_string (Lisp_Object string1,
       char_count2++;
     }
 
-  while (string2_starting < string2_ending && string1_starting < string1_ending
-         && string1_offset < string1_len && string2_offset < string2_len)
+  if (check_match == check_eq_nokey)
     {
-      character1 = make_char (itext_ichar (string1_data));
-      character2 = make_char (itext_ichar (string2_data));
+      while (string2_starting < string2_ending
+	     && string1_starting < string1_ending
+	     && string1_offset < string1_len
+	     && string2_offset < string2_len)
+	{
+	  if ((itext_ichar (string1_data) == itext_ichar (string2_data))
+	      != test_not_unboundp)
+	    {
+	      return make_integer (char_count1);
+	    }
 
-      if (check_match (test, key, character1, character2)
-          != test_not_unboundp)
-        {
-          return make_integer (char_count1);
-        }
+	  string2_starting++;
+	  string1_starting++;
+	  char_count1++;
+	  char_count2++;
+	  INC_IBYTEPTR (string1_data);
+	  string1_offset = string1_data - startp1;
+	  INC_IBYTEPTR (string2_data);
+	  string2_offset = string2_data - startp2;
+	}
+    }
+  else
+    {
+      while (string2_starting < string2_ending
+	     && string1_starting < string1_ending
+	     && string1_offset < string1_len
+	     && string2_offset < string2_len)
+	{
+	  character1 = make_char (itext_ichar (string1_data));
+	  character2 = make_char (itext_ichar (string2_data));
 
-      startp1 = XSTRING_DATA (string1);
-      string1_data = startp1 + string1_offset;
-      if (string1_len != XSTRING_LENGTH (string1)
-          || !valid_ibyteptr_p (string1_data))
-        {
-          mapping_interaction_error (Qmismatch, string1);
-        }
+	  if (check_match (test, key, character1, character2)
+	      != test_not_unboundp)
+	    {
+	      return make_integer (char_count1);
+	    }
 
-      startp2 = XSTRING_DATA (string2);
-      string2_data = startp2 + string2_offset;
-      if (string2_len != XSTRING_LENGTH (string2)
-          || !valid_ibyteptr_p (string2_data))
-        {
-          mapping_interaction_error (Qmismatch, string2);
-        }
+	  startp1 = XSTRING_DATA (string1);
+	  string1_data = startp1 + string1_offset;
+	  if (string1_len != XSTRING_LENGTH (string1)
+	      || !valid_ibyteptr_p (string1_data))
+	    {
+	      mapping_interaction_error (Qmismatch, string1);
+	    }
 
-      string2_starting++;
-      string1_starting++;
-      char_count1++;
-      char_count2++;
-      INC_IBYTEPTR (string1_data);
-      string1_offset = string1_data - startp1;
-      INC_IBYTEPTR (string2_data);
-      string2_offset = string2_data - startp2;
+	  startp2 = XSTRING_DATA (string2);
+	  string2_data = startp2 + string2_offset;
+	  if (string2_len != XSTRING_LENGTH (string2)
+	      || !valid_ibyteptr_p (string2_data))
+	    {
+	      mapping_interaction_error (Qmismatch, string2);
+	    }
+
+	  string2_starting++;
+	  string1_starting++;
+	  char_count1++;
+	  char_count2++;
+	  INC_IBYTEPTR (string1_data);
+	  string1_offset = string1_data - startp1;
+	  INC_IBYTEPTR (string2_data);
+	  string2_offset = string2_data - startp2;
+	}
     }
 
   if (string1_data == XSTRING_DATA (string1) + XSTRING_LENGTH (string1))

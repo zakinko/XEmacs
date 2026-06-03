@@ -1,3 +1,12 @@
+2026-06-03  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* sequence.c (mismatch_string_string):
+	The vast majority of times #'mismatch is called on two strings
+	with the test being #'eq. In this case (similar to 37a35bc7967c of
+	2025-11-14), avoid the checks that Lisp hasn't relocated the
+	string data for comparison, just compare the itext_ichar of both
+	string offsets.
+
 2026-06-02  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* buffer.c:
