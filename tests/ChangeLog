@@ -1,3 +1,9 @@
+2026-06-03  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* automated/lisp-tests.el:
+	Add a test that creates a zero-length bit vector, which will
+	prevent recurrence of a bug just fixed on error checking builds.
+
 2026-06-02  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* automated/buffer-tests.el (buffer-list):

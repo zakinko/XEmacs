@@ -1,5 +1,15 @@
 2026-06-03  Aidan Kehoe  <kehoea@parhasard.net>
 
+	* alloc.c (make_bit_vector):
+	Correct an assertion here, if length is zero NUM_LONGS will be
+	zero, giving a divide by zero. Thank you Paul Dietz and his
+	ansi-tests suite.
+	I had previously asked him if I could incorporate these tests into
+	XEmacs without a response; I note now that he has added an MIT
+	licence to his github repository, so this should be reconsidered.
+
+2026-06-03  Aidan Kehoe  <kehoea@parhasard.net>
+
 	* sequence.c (mismatch_string_string):
 	The vast majority of times #'mismatch is called on two strings
 	with the test being #'eq. In this case (similar to 37a35bc7967c of

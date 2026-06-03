@@ -1267,6 +1267,7 @@ will be used to make debugging easier."
 (Assert (equal (bit-vector 0 1 0) #*010))
 (Assert (equal (make-bit-vector 3 1) #*111))
 (Assert (equal (make-bit-vector 3 0) #*000))
+(Assert (eql (length (make-bit-vector 0 0)) 0))
 (Check-Error args-out-of-range (make-bit-vector bit-vector-total-size-limit 1))
 (Check-Error args-out-of-range (make-bit-vector -1 1))
 (Check-Error wrong-type-argument (make-bit-vector most-positive-fixnum -1))

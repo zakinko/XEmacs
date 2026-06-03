@@ -2026,7 +2026,8 @@ make_bit_vector (Elemcount length, Lisp_Object bit)
 
   CHECK_BIT (bit);
 
-  structure_checking_assert ((bcount / (size_t) num_longs) == sizeof (long));
+  structure_checking_assert (length == 0 || 
+			     (bcount / (size_t) num_longs) == sizeof (long));
 
   if (ZEROP (bit))
     memset (p->bits, 0, bcount);
