@@ -66,12 +66,12 @@ static void mswindows_output_dibitmap (struct frame *f,
 				       struct display_box *db,
 				       struct display_glyph_area *dga);
 
-typedef struct textual_run
+typedef struct msw_textual_run
 {
   Lisp_Object charset; /* charset of this run */
   WCHAR *ptr; /* pointer to Unicode chars in this run */
   Elemcount nwchars; /* number of Unicode chars in this run */
-} textual_run;
+} msw_textual_run;
 
 /* Separate out the text in STR into a series of textual runs of a particular
    charset.  Returns the number of runs actually used.  Returns the textual
@@ -80,7 +80,7 @@ typedef struct textual_run
 
 static Elemcount
 separate_textual_runs (struct buffer *buf, WCHAR *text_storage,
-                       struct textual_run *run_storage,
+                       struct msw_textual_run *run_storage,
                        const Ibyte *str, Bytecount len)
 {
   Lisp_Object prev_charset = Qunbound;
@@ -133,7 +133,7 @@ separate_textual_runs (struct buffer *buf, WCHAR *text_storage,
 
 static int
 mswindows_text_width_single_run (HDC hdc, struct face_cachel *cachel,
-				 textual_run *run)
+				 msw_textual_run *run)
 {
   Lisp_Object font_inst = FACE_CACHEL_FONT (cachel, run->charset);
   SIZE size;
@@ -456,7 +456,7 @@ mswindows_output_string (struct window *w, struct display_line *dl,
   int clip_end;
   Lisp_Object bg_pmap;
   Extbyte *text_storage;
-  textual_run *runs;
+  msw_textual_run *runs;
   Elemcount nruns;
   Bytecount text_storage_len;
   int i, height;
@@ -523,7 +523,7 @@ mswindows_output_string (struct window *w, struct display_line *dl,
   /* TEXT_STORAGE_LEN / 2 will be smaller than LEN, while still being an
      inclusive upper bound on the number of possible textual runs (the maximum
      value possible is the number of Ichars at BUF). */
-  runs = alloca_array (textual_run, text_storage_len >> 1);
+  runs = alloca_array (msw_textual_run, text_storage_len >> 1);
 
   nruns = separate_textual_runs (WINDOW_XBUFFER (w),
                                  (WCHAR *) text_storage,
@@ -1240,7 +1240,7 @@ mswindows_text_width (struct frame *f, struct face_cachel *cachel,
 {
   HDC hdc = get_frame_dc (f, 0);
   int width_so_far = 0;
-  textual_run *runs;
+  msw_textual_run *runs;
   Extbyte *text_storage;
   Elemcount nruns;
   Bytecount text_storage_len;
@@ -1250,7 +1250,7 @@ mswindows_text_width (struct frame *f, struct face_cachel *cachel,
                       ALLOCA, (text_storage, text_storage_len),
                       Qmswindows_unicode);
 
-  runs = alloca_array (textual_run, text_storage_len >> 1);
+  runs = alloca_array (msw_textual_run, text_storage_len >> 1);
 
   nruns = separate_textual_runs (WINDOW_XBUFFER (FRAME_SELECTED_XWINDOW (f)),
                                  (WCHAR *) text_storage, runs, str, len);

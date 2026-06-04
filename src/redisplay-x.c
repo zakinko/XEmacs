@@ -166,7 +166,7 @@ x_get_gc (struct frame *f, Lisp_Object font, Lisp_Object fg, Lisp_Object bg,
    the trick, but it's not a cross-platform solution; it would need
    significant advantages to be worth the effort. */
 
-struct textual_run
+struct x_textual_run
 {
   Lisp_Object charset;
   Extbyte *ptr;
@@ -225,7 +225,7 @@ extern Lisp_Object Qutf_16_little_endian;
 static int
 separate_textual_runs_xft_mule (struct buffer *buf,
 				Extbyte *text_storage,
-				struct textual_run *run_storage,
+				struct x_textual_run *run_storage,
 				const Ibyte *str, Bytecount len,
 				struct face_cachel *UNUSED (cachel))
 {
@@ -296,7 +296,7 @@ separate_textual_runs_xft_mule (struct buffer *buf,
 static Elemcount
 separate_textual_runs_mule (struct buffer *buf,
                             Extbyte *text_storage,
-                            struct textual_run *run_storage,
+                            struct x_textual_run *run_storage,
 			    const Ibyte *str, Bytecount len,
 			    struct face_cachel *cachel)
 {
@@ -458,7 +458,7 @@ separate_textual_runs_mule (struct buffer *buf,
 static int
 separate_textual_runs (struct buffer *buf,
                        Extbyte *text_storage,
-		       struct textual_run *run_storage,
+		       struct x_textual_run *run_storage,
 		       const Ibyte *str, Bytecount len,
 		       struct face_cachel *cachel)
 {
@@ -480,7 +480,7 @@ separate_textual_runs (struct buffer *buf,
 static int
 x_text_width_single_run (Display * USED_IF_XFT (dpy),
                          struct face_cachel *cachel,
-                         struct textual_run *run)
+                         struct x_textual_run *run)
 {
   Lisp_Object font_inst = FACE_CACHEL_FONT (cachel, run->charset);
   Lisp_Font_Instance *fi = XFONT_INSTANCE (font_inst);
@@ -529,7 +529,7 @@ x_text_width (struct frame *f, struct face_cachel *cachel, const Ibyte *str,
 {
   Extbyte *text_storage = NULL;
   int width_so_far = 0, text_storage_len = 0;
-  struct textual_run *runs = alloca_array (struct textual_run, len);
+  struct x_textual_run *runs = alloca_array (struct x_textual_run, len);
   Display *dpy = DEVICE_X_DISPLAY (XDEVICE (f->device));
   int nruns;
   int i;
@@ -1457,7 +1457,7 @@ x_output_string (struct window *w, struct display_line *dl, const Ibyte *buf,
   int height = XLIKE_DISPLAY_LINE_HEIGHT (dl);
   int ypos = XLIKE_DISPLAY_LINE_YPOS (dl);
   Extbyte *text_storage;
-  struct textual_run *runs = alloca_array (struct textual_run, len);
+  struct x_textual_run *runs = alloca_array (struct x_textual_run, len);
   int nruns, text_storage_len;
   int i;
   struct face_cachel *cachel = WINDOW_FACE_CACHEL (w, findex);
@@ -1685,7 +1685,7 @@ x_output_string (struct window *w, struct display_line *dl, const Ibyte *buf,
 		   modeline (overwriting part of the bevel).
 		   OK, unconditionally redraw the bevel, and increment
 		   rect_height by 1.  See x_output_display_block. -- sjt */
-		struct textual_run *run = &runs[i];
+		struct x_textual_run *run = &runs[i];
 		int rect_width
 		  = x_text_width_single_run (dpy, cachel, run);
 #ifndef USE_XFTTEXTENTS_TO_AVOID_FONT_DROPPINGS

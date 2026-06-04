@@ -1,3 +1,23 @@
+2026-06-04  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Silence warnings regarding the C++ one definition rule on Cygwin,
+	struct textual_run.
+
+	* redisplay-msw.c (msw_textual_run): Rename struct textual_run to this.
+	* redisplay-msw.c (separate_textual_runs): Use the new type name.
+	* redisplay-msw.c (mswindows_text_width_single_run): Ditto.
+	* redisplay-msw.c (mswindows_output_string): Ditto.
+	* redisplay-msw.c (mswindows_text_width): Ditto.
+	* redisplay-x.c (struct x_textual_run): Rename struct textual run
+	to this.
+	* redisplay-x.c (separate_textual_runs_xft_mule): Use the new type
+	name.
+	* redisplay-x.c (separate_textual_runs_mule): Ditto.
+	* redisplay-x.c (separate_textual_runs): Ditto.
+	* redisplay-x.c (x_text_width_single_run): Ditto.
+	* redisplay-x.c (x_text_width): Ditto.
+	* redisplay-x.c (x_output_string): Ditto.
+
 2026-06-03  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* alloc.c (make_bit_vector):
