@@ -801,7 +801,9 @@ Lisp_Object
 decode_domain (Lisp_Object domain)
 {
   if (NILP (domain))
-    return Fselected_window (Qnil);
+    {
+      domain = Fselected_window (Qnil);
+    }
   check_valid_domain (domain);
   return domain;
 }

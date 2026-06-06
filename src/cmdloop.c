@@ -381,7 +381,7 @@ Alternately, `(throw 'exit t)' makes this function signal an error.
        ())
 {
   /* This function can GC */
-  Lisp_Object val;
+  Lisp_Object val, selected_window = Fselected_window (Qnil);
   int speccount = specpdl_depth ();
 
   command_loop_level++;
@@ -389,9 +389,10 @@ Alternately, `(throw 'exit t)' makes this function signal an error.
 
   record_unwind_protect (recursive_edit_unwind,
 			 current_buffer
-			 != XWINDOW_XBUFFER (Fselected_window (Qnil))
-                          ? Fcurrent_buffer ()
-                          : Qnil);
+			 != (WINDOWP (selected_window)
+			     ? WINDOW_XBUFFER (decode_window (Qnil))
+			     : NULL)
+                          ? Fcurrent_buffer () : Qnil);
 
   specbind (Qstandard_output, Qt);
   specbind (Qstandard_input, Qt);

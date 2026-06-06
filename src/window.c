@@ -1512,7 +1512,9 @@ struct window *
 decode_window (Lisp_Object window)
 {
   if (NILP (window))
-    return XWINDOW (Fselected_window (Qnil));
+    {
+      window = Fselected_window (Qnil);
+    }
 
   CHECK_LIVE_WINDOW (window);
   return XWINDOW (window);
@@ -1871,7 +1873,7 @@ But that value is hard to find.
 
   /* The special check for current buffer is necessary for this
      function to work as defined when called within an excursion. */
-  if (w == XWINDOW (Fselected_window (XFRAME (w->frame)->device))
+  if (EQ (wrap_window (w), Fselected_window (XFRAME (w->frame)->device))
       && current_buffer == XBUFFER (w->buffer))
     return Fpoint (Qnil);
   return Fmarker_position (w->pointm[CURRENT_DISP]);
@@ -2066,7 +2068,8 @@ unshow_buffer (struct window *w)
   Lisp_Object saved_point = get_point_cache (buf, w->saved_point_cache);
   Lisp_Object saved_window_start
     = get_point_cache (buf, w->saved_last_window_start_cache);
-  Boolint selected = EQ (wrap_window (w), Fselected_window (Qnil));
+  Lisp_Object selected_window = Fselected_window (Qnil);
+  Boolint selected = EQ (wrap_window (w), selected_window);
   struct buffer *b = XBUFFER (buf);
 
   assert (b == XMARKER (w->pointm[CURRENT_DISP])->buffer);
@@ -2074,7 +2077,8 @@ unshow_buffer (struct window *w)
   /* Point in the selected window's buffer
      is actually stored in that buffer, and the window's pointm isn't used.
      So don't clobber point in that buffer.  */
-  if (!EQ (buf, XWINDOW (Fselected_window (Qnil))->buffer))
+  if (!NILP (selected_window)
+      && !EQ (buf, XWINDOW_BUFFER (selected_window)))
     {
       set_marker_restricted (b->point_marker, w->pointm[CURRENT_DISP], buf);
     }
@@ -2288,9 +2292,8 @@ will automatically call `save-buffers-kill-emacs'.)
      deleted window; it's OK to delete an already-deleted window. */
   if (NILP (window))
     window = Fselected_window (Qnil);
-  else
-    CHECK_WINDOW (window);
 
+  CHECK_WINDOW (window);
   w = XWINDOW (window);
 
   /* It's okay to delete an already-deleted window.  */
@@ -4982,7 +4985,7 @@ the documentation for this variable for more details.
 */
        (count))
 {
-  window_scroll (Fselected_window (Qnil), count, 1, ERROR_ME);
+  window_scroll (wrap_window (decode_window (Qnil)), count, 1, ERROR_ME);
   return Qnil;
 }
 
@@ -5002,7 +5005,7 @@ the documentation for this variable for more details.
 */
        (count))
 {
-  window_scroll (Fselected_window (Qnil), count, -1, ERROR_ME);
+  window_scroll (wrap_window (decode_window (Qnil)), count, -1, ERROR_ME);
   return Qnil;
 }
 
@@ -5018,7 +5021,8 @@ showing that buffer is used.
   Lisp_Object window;
   Lisp_Object selected_window = Fselected_window (Qnil);
 
-  if (MINI_WINDOW_P (XWINDOW (selected_window))
+  if (!NILP (selected_window)
+      && MINI_WINDOW_P (XWINDOW (selected_window))
       && !NILP (Vminibuffer_scroll_window))
     window = Vminibuffer_scroll_window;
   /* If buffer is specified, scroll that buffer.  */
@@ -5079,8 +5083,7 @@ the documentation for this variable for more details.
 */
        (count))
 {
-  Lisp_Object window = Fselected_window (Qnil);
-  struct window *w = XWINDOW (window);
+  struct window *w = decode_window (Qnil);
   EMACS_INT n;
 
   if (NILP (count))
@@ -5094,7 +5097,7 @@ the documentation for this variable for more details.
       n = XFIXNUM (count);
     }
 
-  return Fset_window_hscroll (window, make_fixnum (w->hscroll + n));
+  return Fset_window_hscroll (wrap_window (w), make_fixnum (w->hscroll + n));
 }
 
 DEFUN ("scroll-right", Fscroll_right, 0, 1, "_P", /*
@@ -5108,8 +5111,7 @@ the documentation for this variable for more details.
 */
        (count))
 {
-  Lisp_Object window = Fselected_window (Qnil);
-  struct window *w = XWINDOW (window);
+  struct window *w = decode_window (Qnil);
   EMACS_INT n;
 
   if (NILP (count))
@@ -5123,7 +5125,7 @@ the documentation for this variable for more details.
       n = XFIXNUM (count);
     }
 
-  return Fset_window_hscroll (window, make_fixnum (w->hscroll - n));
+  return Fset_window_hscroll (wrap_window (w), make_fixnum (w->hscroll - n));
 }
 
 DEFUN ("center-to-window-line", Fcenter_to_window_line, 0, 2, "_P", /*

@@ -4387,7 +4387,7 @@ execute_command_event (struct command_builder *command_builder,
      command-hooks. */
   {
     int old_kbd_macro = con->kbd_macro_end;
-    struct window *w = XWINDOW (Fselected_window (Qnil));
+    struct window *w = decode_window (Qnil);
 
     /* We're executing a new command, so the old value is irrelevant. */
     zmacs_region_stays = 0;

@@ -3125,7 +3125,8 @@ change this. GNU Emacs also uses byte positions for the relevant arguments.
 		break;
 	      /* If display current starts at beginning of line,
 		 keep it that way.  */
-	      if (XBUFFER (XWINDOW (Fselected_window (Qnil))->buffer) == buf)
+	      if (!NILP (Fselected_window (Qnil))
+		  && WINDOW_XBUFFER (decode_window (Qnil)) == buf)
 		XWINDOW (Fselected_window (Qnil))->start_at_line_beg =
 		  !NILP (Fbolp (wrap_buffer (buf)));
 	    }

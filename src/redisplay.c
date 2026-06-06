@@ -7362,9 +7362,9 @@ decode_mode_spec (struct window *w, Ichar spec, int type)
       /* print the current column */
     case 'c':
       {
-	Bytebpos pt = (w == XWINDOW (Fselected_window (Qnil)))
-		    ? BYTE_BUF_PT (b)
-		    : marker_byte_position (w->pointm[type]);
+	Bytebpos pt = EQ (wrap_window (w), Fselected_window (Qnil))
+	  ? BYTE_BUF_PT (b)
+	  : marker_byte_position (w->pointm[type]);
 	Charcount col
           = column_at_point (b, pt, 1) + !!column_number_start_at_one;
 	Ibyte buf[DECIMAL_PRINT_SIZE (col)];
@@ -7391,7 +7391,7 @@ decode_mode_spec (struct window *w, Ichar spec, int type)
       /* print the current line number */
     case 'l':
       {
-	Bytebpos pos = (w == XWINDOW (Fselected_window (Qnil)))
+	Bytebpos pos = EQ (wrap_window (w), Fselected_window (Qnil))
           ? BYTE_BUF_PT (b) : marker_byte_position (w->pointm[type]);
         /* buffer_line_number()'s returns a zero-based line number count, see
            our adjustment further down. */

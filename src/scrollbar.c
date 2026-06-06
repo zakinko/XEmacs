@@ -788,9 +788,7 @@ scrollbar_reset_cursor (Lisp_Object win, Bytebpos orig_pt)
      recenter was called immediately prior to it being called. */
   Lisp_Object buf;
   struct window *w = XWINDOW (win);
-  int selected = ((w == XWINDOW (Fselected_window (XFRAME (w->frame)->device)))
-		  ? 1
-		  : 0);
+  Boolint selected = EQ (win, Fselected_window (XFRAME (w->frame)->device));
   Bytebpos start_pos;
 
   buf = Fwindow_buffer (win);
@@ -943,9 +941,9 @@ scrollbar behavior.
 {
   struct window *w = decode_window (window);
   struct buffer *b = XBUFFER (w->buffer);
-  Boolint selectedp
-    = (w == XWINDOW (Fselected_window (XFRAME (w->frame)->device))
-       && current_buffer == b);
+  Boolint selectedp = EQ (wrap_window (w),
+			  Fselected_window (XFRAME (w->frame)->device))
+    && current_buffer == b;
   Bytebpos orig_pt = selectedp ? BYTE_BUF_PT (b)
     : marker_byte_position (w->pointm[CURRENT_DISP]);
 
@@ -955,11 +953,11 @@ scrollbar behavior.
     }
   else
     {
-      set_window_point (window, BYTE_BUF_BEGV (b));
+      set_window_point (wrap_window (w), BYTE_BUF_BEGV (b));
     }
 
-  Fcenter_to_window_line (Qzero, window);
-  scrollbar_reset_cursor (window, orig_pt);
+  Fcenter_to_window_line (Qzero, wrap_window (w));
+  scrollbar_reset_cursor (wrap_window (w), orig_pt);
   zmacs_region_stays = 1;
   return Qnil;
 }
@@ -976,8 +974,8 @@ scrollbar behavior.
   struct window *w = decode_window (window);
   struct buffer *b = XBUFFER (w->buffer);
   Boolint selectedp
-    = (w == XWINDOW (Fselected_window (XFRAME (w->frame)->device))
-       && current_buffer == b);
+    = EQ (wrap_window (w), Fselected_window (XFRAME (w->frame)->device))
+       && current_buffer == b;
   Bytebpos orig_pt = selectedp ? BYTE_BUF_PT (b)
     : marker_byte_position (w->pointm[CURRENT_DISP]);
 
@@ -1015,8 +1013,8 @@ change the scrollbar behavior.
 
   w = XWINDOW (window);
   b = XBUFFER (w->buffer);
-  selectedp = (w == XWINDOW (Fselected_window (XFRAME (w->frame)->device))
-               && current_buffer == b);
+  selectedp = EQ (window, Fselected_window (XFRAME (w->frame)->device))
+    && current_buffer == b;
   orig_pt = selectedp ? BYTE_BUF_PT (b)
     : marker_byte_position (w->pointm[CURRENT_DISP]);
 

@@ -1,3 +1,48 @@
+2026-06-07  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Fselected_window() can return Qnil, respect this more consistently
+	in the C code, avoid crashes very early and very late where there
+	may not be a selected window.
+
+	* cmdloop.c (Frecursive_edit):
+	Don't call XWINDOW_XBUfFER() on the result of Fselected_window().
+	* event-stream.c (execute_command_event):
+	Use decode_window (Qnil) rather than XWINDOW (Fselected_window
+	()); other calls within this function can error so this won't
+	complicate anything.
+	* redisplay.c (decode_mode_spec):
+	Don't do an XWINDOW() on the result of Fselected_window().
+	* scrollbar.c (scrollbar_reset_cursor):
+	Ditto.
+	* scrollbar.c (Fscrollbar_to_top):
+	Ditto. Be more careful to pass the decoded window to
+	Fcenter_to_window_line(), scrollbar_reset_cursor(),
+	set_window_point().
+	* scrollbar.c (Fscrollbar_to_bottom):
+	Ditto.
+	* scrollbar.c (Fscrollbar_vertical_drag):
+	Don't do an XWINDOW() on the result of Fselected_window().
+	* specifier.c (decode_domain):
+	Revise this to understand that Fselected_window() can return Qnil.
+	* window.c (decode_window):
+	Ditto.
+	* window.c (Fwindow_point):
+	Don't do XWINDOW() on the result of Fselected_window().
+	* window.c (unshow_buffer):
+	Ditto.
+	* window.c (Fdelete_window):
+	Call CHECK_WINDOW() on the result of Fselected_window().
+	* window.c (Fscroll_up):
+	Pass the result of decode_window() to window_scroll().
+	* window.c (Fscroll_down):
+	Ditto.
+	* window.c (Fother_window_for_scrolling):
+	Only call XWINDOW() if selected_window is non-nil.
+	* window.c (Fscroll_left):
+	Pass the result of decode_window() to Fset_window_scroll().
+	* window.c (Fscroll_right):
+	Ditto.
+
 2026-06-06  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Move the decision-making about whether
