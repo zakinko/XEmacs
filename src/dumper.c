@@ -43,6 +43,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 #include "sysfile.h"
 #include "console-stream.h"
 #include "opaque.h"
+#include "sysdep.h"
 
 #ifdef WIN32_NATIVE
 #include "syswindows.h"
@@ -2688,10 +2689,16 @@ pdump_load_finish (void)
   if (pdump_free == pdump_file_free)
     {
       /* xnew_array() does not guarantee page alignment, force relocation of
-	 the hash tables. */
-      page_size_reorganize_threshold = MOST_POSITIVE_FIXNUM;
+         the hash tables. */
+      page_size_reorganize_threshold
+        = REORGANIZE_THRESHOLD_MAX_ALIGN_T_ALIGNED;
     }
+  else
 #endif
+    if (qxegetpagesize () >= page_size_reorganize_threshold)
+      {
+        pdump_hash_table_reorganize_count = 0;
+      }
 
   return 1;
 }

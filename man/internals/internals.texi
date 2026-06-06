@@ -23150,15 +23150,22 @@ dumper sorts the list of hash tables to be dumped using those keys, and
 stores the count of hash tables that may need reorganization in
 @code{pdump_hash_table_reorganize_count}. This sorted order is the same
 order that the pointers to the hash tables appear in the relocation
-table.
+table (and, indeed, the same order that the hash tables themselves
+appear in the dump file).
 
-At run time (after @code{pdump_load()}, @code{main_1()} in
-@code{emacs.c} checks the run time page size against
-@code{page_size_reorganize_threshold} (which is normally the dump time
-page size), and if the run time page threshold is less than this, it
-calls @code{pdump_reorganize_hash_tables()}. This will do any
-reorganization needed, but it will never reorganize e.g. empty hash
-tables or @code{obarray}.
+At run time, @code{pdump_load_finish()} examines the current page size
+and if it is greater than or equal to the dump time value, it sets
+@code{pdump_hash_table_reorganize_count} to zero. @code{main_1()} in
+@code{emacs.c} checks this variable and if it is non-zero it calls calls
+@code{pdump_reorganize_hash_tables()}. This will do any reorganization
+needed, but it will never reorganize e.g. empty hash tables or
+@code{obarray}.
+
+This is complicated slightly by the rare need to allocate the dump data
+using @code{xnew_array()} (ultimately @code{malloc()} rather than
+mmap()), which only guarantees @code{max_align_t} alignment and by the
+more likely, but currently (2026) unnecessary, need to reorganize hash
+tables of a size larger than the dump time page size.
 
 @node Future Work, Future Work Discussion, Dumping, Top
 @chapter Future Work

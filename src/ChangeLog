@@ -1,5 +1,35 @@
 2026-06-06  Aidan Kehoe  <kehoea@parhasard.net>
 
+	Move the decision-making about whether
+	pdump_reorganize_hash_tables() is needed entirely to
+	pdump_load_finish().
+
+	* dumper.c:
+	#include sysdep.h here, now needed for qxegetpagesize().
+	* dumper.c (pdump_load_finish):
+	If we have allocated the dump file using xnew_array(), set
+	page_size_reorganize_threshold to the new constant
+	REORGANIZE_THRESHOLD_MAX_ALIGN_T_ALIGNED.
+	Otherwise, call qxegetpagesize(), compare it to
+	page_size_reorganize_threshold, and if its greater than or equal
+	to the latter, set pdump_hash_table_reorganize_count to zero.
+	* elhash.c:
+	Flesh out documentation of page_size_reorganize_threshold.
+	* elhash.c (disksave_hash_table):
+	Use new constant REORGANIZE_THRESHOLD_ALWAYS_REORGANIZE.
+	* elhash.c (pdump_reorganize_hash_tables):
+	Check for REORGANIZE_THRESHOLD_MAX_ALIGN_T_ALIGNED in this
+	function.
+	* elhash.h:
+	* elhash.h (REORGANIZE_THRESHOLD_ALWAYS_REORGANIZE):
+	* elhash.h (REORGANIZE_THRESHOLD_MAX_ALIGN_T_ALIGNED):
+	New constants.
+	* emacs.c (main_1):
+	Just check pdump_hash_table_reorganize_count is non-zero when
+	deciding on whether to call pdump_reorganize_hash_tables().
+
+2026-06-06  Aidan Kehoe  <kehoea@parhasard.net>
+
         Don't dump reloc table for non-Lisp_Objects if !HAVE_ASLR and
         DUMP_IN_EXEC. Various other dump cleanups.
 

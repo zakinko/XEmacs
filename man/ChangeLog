@@ -1,3 +1,8 @@
+2026-06-06  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* internals/internals.texi (Dumping and restoring hash tables):
+	Update this reflecting changes today.
+
 2026-05-31  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* internals/internals.texi (Buffer Lists):

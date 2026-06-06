@@ -2229,7 +2229,7 @@ main_1 (int argc, Wexttext **argv, Wexttext **UNUSED (envp), int restart)
 			   call), and needs a current buffer */
   init_minibuf ();
 
-  if (qxegetpagesize () < page_size_reorganize_threshold)
+  if (pdump_hash_table_reorganize_count)
     {
       /* This will call Lisp if we have dumped hash tables with tests defined
          in Lisp, that need reorganization. (Not the case

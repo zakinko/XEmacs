@@ -115,6 +115,9 @@ extern Elemcount pdump_hash_table_reorganize_count;
 extern Lisp_Object *pdump_hash_tables_for_reorganize;
 extern Bytecount page_size_reorganize_threshold;
 
+#define REORGANIZE_THRESHOLD_ALWAYS_REORGANIZE (MOST_POSITIVE_FIXNUM + 2)
+#define REORGANIZE_THRESHOLD_MAX_ALIGN_T_ALIGNED (MOST_POSITIVE_FIXNUM + 4)
+
 void pdump_reorganize_hash_tables (void);
 
 extern htentry *inchash (Lisp_Object key, Lisp_Object table, EMACS_INT offset);

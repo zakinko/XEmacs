@@ -135,10 +135,13 @@ Elemcount pdump_hash_table_reorganize_count = -1;
    reorganization. */
 Lisp_Object *pdump_hash_tables_for_reorganize;
 
-/* Either the dump time page size (if hash tables only need
-   reorganization if the run time page size is less than the dump time
-   page size), or 1 + MOST_POSITIVE_FIXNUM (if there are dumped hash
-   tables that will always need reorganization). Zero in temacs. */
+/* Either the dump time page size (if hash tables only need reorganization if
+   the run time page size is less than the dump time page size, the usual
+   case), REORGANIZE_THRESHOLD_ALWAYS_REORGANIZE (if there are dumped hash
+   tables that will always need reorganization), or
+   REORGANIZE_THRESHOLD_MAX_ALIGN_T_ALIGNED if the dump file was loaded from an
+   external file and mmap() was unavailable, so the memory was allocated using
+   xmalloc(). Zero in temacs. */
 Bytecount page_size_reorganize_threshold = 0;
 
 /* A hash table test, with its associated hash function. EQUAL_FUNCTION may
@@ -1446,13 +1449,15 @@ disksave_hash_table (Lisp_Object hash_table)
 	}
       else
 	{
-	  page_size_reorganize_threshold = 1+ MOST_POSITIVE_FIXNUM;
+          page_size_reorganize_threshold
+            = REORGANIZE_THRESHOLD_ALWAYS_REORGANIZE;
 	}
     }
   else
 #endif /* !defined (WIN32_NATIVE) */
     {
-      page_size_reorganize_threshold = 1 + MOST_POSITIVE_FIXNUM;
+      page_size_reorganize_threshold
+        = REORGANIZE_THRESHOLD_ALWAYS_REORGANIZE;
     }
 
   /* We cannot assert that this hash table does not need reorganization;
@@ -1552,9 +1557,17 @@ pdump_reorganize_hash_tables (void)
 {
   htentry *new_entries = NULL;
   Elemcount ii;
-  Bytecount page_size
-    = page_size_reorganize_threshold == MOST_POSITIVE_FIXNUM
-    ? ALIGNOF (max_align_t) : qxegetpagesize ();
+  Bytecount page_size;
+
+  if (page_size_reorganize_threshold
+      == REORGANIZE_THRESHOLD_MAX_ALIGN_T_ALIGNED)
+    {
+      page_size = (Bytecount) (ALIGNOF (max_align_t));
+    }
+  else
+    {
+      page_size = qxegetpagesize ();
+    }
 
   for (ii = 0; ii < pdump_hash_table_reorganize_count; ii++)
     {
