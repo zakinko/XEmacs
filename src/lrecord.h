@@ -514,17 +514,6 @@ lrecord_implementations_table[lrecord_type_last_built_in_type + MODULE_DEFINABLE
 
 extern int gc_in_progress;
 
-
-enum lrecord_alloc_status
-{
-  ALLOC_IN_USE,
-  ALLOC_FREE,
-  ALLOC_ON_FREE_LIST
-};
-
-void tick_lrecord_stats (const struct lrecord_header *h,
-			 enum lrecord_alloc_status status);
-
 #define LRECORD_FREE_P(ptr)					\
 (((struct lrecord_header *) ptr)->type == lrecord_type_free)
 

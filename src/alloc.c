@@ -185,6 +185,21 @@ static const struct memory_description lrecord_memory_descriptions_description_1
 
 struct gcpro *gcprolist;
 
+/* This remains NULL during dump, initialized very late in the dump process. */
+pdump_reloc_table *pdump_relocation_table;
+
+static const struct memory_description pdump_reloc_table_description_1[] = {
+  /* Intentionally not described, the pointer destination is not to be
+     descended at pdump_load_finish() time, and the value is initialized
+     specially very late at dump time. */
+  { XD_END }
+};
+
+static const struct sized_memory_description pdump_reloc_table_description = {
+  sizeof (pdump_reloc_table),
+  pdump_reloc_table_description_1
+};
+
 /* Non-zero means we're in the process of doing the dump */
 Boolint purify_flag;
 
@@ -3835,7 +3850,14 @@ tick_string_stats (Lisp_String *p, int from_sweep)
    COPY_INTO_LRECORD_STATS() is called, and notes statistics about the
    frob blocks. */
 
-void
+enum lrecord_alloc_status
+{
+  ALLOC_IN_USE,
+  ALLOC_FREE,
+  ALLOC_ON_FREE_LIST
+};
+
+static void
 tick_lrecord_stats (const struct lrecord_header *h,
 		    enum lrecord_alloc_status status)
 {
@@ -4165,6 +4187,8 @@ Return statistics about memory usage of Lisp objects.
   return object_memory_usage_stats (0);
 }
 
+#else
+# define tick_lrecord_stats(h, status) USED (h)
 #endif /* ALLOC_TYPE_STATS */
 
 #ifdef MEMORY_USAGE_STATS
@@ -5206,6 +5230,43 @@ sweep_strings (void)
   SWEEP_FIXED_TYPE_BLOCK_1 (string, Lisp_String, u.lheader);
 }
 
+static void
+pdump_objects_unmark (void)
+{
+  pdump_reloc_table *rt = pdump_relocation_table;
+
+  if (rt == NULL)
+    {
+      return;
+    }
+
+  while (rt->desc)
+    {
+      Lisp_Object *objects
+	= (Lisp_Object *) ALIGN_PTR (rt + 1, Lisp_Object);
+      Elemcount i;
+
+      for (i = 0; i < rt->count; i++)
+	{
+	  struct lrecord_header *lh = XRECORD_LHEADER (objects[i]);
+
+	  if (C_READONLY_RECORD_HEADER_P (lh))
+	    {
+	      tick_lrecord_stats (lh, ALLOC_IN_USE);
+	    }
+	  else
+	    {
+	      tick_lrecord_stats (lh, MARKED_RECORD_HEADER_P (lh) ?
+				  ALLOC_IN_USE : ALLOC_ON_FREE_LIST);
+	      UNMARK_RECORD_HEADER (lh);
+	    }
+	}
+
+      rt = (pdump_reloc_table *) ALIGN_PTR (objects + rt->count,
+					    pdump_reloc_table);
+    }
+}
+
 void
 gc_sweep (void)
 {
@@ -5722,6 +5783,9 @@ vars_of_alloc (void)
 {
   structure_checking_assert (LISTP (Vall_lcrecord_lists));
   staticpro (&Vall_lcrecord_lists);
+
+  dump_add_root_block_ptr (&pdump_relocation_table,
+			   &pdump_reloc_table_description);
 
   DEFVAR_CONST_INT ("array-rank-limit", &array_rank_limit /*
 The exclusive upper bound on the number of dimensions an array may have.

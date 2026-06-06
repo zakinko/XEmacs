@@ -1,3 +1,71 @@
+2026-06-06  Aidan Kehoe  <kehoea@parhasard.net>
+
+        Don't dump reloc table for non-Lisp_Objects if !HAVE_ASLR and
+        DUMP_IN_EXEC. Various other dump cleanups.
+
+	* alloc.c:
+	Rename pdump_rt_list to pdump_relocation_table (it is not a list),
+	declare it here since it is used at runtime during GC.
+	* alloc.c (static const struct sized_memory_description
+	pdump_reloc_table_description): New. Description for it, so it
+	does not need special handling by pdump_load_finish().
+	* alloc.c (enum lrecord_alloc_status):
+	Move this declaration here, no longer needed to have it in a
+	header file now pdump_objects_unmark() is in this file.
+	* alloc.c (pdump_objects_unmark):
+	Move this to this file. Be more careful about alignment when
+	traversing pdump_relocation_table.
+	* alloc.c (vars_of_alloc):
+	Call dump_add_root_block_ptr () on &pdump_relocation_table, to
+	allow it to be restored in the normal way without special
+	handling.
+	* dumper.c:
+	Move the structure declaration for pdump_reloc_table to dumper.h,
+	now it is used in alloc.c.
+	* dumper.c (pdump_objects_unmark): Move to alloc.c.
+	Update the documentation of the layout of the dump file.
+	Rearrange the real header.
+	* dumper.c (pdump_initialize_root_block_ptr_very_late): New. Now
+	pdump_relocation_table is a dumped object initialized very late in
+	the same way as was pdump_hash_tables_for_reorganize, implement
+	this using a separate function.
+	* dumper.c (pdump_allocate_offset_rtables):
+	No longer process pdump_desc_table if we are no-ASLR and
+	DUMP_IN_EXEC, not needed.
+	* dumper.c (pdump_dump_rtables):
+	Ditto.
+	* dumper.c (pdump):
+	Store block_ptrs_offset in the header. No need to seek to
+	header.rtab_offset (or, now, header.block_ptrs_offset).
+	* dumper.c (pdump_load_finish):
+	Restore the root_block_ptrs first, now pdump_relocation_table is
+	dumped as a root_block_ptr. Then relocate the Lisp_Objects and the
+	non-Lisp_Object blocks; turns out to be faster to do this here
+	than later. Then restore the root blocks, and the serialized
+	objects. 
+	* dumper.h:
+	Remove declaration for pdump_objects_unmark() from here, now
+	static to alloc.c.
+	* dumper.h (struct):
+	Declare pdump_reloc_table as a structure here, now used by
+	alloc.c. Declare pdump_relocation_table here, now used by
+	alloc.c.
+	* elhash.c:
+	* elhash.c (static const struct sized_memory_description
+	pdump_hash_tables_for_reorganize_description): Removed.
+	* elhash.c (vars_of_elhash):
+	Pass &lisp_object_description as the description for
+	pdump_hash_tables_for_reorganize, no need for a separate
+	description.
+	* lrecord.h:
+	Remove declarations for enum lrecord_alloc_status,
+	tick_lrecord_stats() from here, now local to alloc.c
+	* symbols.c (init_symbols_once_early):
+	Document that it would be possible to make Qnil constant at
+	compile time for no-PIE DUMP_IN_EXEC builds.
+	* sysdep.h:
+	Remove declaration for pdump_read_file(), which doesn't exist.
+
 2026-06-04  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Silence warnings regarding the C++ one definition rule on Cygwin,

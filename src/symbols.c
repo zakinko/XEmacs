@@ -3151,7 +3151,33 @@ init_symbols_once_early (void)
   OBJECT_HAS_NAMED_METHOD (symbol, setplist, Fsetplist);
 
   /* Create Qnil now, allow the bootstrapping code regarding object
-     implementation names to behave normally from here on in. */
+     implementation names to behave normally from here on in.
+
+     GNU jump through some hoops to make Qnil a compile-time constant, which
+     gives a tiny speedup with the many checks against Qnil throughout the
+     source.
+
+     We could implement this on DUMP_IN_EXEC -no-pie builds, by, e.g. putting
+     it as the first object in the dump file and doing a define:
+
+     extern MODULE_API Lisp_Object Qnil;
+
+     #ifndef (EMACS_MODULE)
+     # define XSYMBOL_QNIL ((Lisp_Symbol *)                             \
+                       (ALIGN_FOR_TYPE (                                \
+                                ALIGN_FOR_TYPE (pdump_start +           \
+                                                sizeof                  \
+                                                (pdump_signature_header),\
+                                                pdump_real_header) +    \
+                                sizeof (pdump_real_header), Lisp_Symbol)))
+     # define Qnil wrap_pointer_1 (XSYMBOL_QNIL)
+     #endif
+ 
+     Then the following code would boil down to #undef of the macro, setting
+     the fields of the already-allocated structure (within the dump file).
+
+     There is intrinsically no way to make Qnil a compile time constant on
+     builds with ASLR. */
   Qnil = Fmake_symbol (make_string_nocopy ((const Ibyte *) "nil", 3));
   /* Qnil isn't set when make_string_nocopy is called for the first time,
      correct its plist. */

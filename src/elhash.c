@@ -141,16 +141,6 @@ Lisp_Object *pdump_hash_tables_for_reorganize;
    tables that will always need reorganization). Zero in temacs. */
 Bytecount page_size_reorganize_threshold = 0;
 
-static const struct memory_description pdump_hash_tables_for_reorganize_description_1[] = {
-  { XD_BLOCK_PTR, 0, 1, { &lisp_object_description } },
-  { XD_END }
-};
-
-static const struct sized_memory_description pdump_hash_tables_for_reorganize_description = {
-  sizeof (Lisp_Object *),
-  pdump_hash_tables_for_reorganize_description_1
-};
-
 /* A hash table test, with its associated hash function. EQUAL_FUNCTION may
    call LISP_EQUAL_FUNCTION, HASH_FUNCTION may call LISP_HASH_FUNCTION, and
    REORGANIZE_NEEDED_P may call LISP_REORGANIZE_NEEDED_P.
@@ -3402,7 +3392,10 @@ use `mapatoms'.
   /* Set to something more useful by the dumper. */
   pdump_hash_tables_for_reorganize = NULL;
   dump_add_root_block_ptr (&pdump_hash_tables_for_reorganize,
-			   &pdump_hash_tables_for_reorganize_description);
+			   /* This is fine, since we know the C representation
+			      of a pointer to an array is a pointer to its
+			      first element. */
+			   &lisp_object_description);
 }
 
 void

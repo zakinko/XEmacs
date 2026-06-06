@@ -378,67 +378,22 @@ retry_fwrite (&object, sizeof (object), 1, pdump_out);
 #define PDUMP_READ_ALIGNED(ptr, type) \
 ((ptr = (Rawbyte *) ALIGN_PTR (ptr, type)), PDUMP_READ (ptr, type))
 
-
-
-typedef struct
-{
-  const struct memory_description *desc;
-  Elemcount count;
-} pdump_reloc_table;
-
-static Rawbyte *pdump_rt_list = 0;
-
-void
-pdump_objects_unmark (void)
-{
-  int i;
-  Rawbyte *p = pdump_rt_list;
-  if (p)
-    for (;;)
-      {
-	pdump_reloc_table *rt = (pdump_reloc_table *)p;
-	p += sizeof (pdump_reloc_table);
-	if (rt->desc)
-	  {
-	    for (i=0; i<rt->count; i++)
-	      {
-		struct lrecord_header *lh = * (struct lrecord_header **) p;
-#ifdef ALLOC_TYPE_STATS
-		if (C_READONLY_RECORD_HEADER_P (lh))
-		  tick_lrecord_stats (lh, ALLOC_IN_USE);
-
-		else
-		  {
-		    tick_lrecord_stats (lh, MARKED_RECORD_HEADER_P (lh) ?
-					ALLOC_IN_USE : ALLOC_ON_FREE_LIST);
-		    UNMARK_RECORD_HEADER (lh);
-		  }
-#else /* not ALLOC_TYPE_STATS */
-		if (! C_READONLY_RECORD_HEADER_P (lh))
-		  UNMARK_RECORD_HEADER (lh);
-#endif /* (not) ALLOC_TYPE_STATS */
-		p += sizeof (EMACS_INT);
-	      }
-	  } else
-	    break;
-      }
-}
-
 
 /* The structure of the dump file looks like this:
- 0		- header
-		- dumped objects
- rtab_offset    - relocation table
-                - nb_serialize_info*struct(deconvert_function, elt_count, ptr_count)
-                  for in-object externally represented data and pointers to
-                  externally represented data, each followed by ELT_COUNT of
-                  serialized data with details of where to restore it, and
-                  PTR_COUNT of serialized data, with a list of offsets to which
-                  it should be restored.
- 		- nb_root_block_ptrs*struct(void *, adr)
-		  for global pointers to heap blocks
-		- nb_root_blocks*struct(void *, size, info) for global
-		  data-segment blocks to restore */
+ 0                 - signature header
+                   - real header
+                   - dumped objects
+                   - Lisp_Object relocation table
+                   - relocation table for non-Lisp_Object blocks
+ block_ptrs_offset - nb_root_block_ptrs*struct(void *, adr)
+                     for global pointers to heap blocks
+                   - nb_root_blocks*struct(void *, size, info) for global
+                     data-segment blocks to restore
+                   - nb_serialize_info*struct(deconvert_function, elt_count,
+                     ptr_count) for in-object externally represented data and
+                     pointers to externally represented data, each followed by
+                     ELT_COUNT of PTR_COUNT of serialized data, with a list of
+                     offsets to which it should be restored. */
 
 #define PDUMP_SIGNATURE "XEmacsDP"
 #define PDUMP_SIGNATURE_LEN 8
@@ -465,17 +420,17 @@ typedef struct
 
 typedef struct
 {
-  EMACS_UINT rtab_offset;
-  EMACS_UINT rtab_end;
-  /* Usually 0, reflecting an offset into the dump file. */
+  EMACS_UINT block_ptrs_offset;
+  /* 0 for non-DUMP_IN_EXEC, dump time address of dumped_data for
+     DUMP_IN_EXEC. */
   EMACS_UINT reloc_address;
   /* Known address in the code (text) segment, for ASLR. */
   EMACS_UINT Fcons_address;			
   /* Known address in the data segment, for ASLR. */
   EMACS_UINT lisp_object_description_address;	
-  Elemcount nb_serialize_info;
   Elemcount nb_root_block_ptrs;
   Elemcount nb_root_blocks;
+  Elemcount nb_serialize_info;
 } pdump_real_header;
 
 Rawbyte *pdump_start;
@@ -1663,10 +1618,30 @@ pdump_allocate_offset (pdump_block_list_elt *elt,
 }
 
 static void
+pdump_initialize_root_block_ptr_very_late (void **pointer)
+{
+  pdump_block_list_elt *elt = xnew_and_zero (pdump_block_list_elt);
+
+  elt->next = NULL;
+  elt->obj = elt;
+  elt->size = sizeof (void *);
+  elt->count = 1;
+  elt->save_offset = (EMACS_INT) (cur_offset);
+
+  structure_checking_assert (*pointer == NULL);
+  *pointer = (void *) elt;
+  Fputhash (pdump_void_ptr_to_lisp (elt), pdump_void_ptr_to_lisp (elt),
+	    Vpdump_hash);
+}
+
+static void
 pdump_allocate_offset_rtables (void)
 {
   int i;
   pdump_block_list_elt *elt;
+
+  cur_offset = ALIGN_FOR_TYPE (cur_offset, pdump_reloc_table);
+  pdump_initialize_root_block_ptr_very_late ((void **) &pdump_relocation_table);
 
   for (i=0; i<lrecord_type_count; i++)
     {
@@ -1677,30 +1652,10 @@ pdump_allocate_offset_rtables (void)
       cur_offset = ALIGN_FOR_TYPE (cur_offset, pdump_reloc_table);
       cur_offset += sizeof (pdump_reloc_table);
 
-      if (i == lrecord_type_hash_table && elt)
+      if (i == lrecord_type_hash_table)
 	{
-	  pdump_block_list_elt *ee = xnew_and_zero (pdump_block_list_elt);
-
-	  cur_offset = ALIGN_FOR_TYPE (cur_offset, EMACS_INT);
-
-	  /* We need some entry in Vpdump_hash for what
-	     pdump_hash_tables_for_reorganize points to, to store the
-	     save_offset. Up to this point pdump_hash_tables_for_reorganize has
-	     been NULL and so it has no entry in Vpdump_hash. Create a
-	     pdump_block_list_elt that is not in any list, set its save_offset
-	     to the appropriate value, set pdump_hash_tables_for_reorganize to
-	     a pointer to it, put an identity map into Vpdump_hash. */
-
-	  ee->next = NULL;
-	  ee->obj = ee;
-	  ee->size = sizeof (Lisp_Object *);
-	  ee->count = 1;
-	  ee->save_offset = (EMACS_INT) (cur_offset);
-	  structure_checking_assert (pdump_hash_tables_for_reorganize
-				     == NULL);
-	  pdump_hash_tables_for_reorganize = (Lisp_Object *) ee;
-	  Fputhash (pdump_void_ptr_to_lisp (ee), pdump_void_ptr_to_lisp (ee),
-		    Vpdump_hash);
+	  pdump_initialize_root_block_ptr_very_late
+	    ((void **) &pdump_hash_tables_for_reorganize);
 	}
 
       while (elt)
@@ -1714,6 +1669,7 @@ pdump_allocate_offset_rtables (void)
   cur_offset = ALIGN_FOR_TYPE (cur_offset, pdump_reloc_table);
   cur_offset += sizeof (pdump_reloc_table);
 
+#if !(defined (DUMP_IN_EXEC) && !defined (WIN32_NATIVE) && !defined (HAVE_ASLR))
   for (i=0; i<pdump_desc_table.count; i++)
     {
       elt = pdump_desc_table.list[i].list.first;
@@ -1735,6 +1691,7 @@ pdump_allocate_offset_rtables (void)
 
   cur_offset = ALIGN_FOR_TYPE (cur_offset, pdump_reloc_table);
   cur_offset += sizeof (pdump_reloc_table);
+#endif
 }
 
 /* Traverse through all the heap blocks, once the "register" stage of
@@ -1999,6 +1956,7 @@ pdump_dump_rtables (void)
   rt.count = 0;
   PDUMP_WRITE_ALIGNED (pdump_reloc_table, rt);
 
+#if !(defined (DUMP_IN_EXEC) && !defined (WIN32_NATIVE) && !defined (HAVE_ASLR))
   for (i=0; i<pdump_desc_table.count; i++)
     {
       elt = pdump_desc_table.list[i].list.first;
@@ -2020,6 +1978,7 @@ pdump_dump_rtables (void)
   rt.desc = 0;
   rt.count = 0;
   PDUMP_WRITE_ALIGNED (pdump_reloc_table, rt);
+#endif
 }
 
 static void
@@ -2489,11 +2448,11 @@ pdump (void)
   /* (2) Traverse all heap blocks and compute their offsets; keep track
          of maximum block size seen */
   pdump_scan_by_alignment (pdump_allocate_offset);
-  cur_offset = MAX_ALIGN_SIZE (cur_offset);
-  header.rtab_offset = cur_offset - initial_offset;
 
   pdump_allocate_offset_rtables ();
-  header.rtab_end = cur_offset - initial_offset;
+
+  cur_offset = ALIGN_FOR_TYPE (cur_offset, pdump_static_pointer);
+  header.block_ptrs_offset = cur_offset - initial_offset;
 
   /* (3) Update maximum size based on root blocks. */
   for (i = 0; i < Dynarr_length (pdump_root_blocks); i++)
@@ -2536,16 +2495,10 @@ pdump (void)
 
   pdump_scan_by_alignment (pdump_dump_data);
 
-  if (FSEEK (pdump_out, header.rtab_offset, SEEK_SET) == -1)
-    {
-      report_file_error ("Unable to fseek dump file",
-			 build_ascstring (EMACS_DUMP_FILE_NAME));
-    }
-
   pdump_dump_rtables ();
-  pdump_dump_serialize_info ();
   pdump_dump_root_block_ptrs ();
   pdump_dump_root_blocks ();
+  pdump_dump_serialize_info ();
 
   pdump_convert_free_serialize_infos ();
 
@@ -2618,50 +2571,70 @@ pdump_load_finish (void)
   c_data_delta = ((EMACS_UINT) &lisp_object_description)
     - header->lisp_object_description_address;
 
-  pdump_rt_list = pdump_start + header->rtab_offset;
+  p = pdump_start + header->block_ptrs_offset;
+
+  /* Put back the pdump_root_block_ptrs */
+  p = (Rawbyte *) ALIGN_PTR (p, pdump_static_pointer);
+  for (i = 0; i < header->nb_root_block_ptrs; i++)
+    {
+      pdump_static_pointer ptr = PDUMP_READ (p, pdump_static_pointer);
+      ptr.address = (void **) pdump_reloc_c_data ((void *) ptr.address);
+      ptr.value = pdump_reloc_lisp_data (ptr.value);
+      (* ptr.address) = ptr.value;
+    }
 
 #if defined (DUMP_IN_EXEC) && !defined (WIN32_NATIVE) && !defined (HAVE_ASLR)
-  assert (dump_delta == 0);
-  assert (c_code_delta == 0);
-  assert (c_data_delta == 0);
-
-  p = pdump_start + header->rtab_end;
+  structure_checking_assert (dump_delta == 0);
+  structure_checking_assert (c_code_delta == 0);
+  structure_checking_assert (c_data_delta == 0);
 #else
   {
     EMACS_INT count = 2;
-    p = pdump_rt_list;
+    pdump_reloc_table *rt = pdump_relocation_table;
 
-    for (;;)
+    /* Relocate the Lisp_Objects, then relocate the non-Lisp_Object dumped
+       blocks. These are enumerated as two zero-terminated arrays of
+       pdump_reloc_table, with pointers (equivalently Lisp_Objects) following
+       the pdump_reloc_table. */
+    while (count)
       {
-	pdump_reloc_table rt = PDUMP_READ_ALIGNED (p, pdump_reloc_table);
-	p = (Rawbyte *) ALIGN_PTR (p, Rawbyte *);
-	if (rt.desc)
+	void **blocks = (void **) ALIGN_PTR (rt + 1, void *);
+	if (rt->count)
 	  {
-	    Rawbyte **reloc = (Rawbyte **) p;
-	    rt.desc
-	      = (const struct memory_description *)
-	      pdump_reloc_c_data (rt.desc);
+	    const struct memory_description *desc
+	      = (const struct memory_description *) pdump_reloc_c_data
+	      (rt->desc);
 	    
-	    for (i = 0; i < rt.count; i++)
+	    for (i = 0; i < rt->count; i++)
 	      {
-		reloc[i]
-		  = (Rawbyte *) pdump_reloc_lisp_data ((void *) reloc[i]);
-		pdump_reloc_one (reloc[i], rt.desc);
+		blocks[i] = pdump_reloc_lisp_data (blocks[i]);
+		pdump_reloc_one (blocks[i], desc);
 	      }
-	    p += rt.count * sizeof (Rawbyte *);
 	  }
-	else if (!(--count))
+	else
 	  {
-	    /* Finished the second zero-terminated array of pdump_reloc_tables.
-	       The first reflects Lisp_Object types, second reflects
-	       descriptions not directly associated with Lisp_Objects. See
-	       pdump_dump_rtables().  */
-	    break;
+	    count--;
 	  }
+	rt = (pdump_reloc_table *) ALIGN_PTR (blocks + rt->count,
+					      pdump_reloc_table);
       }
   }
-  structure_checking_assert (p == pdump_start + header->rtab_end);
 #endif
+
+  /* Put back the pdump_root_blocks and relocate. */
+  for (i = 0; i < header->nb_root_blocks; i++)
+    {
+      pdump_root_block info = PDUMP_READ_ALIGNED (p, pdump_root_block);
+      info.blockaddr = pdump_reloc_c_data (info.blockaddr);
+      memcpy ((void *) info.blockaddr, p, info.size);
+      if (info.desc)
+	{
+	  pdump_reloc_one ((void *) info.blockaddr,
+			   (const struct memory_description *)
+			   pdump_reloc_c_data (info.desc));
+	}
+      p += info.size;
+    }
 
   /* Deserialize the XD_SERIALIZABLE_DATA, XD_SERIALIZABLE_PTR objects. */
   for (i = 0; i < header->nb_serialize_info; i++)
@@ -2681,7 +2654,7 @@ pdump_load_finish (void)
 
 	  p = (Rawbyte *) ALIGN_PTR (p, max_align_t);
 	  serialize_info.deconvert (pdump_reloc_lisp_data (elt.load_address),
-			     p, elt.size);
+				    p, elt.size);
 	  p += elt.size;
 	}
 
@@ -2709,29 +2682,6 @@ pdump_load_finish (void)
 
 	  p += ptr_info.size;
 	}
-    }
-
-  /* Put back the pdump_root_block_ptrs */
-  p = (Rawbyte *) ALIGN_PTR (p, pdump_static_pointer);
-  for (i = 0; i < header->nb_root_block_ptrs; i++)
-    {
-      pdump_static_pointer ptr = PDUMP_READ (p, pdump_static_pointer);
-      ptr.address = (void **) pdump_reloc_c_data ((void *) ptr.address);
-      ptr.value = pdump_reloc_lisp_data (ptr.value);
-      (* ptr.address) = ptr.value;
-    }
-
-  /* Put back the pdump_root_blocks and relocate. */
-  for (i = 0; i < header->nb_root_blocks; i++)
-    {
-      pdump_root_block info = PDUMP_READ_ALIGNED (p, pdump_root_block);
-      info.blockaddr = pdump_reloc_c_data (info.blockaddr);
-      info.desc
-        = (const struct memory_description *) pdump_reloc_c_data (info.desc);
-      memcpy ((void *) info.blockaddr, p, info.size);
-      if (info.desc)
-	pdump_reloc_one ((void *) info.blockaddr, info.desc);
-      p += info.size;
     }
 
 #ifndef DUMP_IN_EXEC
