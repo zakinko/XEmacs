@@ -64,6 +64,8 @@ DECLARE_LISP_OBJECT (opaque_ptr, Lisp_Opaque_Ptr);
 EXTERN_C MODULE_API Lisp_Object make_opaque_ptr (void *val);
 EXTERN_C MODULE_API void free_opaque_ptr (Lisp_Object ptr);
 
+EXTERN_C MODULE_API const struct memory_description opaque_description[];
+
 #define get_opaque_ptr(op) (XOPAQUE_PTR (op)->ptr)
 #define set_opaque_ptr(op, ptr_) (XOPAQUE_PTR (op)->ptr = (ptr_))
 

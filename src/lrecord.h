@@ -82,15 +82,15 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
    than 8K are called "big strings" and those smaller than 8K are called
    "small strings".
 
-   To create a new normal Lisp object, see the toolbar-button example
-   below.  To create a new frob-block Lisp object, follow the lead of
-   one of the existing frob-block objects, such as extents or events.
-   Note that you do not need to supply all the methods (see below);
-   reasonable defaults are provided for many of them.  Alternatively, if
-   you're just looking for a way of encapsulating data (which possibly
-   could contain Lisp_Objects in it), you may well be able to use the
-   opaque type.
-*/
+   To create a new normal Lisp object, see the toolbar-button example below.
+   To create a new frob-block Lisp object, follow the lead of one of the
+   existing frob-block objects, such as extents or events.  Note that you do
+   not need to supply all the methods (see below); reasonable defaults are
+   provided for many of them.  Alternatively, if you're just looking for a way
+   of encapsulating data, you may well be able to use the opaque type. This is
+   unwise if the data contains Lisp objects that would not otherwise be
+   reachable. */
+
 
 /*
   How to declare a Lisp object:
@@ -162,6 +162,8 @@ struct lrecord_header
      field. */
   unsigned int type :16;
 
+#define LRECORD_TYPE_MAX UINT_16_BIT_MAX
+
   /* If `mark' is 0 after the GC mark phase, the object will be freed
      during the GC sweep phase.  There are 2 ways that `mark' can be 1:
      - by being referenced from other objects during the GC mark phase
@@ -183,7 +185,7 @@ struct lrecord_header
 };
 
 struct lrecord_implementation;
-extern int lrecord_uid_counter[];
+extern int *lrecord_uid_counter;
 
 #define set_lheader_implementation(header,imp) do {			\
   struct lrecord_header* SLI_header = (header);				\
@@ -304,10 +306,13 @@ enum lrecord_type
 
   lrecord_type_free,			/* only used for "free" lrecords */
   lrecord_type_undefined,		/* only used for debugging */
-  lrecord_type_last_built_in_type,	/* must be last */
+					/* must be last */
+  lrecord_type_last_built_in_type = lrecord_type_undefined
 };
 
 extern MODULE_API int lrecord_type_count;
+
+extern MODULE_API int get_unused_lrecord_type (void);
 
 struct lrecord_implementation
 {
@@ -486,13 +491,8 @@ struct lrecord_implementation
   unsigned int dumpable :1;
 };
 
-/* All the built-in lisp object types are enumerated in `enum lrecord_type'.
-   Additional ones may be defined by a module (none yet).  We leave some
-   room in `lrecord_implementations_table' for such new lisp object types. */
-#define MODULE_DEFINABLE_TYPE_COUNT 32
-
-extern MODULE_API struct lrecord_implementation *
-lrecord_implementations_table[lrecord_type_last_built_in_type + MODULE_DEFINABLE_TYPE_COUNT];
+extern MODULE_API struct lrecord_implementation **
+lrecord_implementations_table;
 
 /* Given a built-in C type name (cons, bignum and so on; usually the entry in
    enum lrecord_type without the preceding lrecord_type_), return a pointer to
@@ -1342,7 +1342,7 @@ extern MODULE_API void init_memory_usage_stats (int type,
                              sizer);                                       \
   } while (0)
 
-extern MODULE_API const struct memory_description *lrecord_memory_descriptions[];
+extern MODULE_API const struct memory_description **lrecord_memory_descriptions;
 
 extern MODULE_API void define_lisp_object (int lrecord_type,
                                            const CIbyte *name,
@@ -1622,7 +1622,7 @@ int                                                                     \
 init_lrecord_type_##c_name (void)                                       \
 )									\
 {									\
-  return lrecord_type_##c_name = lrecord_type_count++;                  \
+  return lrecord_type_##c_name = get_unused_lrecord_type ();		\
 }									\
 DECLARE_LISP_OBJECT_1 (c_name, structtype, extern)
 #else

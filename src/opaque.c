@@ -105,7 +105,7 @@ hash_opaque (Lisp_Object obj, int UNUSED (depth), int UNUSED (equalp))
     return memory_hash (XOPAQUE_DATA (obj), XOPAQUE_SIZE (obj));
 }
 
-static const struct memory_description opaque_description[] = {
+const struct memory_description opaque_description[] = {
   { XD_END }
 };
 

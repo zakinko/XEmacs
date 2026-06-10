@@ -1,3 +1,87 @@
+2026-06-09  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Implement lrecord_implementations_table using a Dynarr, remove
+	unneeded limits on the number of Lisp_Object types created by
+	modules.
+
+	* alloc.c:
+	* alloc.c (struct):
+	* alloc.c (static const struct sized_memory_description
+	lrecord_implementations_description): New.
+	* alloc.c (static const struct sized_memory_description
+	lrecord_implementations_table_description): New.
+	* alloc.c (static const struct sized_memory_description
+	memory_description_dynarr_description): New. 
+	* alloc.c (static const struct sized_memory_description
+	lrecord_memory_descriptions_description): New. 
+	* alloc.c (static struct sized_memory_description
+	lrecord_uid_counter_description): New. 
+	* alloc.c (static const struct sized_memory_description
+	lrecord_stats_elt_description): New. 
+	* alloc.c (static const struct sized_memory_description
+	lrecord_stats_elt_dynarr_description): New.
+	* alloc.c (clear_lrecord_stats):
+	Manipulate lrecord_stats as a Dynarr within this function.
+	* alloc.c (tick_lrecord_stats):
+	Ditto.
+	* alloc.c (finish_object_memory_usage_stats):
+	Ditto.
+	* alloc.c (COPY_INTO_LRECORD_STATS):
+	Ditto.
+	* alloc.c (object_memory_usage_stats):
+	Ditto.
+	* alloc.c (garbage_collection_statistics):
+	Ditto.
+	* alloc.c (disksave_finalize_memusage_stats):
+	Ditto.
+	* alloc.c (init_memory_usage_stats):
+	Manipulate the memusage stats list using the Dynarr rather than
+	lrecord_implementations_table.
+	* alloc.c (uninit_memory_usage_stats):
+	Ditto.
+	* alloc.c (get_unused_lrecord_type): New.
+	Now creating a new lrecord_type may lead to realloc() of
+	lrecord_implementations_table,
+	init_lrecord_type_NEW_OBJECT_TYPE_NAME() cannot just tick
+	lrecord_type_count. This function does the book-keeping for this,
+	called from init_lrecord_type_NEW_OBJECT_TYPE_NAME().
+	* alloc.c (define_lisp_object):
+	Manipulate the Dynarr rather than lrecord_implementations_table.
+	* alloc.c (undef_lisp_object):
+	Ditto. Use opaque_description rather than an identical
+	empty_memory_description_1. Only decrement lrecord_type_count if
+	consing_since_gc is zero, which fixes a separate bug.
+	* alloc.c (init_alloc_once_early):
+	Initialize the Dynarrs, use dump_add_root_block_ptr()
+	appropriately on them.
+	* file-coding.c:
+	* file-coding.c (struct):
+	Be a little clearer with naming here.
+	* file-coding.c (static const struct sized_memory_description
+	memory_description_dynarr_description): Removed. 
+	* file-coding.c (static const struct sized_memory_description
+	struct_memory_description_dynarr_description): New. 
+	Ditto.
+	* file-coding.c (initialize_detector_description):
+	Use the new name for the memory description.
+	* lrecord.h:
+	Update a comment here.
+	* lrecord.h (LRECORD_TYPE_MAX):
+	New #define, equivalent to UINT_16_BIT max.
+	Declare lrecord_uid_counter as a pointer rather than an array.
+	* lrecord.h (enum lrecord_type):
+	Give a better value for lrecord_type_last_built_in_type.
+	Declare get_unused_lrecord_type().
+	Declare lrecord_implementations_table as a pointer rather than an
+	array.
+	* lrecord.h (DECLARE_MODULE_LISP_OBJECT):
+	Call get_unused_lrecord_type() in the init_lrecord_type_##c_name
+	function.
+	* opaque.c:
+	Define opaque_description as non-static.
+	* opaque.h:
+	Declare opaque_description as extern.
+
 2026-06-07  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Fselected_window() can return Qnil, respect this more consistently

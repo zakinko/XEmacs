@@ -98,16 +98,21 @@ int funcall_allocation_flag;
 Bytecount __temp_alloca_size__;
 Bytecount funcall_alloca_count;
 
-/* All the built-in lisp object types are enumerated in `enum lrecord_type'.
-   Additional ones may be defined by a module (none yet).  We leave some
-   room in `lrecord_implementations_table' for such new lisp object types. */
-struct lrecord_implementation *lrecord_implementations_table[(int)lrecord_type_last_built_in_type + MODULE_DEFINABLE_TYPE_COUNT];
-int lrecord_type_count = lrecord_type_last_built_in_type;
+typedef struct
+{
+  Dynarr_declare (struct lrecord_implementation *);
+} lrecord_implementation_ptr_dynarr;
 
-/* This is just for use by the printer, to allow things to print uniquely.
-   We have a separate UID space for each object. (Important because the
-   UID is only 20 bits.) */
-int lrecord_uid_counter[countof (lrecord_implementations_table)];
+/* All the built-in lisp object types are enumerated in `enum lrecord_type'.
+   Additional ones are defined by modules. LRECORD_IMPLEMENTATIONS is a Dynarr
+   to accommodate this. */
+static lrecord_implementation_ptr_dynarr *lrecord_implementations;
+
+/* This always reflects lrecord_implementations->base, and is accessible to
+   other source files (and modules).  */
+struct lrecord_implementation **lrecord_implementations_table;
+
+int lrecord_type_count = lrecord_type_last_built_in_type;
 
 static const struct memory_description lrecord_implementation_description_1[] = {
   { XD_LISP_OBJECT, offsetof (struct lrecord_implementation, name) },
@@ -157,15 +162,30 @@ static const struct sized_memory_description lrecord_implementation_pointer_desc
   lrecord_implementation_pointer_description_1
 };
 
+static const struct memory_description lrecord_implementations_description_1[] = {
+  XD_DYNARR_DESC (lrecord_implementation_ptr_dynarr,
+		  &lrecord_implementation_pointer_description),
+  { XD_END }
+};
+
+static const struct sized_memory_description lrecord_implementations_description = {
+  sizeof (lrecord_implementation_ptr_dynarr),
+  lrecord_implementations_description_1
+};
+
+/* lrecord_type_last_built_in_type as the count will be true at dump time,
+   though not after any modules are loaded. This doesn't matter since loading a
+   module is guaranteed to be after pdump_load(). */
 static const struct memory_description lrecord_implementations_table_description_1[] = {
-  { XD_BLOCK_ARRAY, 0, countof (lrecord_implementations_table),
+  { XD_BLOCK_PTR, 0, lrecord_type_last_built_in_type,
     { &lrecord_implementation_pointer_description } },
   { XD_END }
 };
 
-/* Object memory descriptions are in the lrecord_implementation structure.
-   But copying them to a parallel array is much more cache-friendly. */
-const struct memory_description *lrecord_memory_descriptions[countof (lrecord_implementations_table)];
+static const struct sized_memory_description lrecord_implementations_table_description = {
+  sizeof (struct lrecord_implementation *) * lrecord_type_last_built_in_type,
+  lrecord_implementations_table_description_1
+};
 
 static const struct memory_description memory_description_description_1[] = {
   { XD_MEMORY_DESCRIPTION, 0 },
@@ -173,14 +193,54 @@ static const struct memory_description memory_description_description_1[] = {
 };
 
 static const struct sized_memory_description memory_description_description = {
-  sizeof (void *),
+  sizeof (struct memory_description *),
   memory_description_description_1
 };
 
+typedef struct
+{
+  Dynarr_declare (const struct memory_description *);
+} memory_description_dynarr;
+
+static const struct memory_description memory_description_dynarr_description_1[] = {
+  XD_DYNARR_DESC (memory_description_dynarr, &memory_description_description),
+  { XD_END }
+};
+
+static const struct sized_memory_description memory_description_dynarr_description = {
+  sizeof (memory_description_dynarr),
+  memory_description_dynarr_description_1
+};
+
+/* Object memory descriptions are in the lrecord_implementation structure.
+   But copying them to a parallel array is much more cache-friendly. */
+static memory_description_dynarr *lrecord_memory_descriptions_table;
+
 static const struct memory_description lrecord_memory_descriptions_description_1[] = {
-  { XD_BLOCK_ARRAY, 0, countof (lrecord_implementations_table),
+  { XD_BLOCK_ARRAY, 0, lrecord_type_last_built_in_type,
     { &memory_description_description } },
   { XD_END }
+};
+
+static const struct sized_memory_description lrecord_memory_descriptions_description = {
+  sizeof (const struct memory_description *) * lrecord_type_last_built_in_type,
+  lrecord_memory_descriptions_description_1
+};
+
+/* This always reflect lrecord_memory_descriptions_table->base. */
+const struct memory_description **lrecord_memory_descriptions;
+
+/* This is just for use by the printer, to allow things to print uniquely.
+   We have a separate UID space for each object. (Important because the
+   UID is only 20 bits.) */
+static int_dynarr *lrecord_uid_counter_table;
+
+/* This always reflects lrecord_uid_counter_table->base. */
+int *lrecord_uid_counter;
+
+static struct sized_memory_description lrecord_uid_counter_description = {
+  sizeof (int) * lrecord_type_last_built_in_type,
+  opaque_description
 };
 
 struct gcpro *gcprolist;
@@ -188,16 +248,12 @@ struct gcpro *gcprolist;
 /* This remains NULL during dump, initialized very late in the dump process. */
 pdump_reloc_table *pdump_relocation_table;
 
-static const struct memory_description pdump_reloc_table_description_1[] = {
+static const struct sized_memory_description pdump_reloc_table_description = {
+  sizeof (pdump_reloc_table),
   /* Intentionally not described, the pointer destination is not to be
      descended at pdump_load_finish() time, and the value is initialized
      specially very late at dump time. */
-  { XD_END }
-};
-
-static const struct sized_memory_description pdump_reloc_table_description = {
-  sizeof (pdump_reloc_table),
-  pdump_reloc_table_description_1
+  opaque_description
 };
 
 /* Non-zero means we're in the process of doing the dump */
@@ -239,9 +295,7 @@ static Bytecount gc_count_long_string_storage_including_overhead;
 /* static int gc_count_total_records_used, gc_count_records_total_size; */
 
 /* stats on objects in use */
-
-
-static struct
+typedef struct
 {
   Elemcount instances_in_use;
   Bytecount bytes_in_use;
@@ -257,7 +311,29 @@ static struct
   Bytecount lisp_ancillary_bytes_in_use;
   struct generic_usage_stats stats;
 #endif
-} lrecord_stats [countof (lrecord_implementations_table)];
+} lrecord_stats_elt;
+
+typedef struct
+{
+  Dynarr_declare (lrecord_stats_elt);
+} lrecord_stats_elt_dynarr;
+
+static lrecord_stats_elt_dynarr *lrecord_stats;
+
+static const struct sized_memory_description lrecord_stats_elt_description = {
+  sizeof (lrecord_stats_elt),
+  opaque_description
+};
+
+static const struct memory_description lrecord_stats_elt_dynarr_description_1[] = {
+  XD_DYNARR_DESC (lrecord_stats_elt_dynarr, &lrecord_stats_elt_description),
+  { XD_END }
+};
+
+static const struct sized_memory_description lrecord_stats_elt_dynarr_description = {
+  sizeof (lrecord_stats_elt_dynarr),
+  lrecord_stats_elt_dynarr_description_1
+};
 
 /* Very cheesy ways of figuring out how much memory is being used for
    data. #### Need better (system-dependent) ways. */
@@ -3811,7 +3887,7 @@ lisp_object_storage_size (Lisp_Object obj, struct usage_stats *ustats)
 static void
 clear_lrecord_stats (void)
 {
-  xzero (lrecord_stats);
+  Dynarr_zero_many (lrecord_stats, 0, Dynarr_length (lrecord_stats));
   gc_count_num_short_string_in_use = 0;
   gc_count_string_total_size = 0;
   gc_count_short_string_total_size = 0;
@@ -3870,9 +3946,9 @@ tick_lrecord_stats (const struct lrecord_header *h,
   switch (status)
     {
     case ALLOC_IN_USE:
-      lrecord_stats[type_index].instances_in_use++;
-      lrecord_stats[type_index].bytes_in_use += sz;
-      lrecord_stats[type_index].bytes_in_use_overhead += overhead;
+      Dynarr_atp (lrecord_stats, type_index)->instances_in_use++;
+      Dynarr_atp (lrecord_stats, type_index)->bytes_in_use += sz;
+      Dynarr_atp (lrecord_stats, type_index)->bytes_in_use_overhead += overhead;
       if (STRINGP (obj))
 	tick_string_stats (XSTRING (obj), 0);
 #ifdef MEMORY_USAGE_STATS
@@ -3886,21 +3962,23 @@ tick_lrecord_stats (const struct lrecord_header *h,
 	    xzero (stats);
 	    OBJECT_METH (obj, memory_usage, (obj, &stats));
 	    for (i = 0; i < total_stats; i++)
-	      lrecord_stats[type_index].stats.othervals[i] +=
+	      Dynarr_atp (lrecord_stats, type_index)->stats.othervals[i] +=
 		stats.othervals[i];
 	  }
       }
 #endif
       break;
     case ALLOC_FREE:
-      lrecord_stats[type_index].instances_freed++;
-      lrecord_stats[type_index].bytes_freed += sz;
-      lrecord_stats[type_index].bytes_freed_overhead += overhead;
+      Dynarr_atp (lrecord_stats, type_index)->instances_freed++;
+      Dynarr_atp (lrecord_stats, type_index)->bytes_freed += sz;
+      Dynarr_atp (lrecord_stats, type_index)->bytes_freed_overhead
+	+= overhead;
       break;
     case ALLOC_ON_FREE_LIST:
-      lrecord_stats[type_index].instances_on_free_list++;
-      lrecord_stats[type_index].bytes_on_free_list += sz;
-      lrecord_stats[type_index].bytes_on_free_list_overhead += overhead;
+      Dynarr_atp (lrecord_stats, type_index)->instances_on_free_list++;
+      Dynarr_atp (lrecord_stats, type_index)->bytes_on_free_list += sz;
+      Dynarr_atp (lrecord_stats, type_index)->bytes_on_free_list_overhead
+	+= overhead;
       break;
     default:
       ABORT ();
@@ -3927,23 +4005,24 @@ finish_object_memory_usage_stats (void)
      computed during tick_lrecord_stats(), to get a single combined value
      of non-Lisp memory usage for all objects of each type. */
 #if defined (MEMORY_USAGE_STATS)
-  int i;
-  for (i = 0; i < countof (lrecord_implementations_table); i++)
+  Elemcount i;
+  for (i = 0; i < Dynarr_length (lrecord_implementations); i++)
     {
-      struct lrecord_implementation *imp = lrecord_implementations_table[i];
+      struct lrecord_implementation *imp
+	= Dynarr_at (lrecord_implementations, i);
       if (imp && imp->num_extra_nonlisp_memusage_stats)
 	{
 	  Elemcount j;
 	  for (j = 0; j < imp->num_extra_nonlisp_memusage_stats; j++)
-	    lrecord_stats[i].nonlisp_bytes_in_use +=
-	      lrecord_stats[i].stats.othervals[j];
+	    Dynarr_atp (lrecord_stats, i)->nonlisp_bytes_in_use +=
+	      Dynarr_atp (lrecord_stats, i)->stats.othervals[j];
 	}
       if (imp && imp->num_extra_lisp_ancillary_memusage_stats)
 	{
 	  Elemcount j;
 	  for (j = 0; j < imp->num_extra_lisp_ancillary_memusage_stats; j++)
-	    lrecord_stats[i].lisp_ancillary_bytes_in_use +=
-	      lrecord_stats[i].stats.othervals
+	    Dynarr_atp (lrecord_stats, i)->lisp_ancillary_bytes_in_use +=
+	      Dynarr_atp (lrecord_stats, i)->stats.othervals
 	      [j + imp->offset_lisp_ancillary_memusage_stats];
 	}
     }
@@ -3958,16 +4037,21 @@ finish_object_memory_usage_stats (void)
   s_overhead = fixed_type_block_overhead (s, sizeof (struct type##_block)); \
   DO_NOTHING
 
-#define COPY_INTO_LRECORD_STATS(type)				\
-do {								\
-  COUNT_FROB_BLOCK_USAGE (type);				\
-  lrecord_stats[lrecord_type_##type].bytes_in_use += s;		\
-  lrecord_stats[lrecord_type_##type].bytes_in_use_overhead +=	\
-    s_overhead;							\
-  lrecord_stats[lrecord_type_##type].instances_on_free_list +=	\
-    gc_count_num_##type##_freelist;				\
-  lrecord_stats[lrecord_type_##type].instances_in_use +=	\
-    gc_count_num_##type##_in_use;				\
+#define COPY_INTO_LRECORD_STATS(type) do				\
+    {									\
+      COUNT_FROB_BLOCK_USAGE (type);					\
+      Dynarr_atp (lrecord_stats,					\
+		  lrecord_type_##type)->bytes_in_use			\
+	+= s;								\
+      Dynarr_atp (lrecord_stats,					\
+		  lrecord_type_##type)->bytes_in_use_overhead		\
+	+= s_overhead;							\
+      Dynarr_atp (lrecord_stats,					\
+		  lrecord_type_##type)->instances_on_free_list		\
+	+= gc_count_num_##type##_freelist;				\
+      Dynarr_atp (lrecord_stats,					\
+		  lrecord_type_##type)->instances_in_use		\
+	+= gc_count_num_##type##_in_use;				\
 } while (0)
 
 
@@ -4068,12 +4152,11 @@ object_memory_usage_stats (int set_total_gc_usage)
   int i;
   EMACS_INT tgu_val = 0;
 
-
   for (i = 0; i < lrecord_type_count; i++)
     {
-      if (lrecord_stats[i].bytes_in_use != 0
-          || lrecord_stats[i].bytes_freed != 0
-	  || lrecord_stats[i].instances_on_free_list != 0)
+      if (Dynarr_atp (lrecord_stats, i)->bytes_in_use != 0
+          || Dynarr_atp (lrecord_stats, i)->bytes_freed != 0
+	  || Dynarr_atp (lrecord_stats, i)->instances_on_free_list != 0)
         {
           Ibyte buf[255];
           const Ibyte *name
@@ -4082,44 +4165,51 @@ object_memory_usage_stats (int set_total_gc_usage)
 
           emacs_snprintf (buf, sizeof (buf), "%s-storage-overhead", name);
           pl = gc_plist_hack ((const CIbyte *) buf, 
-                              lrecord_stats[i].bytes_in_use_overhead, pl);
-	  tgu_val += lrecord_stats[i].bytes_in_use_overhead;
+                              Dynarr_atp (lrecord_stats,
+					  i)->bytes_in_use_overhead, pl);
+	  tgu_val += Dynarr_atp (lrecord_stats, i)->bytes_in_use_overhead;
           emacs_snprintf (buf, sizeof (buf), "%s-storage", name);
           pl = gc_plist_hack ((const CIbyte *) buf,
-                              lrecord_stats[i].bytes_in_use, pl);
-	  tgu_val += lrecord_stats[i].bytes_in_use;
+                              Dynarr_atp (lrecord_stats, i)->bytes_in_use,
+			      pl);
+	  tgu_val += Dynarr_atp (lrecord_stats, i)->bytes_in_use;
 #ifdef MEMORY_USAGE_STATS
-	  if (lrecord_stats[i].nonlisp_bytes_in_use)
+	  if (Dynarr_atp (lrecord_stats, i)->nonlisp_bytes_in_use)
 	    {
 	      emacs_snprintf (buf, sizeof (buf), "%s-non-lisp-storage", name);
 	      pl = gc_plist_hack ((const CIbyte *) buf,
-                                  lrecord_stats[i].nonlisp_bytes_in_use,
-				  pl);
-	      tgu_val += lrecord_stats[i].nonlisp_bytes_in_use;
+                                  Dynarr_atp (lrecord_stats,
+					      i)->nonlisp_bytes_in_use, pl);
+	      tgu_val += Dynarr_atp (lrecord_stats, i)->nonlisp_bytes_in_use;
 	    }
-	  if (lrecord_stats[i].lisp_ancillary_bytes_in_use)
+	  if (Dynarr_atp (lrecord_stats, i)->lisp_ancillary_bytes_in_use)
 	    {
 	      emacs_snprintf (buf, sizeof (buf), "%s-lisp-ancillary-storage",
                               name);
-	      pl = gc_plist_hack ((const CIbyte *) buf, lrecord_stats[i].
-				  lisp_ancillary_bytes_in_use,
+	      pl = gc_plist_hack ((const CIbyte *) buf,
+				  Dynarr_atp (lrecord_stats,
+					      i)->lisp_ancillary_bytes_in_use,
 				  pl);
-	      tgu_val += lrecord_stats[i].lisp_ancillary_bytes_in_use;
+	      tgu_val += Dynarr_atp (lrecord_stats,
+				     i)->lisp_ancillary_bytes_in_use;
 	    }
 #endif /* MEMORY_USAGE_STATS */
 	  pluralize_and_append (buf, sizeof (buf), name, "-freed");
-          if (lrecord_stats[i].instances_freed != 0)
+          if (Dynarr_atp (lrecord_stats, i)->instances_freed != 0)
             pl = gc_plist_hack ((const CIbyte *) buf,
-                                lrecord_stats[i].instances_freed, pl);
+                                Dynarr_atp (lrecord_stats,
+					    i)->instances_freed, pl);
 	  pluralize_and_append (buf, sizeof (buf), name,
                                 "-on-free-list");
-          if (lrecord_stats[i].instances_on_free_list != 0)
+          if (Dynarr_atp (lrecord_stats, i)->instances_on_free_list != 0)
             pl = gc_plist_hack ((const CIbyte *) buf,
-                                lrecord_stats[i].instances_on_free_list,
+                                Dynarr_atp (lrecord_stats,
+					    i)->instances_on_free_list,
 				pl);
 	  pluralize_and_append (buf, sizeof (buf), name, "-used");
           pl = gc_plist_hack ((const CIbyte *) buf,
-                              lrecord_stats[i].instances_in_use, pl);
+                              Dynarr_atp (lrecord_stats,
+					  i)->instances_in_use, pl);
         }
     }
 
@@ -4173,9 +4263,12 @@ garbage_collection_statistics (void)
 	   Fcons (make_fixnum (gc_count_num_marker_in_use),
 		  make_fixnum (gc_count_num_marker_freelist)),
 	   make_fixnum (gc_count_string_total_size),
-	   make_fixnum (lrecord_stats[lrecord_type_vector].bytes_in_use +
-		     lrecord_stats[lrecord_type_vector].bytes_freed +
-		     lrecord_stats[lrecord_type_vector].bytes_on_free_list),
+	   make_fixnum (Dynarr_atp (lrecord_stats,
+				    lrecord_type_vector)->bytes_in_use +
+			Dynarr_atp (lrecord_stats,
+				    lrecord_type_vector)->bytes_freed +
+			Dynarr_atp (lrecord_stats,
+				    lrecord_type_vector)->bytes_on_free_list),
 	   object_memory_usage_stats (1));
 }
 
@@ -4426,11 +4519,12 @@ See also `consing-since-gc' and `object-memory-usage-stats'.
 static void
 disksave_finalize_memusage_stats (void)
 {
-  int i;
+  Elemcount ii;
 
-  for (i = 0; i < countof (lrecord_implementations_table); i++)
+  for (ii = 0; ii < Dynarr_length (lrecord_implementations); ii++)
     {
-      struct lrecord_implementation *imp = lrecord_implementations_table[i];
+      struct lrecord_implementation *imp
+	= Dynarr_at (lrecord_implementations, ii);
 
       if (!imp)
 	continue;
@@ -4483,27 +4577,64 @@ void
 init_memory_usage_stats (int tipo,
                          Lisp_Object memusage_stats_list)
 {
-  lrecord_implementations_table[tipo]->memusage_stats_list
+  Dynarr_at (lrecord_implementations, tipo)->memusage_stats_list
     = memusage_stats_list;
 
   if (initialized)
     {
-      staticpro_nodump
-	(&(lrecord_implementations_table[tipo]->memusage_stats_list));
+      staticpro_nodump (&(Dynarr_at (lrecord_implementations,
+				     tipo)->memusage_stats_list));
     }
   else
     {
-      staticpro
-	(&(lrecord_implementations_table[tipo]->memusage_stats_list));
+      staticpro (&(Dynarr_at (lrecord_implementations,
+			      tipo)->memusage_stats_list));
     }
 }
 
 static void
 uninit_memory_usage_stats (int tipo)
 {
-  lrecord_implementations_table[tipo]->memusage_stats_list = Qnil;
+  Dynarr_at (lrecord_implementations, tipo)->memusage_stats_list = Qnil;
   unstaticpro_nodump
-    (&(lrecord_implementations_table[tipo]->memusage_stats_list));
+    (&(Dynarr_at (lrecord_implementations, tipo)->memusage_stats_list));
+}
+
+int
+get_unused_lrecord_type (void)
+{
+  if (lrecord_type_count == LRECORD_TYPE_MAX)
+    {
+      invalid_operation ("Limit of Lisp object types reached",
+                         make_fixnum (LRECORD_TYPE_MAX));
+    }
+
+  lrecord_type_count++;
+
+  if (lrecord_type_count > Dynarr_length (lrecord_implementations))
+    {
+      /* The staticpro() done on the MEMUSAGE_STATS_LIST of each implementation
+	 is unaffected by this, since that address is within the
+	 lrecord_implementation's block rather than within the block pointed to
+	 by lrecord_implementations->base. */
+      Dynarr_set_length_and_zero (lrecord_implementations,
+				  lrecord_type_count);
+      lrecord_implementations_table
+	= Dynarr_begin (lrecord_implementations);
+
+      Dynarr_set_length_and_zero (lrecord_uid_counter_table,
+				  lrecord_type_count);
+      lrecord_uid_counter = Dynarr_begin (lrecord_uid_counter_table);
+
+      Dynarr_set_length_and_zero (lrecord_memory_descriptions_table,
+				  lrecord_type_count);
+      lrecord_memory_descriptions
+	= Dynarr_begin (lrecord_memory_descriptions_table);
+
+      Dynarr_set_length_and_zero (lrecord_stats, lrecord_type_count);
+    }
+
+  return lrecord_type_count;
 }
 
 struct saved_object_name
@@ -4524,19 +4655,20 @@ define_lisp_object (int tipo, const CIbyte *name, Bytecount static_size,
   static struct saved_object_name *saved_object_names;
   static struct saved_object_name *saved_object_name_ptr;
 
-  lrecord_implementations_table[tipo]
-    = xnew_and_zero (struct lrecord_implementation);
-  lrecord_implementations_table[tipo]->lrecord_type_index = tipo;
-  lrecord_implementations_table[tipo]->static_size = static_size;
-  lrecord_implementations_table[tipo]->description = description;
-  lrecord_implementations_table[tipo]->dumpable = dumpable;
-  lrecord_implementations_table[tipo]->frob_block_p = frob_block_p;
+  Dynarr_set (lrecord_implementations, tipo,
+	      xnew_and_zero (struct lrecord_implementation));
+  
+  Dynarr_at (lrecord_implementations, tipo)->lrecord_type_index = tipo;
+  Dynarr_at (lrecord_implementations, tipo)->static_size = static_size;
+  Dynarr_at (lrecord_implementations, tipo)->description = description;
+  Dynarr_at (lrecord_implementations, tipo)->dumpable = dumpable;
+  Dynarr_at (lrecord_implementations, tipo)->frob_block_p = frob_block_p;
 
-  lrecord_implementations_table[tipo]->lcrecord_list
+  Dynarr_at (lrecord_implementations, tipo)->lcrecord_list
     = (frob_block_p || static_size == 0) ? Qnil
     : get_lcrecord_list (static_size);
 
-  lrecord_memory_descriptions[tipo] = description;
+  Dynarr_set (lrecord_memory_descriptions_table, tipo, description);
 
   if (EQ (Qnil, Qnull_pointer))
     {
@@ -4568,7 +4700,8 @@ define_lisp_object (int tipo, const CIbyte *name, Bytecount static_size,
       while (--saved_object_name_ptr >= saved_object_names)
         {
 	  struct lrecord_implementation *imp
-	    = lrecord_implementations_table[saved_object_name_ptr->tipo];
+	    = Dynarr_at (lrecord_implementations,
+			 saved_object_name_ptr->tipo);
 
 	  imp->name = intern (saved_object_name_ptr->name);
 
@@ -4601,7 +4734,7 @@ define_lisp_object (int tipo, const CIbyte *name, Bytecount static_size,
          memory_usage_stats for this lrecord_type, fall through. */
     }
 
-  lrecord_implementations_table[tipo]->name = intern (name);
+  Dynarr_at (lrecord_implementations, tipo)->name = intern (name);
   init_memory_usage_stats (tipo, Qnil);
 
   /* Make the load history aware of this to better support unloading
@@ -4611,17 +4744,14 @@ define_lisp_object (int tipo, const CIbyte *name, Bytecount static_size,
 
 #ifdef HAVE_SHLIB
 
-static const struct memory_description empty_memory_description_1[] = {
-  { XD_END }
-};
-
 void
 undef_lisp_object (int lrecord_type_index)
 {
   structure_checking_assert (lrecord_type_index < lrecord_type_count);
   structure_checking_assert (lrecord_implementations_table[lrecord_type_index]
                              != NULL);
-  if (lrecord_stats[lrecord_type_index].instances_in_use == 0)
+  if (consing_since_gc == 0
+      && Dynarr_atp (lrecord_stats, lrecord_type_index)->instances_in_use == 0)
     {
       /* None of these objects are currently allocated, we can uninit this
          lisp object (relatively) cleanly. */
@@ -4632,9 +4762,10 @@ undef_lisp_object (int lrecord_type_index)
              lrecord_implementations_table. */
         }
       uninit_memory_usage_stats (lrecord_type_index);
-      xfree (lrecord_implementations_table[lrecord_type_index]);
-      lrecord_implementations_table[lrecord_type_index] = NULL;
-      lrecord_memory_descriptions[lrecord_type_index] = NULL;
+      xfree (Dynarr_at (lrecord_implementations, lrecord_type_index));
+      Dynarr_set (lrecord_implementations, lrecord_type_index, NULL);
+      Dynarr_set (lrecord_memory_descriptions_table,
+		  lrecord_type_index, NULL);
     }
   else
     {
@@ -4648,7 +4779,7 @@ undef_lisp_object (int lrecord_type_index)
       xzero (*impl);
       impl->name = name;
       impl->static_size = static_size;
-      impl->description = empty_memory_description_1;
+      impl->description = opaque_description;
       impl->lrecord_type_index = lrecord_type_index;
       impl->printer = external_object_printer;
     }
@@ -5670,17 +5801,43 @@ init_alloc_once_early (void)
   structure_checking_assert (EQ (Qnull_pointer, wrap_pointer_1 (0)));
 #endif
 
-  /* lrecord_implementations_table is in BSS and is already initialized to all
-     zeroes by the C implementation. */
+  lrecord_implementations = Dynarr_new2 (lrecord_implementation_ptr_dynarr,
+					 struct lrecord_implementation *);
+  Dynarr_set_length_and_zero (lrecord_implementations,
+			      lrecord_type_last_built_in_type);
+  dump_add_root_block_ptr (&lrecord_implementations,
+			   &lrecord_implementations_description);
 
-  dump_add_opaque (lrecord_uid_counter, sizeof (lrecord_uid_counter));
+  lrecord_implementations_table = Dynarr_begin (lrecord_implementations);
+  dump_add_root_block_ptr (&lrecord_implementations_table,
+			   &lrecord_implementations_table_description);
 
-  dump_add_root_block (lrecord_implementations_table,
-                       sizeof (lrecord_implementations_table),
-                       lrecord_implementations_table_description_1);
-  dump_add_root_block (lrecord_memory_descriptions,
-                       sizeof (lrecord_memory_descriptions),
-                       lrecord_memory_descriptions_description_1);
+  lrecord_memory_descriptions_table = Dynarr_new (memory_description);
+  Dynarr_set_length_and_zero (lrecord_memory_descriptions_table,
+			      lrecord_type_last_built_in_type);
+  dump_add_root_block_ptr (&lrecord_memory_descriptions_table,
+			   &memory_description_dynarr_description);
+
+  lrecord_memory_descriptions
+    = Dynarr_begin (lrecord_memory_descriptions_table);
+  dump_add_root_block_ptr (&lrecord_memory_descriptions,
+			   &lrecord_memory_descriptions_description);
+
+  lrecord_uid_counter_table = Dynarr_new (int);
+  Dynarr_set_length_and_zero (lrecord_uid_counter_table,
+			      lrecord_type_last_built_in_type);
+  dump_add_root_block_ptr (&lrecord_uid_counter_table,
+			   &int_dynarr_description);
+
+  lrecord_uid_counter = Dynarr_begin (lrecord_uid_counter_table);
+  dump_add_root_block_ptr (&lrecord_uid_counter,
+			   &lrecord_uid_counter_description);
+
+  lrecord_stats = Dynarr_new (lrecord_stats_elt);
+  Dynarr_set_length_and_zero (lrecord_stats,
+			      lrecord_type_last_built_in_type);
+  dump_add_root_block_ptr (&lrecord_stats,
+			   &lrecord_stats_elt_dynarr_description);
 
   staticpros = Dynarr_new2 (Lisp_Object_ptr_dynarr, Lisp_Object *);
   staticpros_nodump = Dynarr_new2 (Lisp_Object_ptr_dynarr, Lisp_Object *);

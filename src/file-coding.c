@@ -4335,12 +4335,12 @@ convert_eol_canonicalize_after_coding (struct coding_stream *str)
    sub-description in the XD_BLOCK_ARRAY entry is a data segment pointer that
    needs to be relocated with ASLR. This leads to a certain amount of
    hoop-jumping as follows. */
-typedef struct memory_description memory_description;
+typedef struct memory_description struct_memory_description;
 
 typedef struct
 {
-  Dynarr_declare (memory_description);
-} memory_description_dynarr;
+  Dynarr_declare (struct_memory_description);
+} struct_memory_description_dynarr;
 
 #define DETECTION_STATE_DESCRIPTION_NUM_STATIC 3
 
@@ -4350,7 +4350,7 @@ typedef struct
      XD_END entry after all detectors; only one detector entry is currently
      created and dumped. We die at loadup if the static array member of
      DETECTION_STATE_DESCRIPTION is insufficient for the dump-time value. */
-  Stynarr_declare (memory_description,
+  Stynarr_declare (struct_memory_description,
                    DETECTION_STATE_DESCRIPTION_NUM_STATIC);
 } detection_state_description_stynarr;
 
@@ -4371,21 +4371,22 @@ static const struct sized_memory_description detection_state_description_elt_des
   detection_state_description_elt_description_1
 };
 
-static const struct memory_description memory_description_dynarr_description_1[] = {
-  XD_DYNARR_DESC (memory_description_dynarr,
+static const struct memory_description struct_memory_description_dynarr_description_1[] = {
+  XD_DYNARR_DESC (struct_memory_description_dynarr,
                   &detection_state_description_elt_description),
   { XD_END }
 };
 
-static const struct sized_memory_description memory_description_dynarr_description = {
-  sizeof (memory_description_dynarr),
-  memory_description_dynarr_description_1
+static const struct sized_memory_description struct_memory_description_dynarr_description = {
+  sizeof (struct_memory_description_dynarr),
+  struct_memory_description_dynarr_description_1
 };
+
 
 static const struct memory_description detection_state_description_stynarr_description_1[] = {
   XD_STYNARR_DESC (detection_state_description_stynarr,
                    &detection_state_description_elt_description,
-                   &memory_description_dynarr_description),
+                   &struct_memory_description_dynarr_description),
   { XD_END }
 };
 
