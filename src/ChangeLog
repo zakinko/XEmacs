@@ -1,5 +1,20 @@
 2026-06-12  Aidan Kehoe  <kehoea@parhasard.net>
 
+	Get the last change working on non-C++ compilers. In passing add
+	assertions to lisp_object_has_method_1(),
+	lisp_object_has_property_1() that the existing fields in the
+	lrecord_implementation are zero.
+	* alloc.c (get_unused_lrecord_type):
+	Cast appropriately for C here.
+	* alloc.c (lisp_object_has_method_1):
+	Check existing method is NULL.
+	* alloc.c (lisp_object_has_property_1):
+	Check existing property is zero.
+	* alloc.c (init_alloc_once_early):
+	Correct a cast, call Dynarr_new2 appropriately.
+
+2026-06-12  Aidan Kehoe  <kehoea@parhasard.net>
+
 	Mark the entries in lrecord_implementations_table,
 	lrecord_memory_descriptions const, only modify them via the
 	Dynarrs.

@@ -4625,7 +4625,7 @@ get_unused_lrecord_type (void)
       Dynarr_set_length_and_zero (lrecord_implementations,
 				  lrecord_type_count);
       lrecord_implementations_table
-	= (const lrecord_implementation * const *) Dynarr_begin
+	= (const struct lrecord_implementation * const *) Dynarr_begin
 	(lrecord_implementations);
 
       Dynarr_set_length_and_zero (lrecord_uid_counter_table,
@@ -4754,6 +4754,7 @@ lisp_object_has_method_1 (int lrecord_type, size_t offset, lisp_fn_t method)
   struct lrecord_implementation *meths
     = Dynarr_at (lrecord_implementations, lrecord_type);
   lisp_fn_t *this_method = (lisp_fn_t *) (((Rawbyte *) meths) + offset);
+  structure_checking_assert (*this_method == NULL);
   *this_method = method;
 }
 
@@ -4764,14 +4765,25 @@ lisp_object_has_property_1 (int lrecord_type, size_t offset, size_t size,
   struct lrecord_implementation *meths
     = Dynarr_at (lrecord_implementations, lrecord_type);
 
-  memcpy ((((Rawbyte *) meths) + offset), prop, size);
-
   if (offsetof (struct lrecord_implementation, description) == offset)
     {
+      /* This is the only property that is currently updated after
+	 initialization, and the only one that needs special handling. */
       Dynarr_set (lrecord_memory_descriptions_table,
 		  lrecord_type,
 		  ((const struct memory_description **) prop)[0]);
     }
+  else
+    {
+      Binbyte *zero_bytes = alloca_array (Binbyte, size);
+
+      /* If other properties are non-zero, this is likely a bug. */
+      memset (zero_bytes, 0, size);
+      structure_checking_assert (memcmp (((Binbyte *) meths) + offset,
+					 zero_bytes, size) == 0);
+    }
+
+  memcpy ((((Binbyte *) meths) + offset), prop, size);
 }
 
 #ifdef HAVE_SHLIB
@@ -5844,12 +5856,13 @@ init_alloc_once_early (void)
     struct lrecord_implementation **silence_compiler
       = Dynarr_begin (lrecord_implementations);
     lrecord_implementations_table
-      = (const struct lrecord_implementation **) silence_compiler;
+      = (const struct lrecord_implementation * const *) silence_compiler;
     dump_add_root_block_ptr (&lrecord_implementations_table,
 			     &lrecord_implementations_table_description);
   }
 
-  lrecord_memory_descriptions_table = Dynarr_new (memory_description);
+  lrecord_memory_descriptions_table = Dynarr_new2 (memory_description_dynarr,
+						   const struct memory_description *);
   Dynarr_set_length_and_zero (lrecord_memory_descriptions_table,
 			      lrecord_type_last_built_in_type);
   dump_add_root_block_ptr (&lrecord_memory_descriptions_table,
