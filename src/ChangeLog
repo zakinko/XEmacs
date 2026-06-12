@@ -15,6 +15,95 @@
 
 2026-06-12  Aidan Kehoe  <kehoea@parhasard.net>
 
+	Move old_lcrecord_header->next out of the Lisp_Object, remove the
+	need for distinct NORMAL_LISP_OBJECT_HEADER vs
+	FROB_BLOCK_LISP_OBJECT object headers (distinction maintained in
+	macros for now), and no longer leak old_lcrecord_header->next in
+	the dump file.
+
+	This is a first draft and uses an extra sizeof (void *) of memory
+	per lcrecord at runtime; I plan to address this shortly.
+	* alloc.c:
+	* alloc.c (struct lcheader): Rename struct old_lcrecord_header to
+	this for clarity. Move the structure declaration here, no need for
+	it to be in lrecord.h.
+	* alloc.c (LCHEADER_LHEADER_NO_ASSERT):
+	* alloc.c (LCHEADER_LHEADER_1):
+	* alloc.c (LCHEADER_LHEADER):
+	* alloc.c (LCHEADER_NEXT):
+	* alloc.c (SET_LCHEADER_NEXT):
+	New macros to access the fields of struct lcheader, in preparation
+	for further work that will make direct access to structure fields
+	less practical. Add some error checking to them.
+
+	* alloc.c (OBJECT_LCHEADER_1):
+	* alloc.c (OBJECT_LCHEADER):
+	New macro to access the LCHEADER of a Lisp_Object that has been
+	allocated as an lcrecord.
+
+	* alloc.c (old_alloc_sized_lcrecord_1):
+	Now that lcheader.next is no longer in the Lisp_Object, increase
+	the amount of memory allocated by that needed for it in this
+	function. Use the accessor macros above.
+
+	* alloc.c (very_old_free_lcrecord):
+	Update this to use the accessor macros, and to free the lcrecord
+	rather than the lrecord.
+	* alloc.c (copy_lisp_object):
+	No need to handle frob block vs. lcrecords differently here.
+	* alloc.c (zero_sized_lisp_object):
+	Ditto.
+	* alloc.c (c_readonly): Modernize type for this in passing.
+	* alloc.c (lisp_readonly): Ditto.
+	* alloc.c (struct free_lcrecord_header):
+	Move this declaration here. Update it to reflect that
+	lcheader.next has been moved outside the Lisp_Object.
+	* alloc.c (alloc_managed_lcrecord_1):
+	Use XRECORD_LHEADER() here, now we can.
+	* alloc.c (free_managed_lcrecord):
+	Rename the record to be freed to OBJECT from LCRECORD.  Use
+	XRECORD_LHEADER(), then cast to a free_lcrecord_header as a more
+	idiomatic thing.  If the object is C_READONLY(), add it to
+	all_lcrecords if needed.
+	* alloc.c (clear_c_readonly_record_header): New.
+	De-inline this, since it now needs to access all_lcrecords.
+	* alloc.c (sweep_lcrecords_1):
+	Update type for the PREV arg. Use the accessor macros.
+	* alloc.c (disksave_object_finalization_1):
+	Update type for the HEADER local variable. Use the accessor macros.
+	* emodules.c (add_module_loadhist_elt):
+	Remove some now-inaccurate commentary.
+	* emodules.h (EMODULES_VERSION):
+	Increase the version number here, now the memory layout for
+	Lisp_Objects has changed significantly.
+	* lisp.h: Modernize type for declarations of c_readonly(),
+	lisp_readonly() here.
+	* lrecord.h:
+	* lrecord.h (NORMAL_LISP_OBJECT_HEADER):
+	#define this to be struct lrecord_header, same as
+	FROB_BLOCK_LISP_OBJECT_HEADER.
+	Remove declaration for lrecord_type_index(), not defined anywhere
+	and equivalent to examining the lrecord_type_index field of an
+	implementation.
+	* lrecord.h:
+	Remove declarations for struct old_lcrecord_header, struct
+	free_lcrecord_header from here.
+	Declare clear_c_readonly_record_header() here, use it in the
+	CLEAR_C_READONLY() macro.
+	* symeval.h:
+	* symeval.h (struct symbol_value_magic):
+	Remove documentation of the abuse of the NEXT pointer of struct
+	old_lcrecord_header, now gone.
+	* symeval.h (SYMBOL_VALUE_MAGIC_P):
+	* symeval.h (struct symbol_value_forward_fixnum_magic):
+	No longer abuse the NEXT pointer of struct old_lcrecord_header.
+	* symeval.h (struct symbol_value_forward_boolint_magic):
+	Ditto.
+	* symeval.h (struct symbol_value_buffer_local):
+	Remove obsoleted comment here.
+
+2026-06-12  Aidan Kehoe  <kehoea@parhasard.net>
+
 	Get the last change working on non-C++ compilers. In passing add
 	assertions to lisp_object_has_method_1(),
 	lisp_object_has_property_1() that the existing fields in the

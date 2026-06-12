@@ -143,7 +143,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 #define ALLOC_SIZED_LISP_OBJECT(size, type) \
   old_alloc_sized_lcrecord (size, LRECORD_IMPLEMENTATION (type))
 
-#define NORMAL_LISP_OBJECT_HEADER struct old_lcrecord_header
+#define NORMAL_LISP_OBJECT_HEADER struct lrecord_header
 #define FROB_BLOCK_LISP_OBJECT_HEADER struct lrecord_header
 #define LISP_OBJECT_FROB_BLOCK_P(obj) (XRECORD_LHEADER_IMPLEMENTATION(obj)->frob_block_p)
 #define IF_OLD_GC(x) x
@@ -195,26 +195,6 @@ extern int *lrecord_uid_counter;
   SLI_header->lisp_readonly = 0;					\
   SLI_header->uid = lrecord_uid_counter[(imp)->lrecord_type_index]++;   \
 } while (0)
-
-struct old_lcrecord_header
-{
-  struct lrecord_header lheader;
-
-  /* The `next' field is normally used to chain all lcrecords together
-     so that the GC can find (and free) all of them.
-     `old_alloc_sized_lcrecord' threads lcrecords together.
-
-     The `next' field may be used for other purposes as long as some
-     other mechanism is provided for letting the GC do its work. */
-  struct old_lcrecord_header *next;
-};
-
-/* Used for lcrecords in an lcrecord-list. */
-struct free_lcrecord_header
-{
-  struct old_lcrecord_header lcheader;
-  Lisp_Object chain;
-};
 
 /* DON'T FORGET to update .gdbinit.in.in if you change this list. */
 enum lrecord_type
@@ -536,14 +516,10 @@ extern int gc_in_progress;
 #define SET_C_READONLY(obj) \
   SET_C_READONLY_RECORD_HEADER (XRECORD_LHEADER (obj))
 
-#define CLEAR_C_READONLY_RECORD_HEADER(lheader) do {	\
-  struct lrecord_header *CCRRH_lheader = (lheader);	\
-  CCRRH_lheader->c_readonly = 0;			\
-  CCRRH_lheader->lisp_readonly = 0;			\
-  CCRRH_lheader->mark = 0;				\
-} while (0)
-#define CLEAR_C_READONLY(obj) \
-  CLEAR_C_READONLY_RECORD_HEADER (XRECORD_LHEADER (obj))
+void clear_c_readonly_record_header (struct lrecord_header *);
+
+#define CLEAR_C_READONLY_RECORD_HEADER(header)	\
+  clear_c_readonly_record_header (header)
 
 #define SET_LISP_READONLY_RECORD_HEADER(lheader) \
   ((void) ((lheader)->lisp_readonly = 1))

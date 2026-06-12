@@ -223,10 +223,9 @@ add_module_loadhist_elt (Lisp_Object elt)
 	  /* Store both the symbol and the symbol value magic object in the
 	     list.  On unloading the module the symbol needs to be made unbound
 	     should Lisp not have done that, and the symbol-value-magic needs
-	     to be freed, since it will not be swept in the normal course of
-	     events (since it does not have anything useful in the NEXT field
-	     of its old_lcrecord_header). Leave the entry in
-	     Vcurrent_load_list, it is useful and helpful for loadhist.el. */
+	     to be freed, since it is C-readonly and will not be swept in the
+	     normal course of events. Leave the entry in Vcurrent_load_list, it
+	     is useful and helpful for loadhist.el. */
 	  XWEAK_LIST_LIST (weak_list)
 	    = Facons (val, elt, XWEAK_LIST_LIST (weak_list));
 	}

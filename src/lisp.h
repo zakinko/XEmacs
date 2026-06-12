@@ -4285,8 +4285,8 @@ extern int purify_flag;
 extern Fixnum Varray_dimension_limit, Vstring_total_size_limit;
 
 extern EMACS_INT gc_generation_number[1];
-int c_readonly (Lisp_Object);
-int lisp_readonly (Lisp_Object);
+Boolint c_readonly (Lisp_Object);
+Boolint lisp_readonly (Lisp_Object);
 MODULE_API Lisp_Object build_istring (const Ibyte *);
 MODULE_API Lisp_Object build_cistring (const CIbyte *);
 MODULE_API Lisp_Object build_ascstring (const Ascbyte *);

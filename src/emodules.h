@@ -22,9 +22,9 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 #define EMODULES_HDR
 #endif
 
-#define EMODULES_VERSION    "1.2.0"
-#define EMODULES_MAJOR      1
-#define EMODULES_MINOR      2
+#define EMODULES_VERSION    "2.0.0"
+#define EMODULES_MAJOR      2
+#define EMODULES_MINOR      0
 #define EMODULES_PATCH      0
 #define EMODULES_REVISION   (long)((EMODULES_MAJOR * 1000) + \
                              (EMODULES_MINOR * 10) + \

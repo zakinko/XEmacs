@@ -72,14 +72,7 @@ enum symbol_value_type
 
 struct symbol_value_magic
 {
-  NORMAL_LISP_OBJECT_HEADER header; /* This is a struct old_lcrecord_header,
-				       with a NEXT pointer after the struct
-				       lrecord_header. This is abused in the
-				       implementation of
-				       symbol_value_forward_boolint and
-				       symbol_value_forward_fixnum, which are
-				       c_readonly and never GCed, so there is
-				       no need for a next pointer. */
+  NORMAL_LISP_OBJECT_HEADER header;
   enum symbol_value_type type;
 };
 #define SYMBOL_VALUE_MAGIC_P(x)						\
@@ -202,18 +195,16 @@ DECLARE_LISP_OBJECT (symbol_value_forward_object,
 
    In contrast to symbol_value_forward_object, GC does not have to mark through
    symbol_value_forward_fixnum. This means we can mark these objects as
-   c_readonly and lisp_readonly, and use what would otherwise be the NEXT
-   pointer of the NORMAL_LISP_OBJECT_HEADER as the pointer to the C variable of
-   interest. */
+   c_readonly and lisp_readonly. */
 
 /* Underlying C type used to implement DEFVAR_INT */
 typedef EMACS_INT Fixnum;
 
 struct symbol_value_forward_fixnum_magic
 {
-  FROB_BLOCK_LISP_OBJECT_HEADER header;
-  Fixnum *value;
+  NORMAL_LISP_OBJECT_HEADER header;
   enum symbol_value_type type;
+  Fixnum *value;
 };
 
 struct symbol_value_forward_fixnum
@@ -243,9 +234,9 @@ DECLARE_LISP_OBJECT (symbol_value_forward_fixnum,
 
 struct symbol_value_forward_boolint_magic
 {
-  FROB_BLOCK_LISP_OBJECT_HEADER header;
-  Boolint *value;
+  NORMAL_LISP_OBJECT_HEADER header;
   enum symbol_value_type type;
+  Boolint *value;
 };
 
 struct symbol_value_forward_boolint
@@ -273,9 +264,7 @@ DECLARE_LISP_OBJECT (symbol_value_forward_boolint,
 
 struct symbol_value_buffer_local
 {
-  struct symbol_value_magic magic; /* The NEXT pointer of the
-				      old_lcrecord_header is used here, by
-				      ALLOC_NORMAL_LISP_OBJECT(). */
+  struct symbol_value_magic magic;
   /* Used in a symbol value cell when the symbol's value is per-buffer.
 
      The type of the symbol-value-magic will be either

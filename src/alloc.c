@@ -695,36 +695,127 @@ allocate_lisp_storage (Bytecount size)
      implementation->size_in_bytes_method != NULL :	\
      implementation->size_in_bytes_method == NULL &&	\
      implementation->static_size == size)
+
+struct lcheader
+{
+  /* The `next' field is used to chain all lcrecords together so that the GC
+     can find (and free) all of them.  `old_alloc_sized_lcrecord' threads
+     lcrecords together. */
+  struct lcheader *next;
+  union
+  {
+    struct lrecord_header lheader;
+    max_align_t align;
+  } a;
+};
+
+#define LCHEADER_LHEADER_NO_ASSERT(lcheader) (&((lcheader)->a.lheader))
+
+#ifdef ERROR_CHECK_GC
+
+DECLARE_INLINE_HEADER (
+struct lrecord_header *
+LCHEADER_LHEADER_1 (struct lcheader *lcheader,
+		    const Ascbyte *file,
+		    int line)
+)
+{
+  struct lrecord_header *result = LCHEADER_LHEADER_NO_ASSERT (lcheader);
+  assert_at_line (!(LHEADER_IMPLEMENTATION (result)->frob_block_p),
+		  file, line);
+  return result;
+}
+
+#define LCHEADER_LHEADER(lcrecord)\
+  LCHEADER_LHEADER_1 (lcrecord, __FILE__, __LINE__)
+
+DECLARE_INLINE_HEADER (
+struct lcheader *
+LCHEADER_NEXT (struct lcheader *lcheader)
+)
+{
+  return lcheader->next;
+}
+
+DECLARE_INLINE_HEADER (
+void
+SET_LCHEADER_NEXT (struct lcheader *lcheader,
+		   struct lcheader *next)
+)
+{
+  lcheader->next = next;
+}
+
+DECLARE_INLINE_HEADER (
+struct lcheader *
+OBJECT_LCHEADER_1 (Lisp_Object object, const Ascbyte *file, int line)
+)
+{
+  struct lrecord_header *lheader = XRECORD_LHEADER (object);
+  assert_at_line (!(LHEADER_IMPLEMENTATION (lheader)->frob_block_p), file, line);
+  return (struct lcheader *) ((Rawbyte *) lheader
+				     - offsetof (struct lcheader,
+						 a.lheader));
+}
+
+#define OBJECT_LCHEADER(object) \
+  OBJECT_LCHEADER_1 (object, __FILE__, __LINE__)
+
+#else /* not ERROR_CHECK_GC */
+
+#define LCHEADER_LHEADER LCHEADER_LHEADER_NO_ASSERT
+#define LCHEADER_NEXT(lcheader) ((lcheader)->next)
+#define SET_LCHEADER_NEXT(lcheader, naechstes) ((lcheader)->next = (naechstes))
+
+#define OBJECT_LCHEADER(object)				       \
+  ((struct lcheader *) ((Rawbyte *) XRECORD_LHEADER (object)    \
+			       - offsetof (struct lcheader,     \
+					   a.lheader)))
+#endif
+
+#define LCRECORD_OBJECT(lcheader) wrap_pointer_1 (LCHEADER_LHEADER (lcheader))
 
 /* lcrecords are chained together through their "next" field.
    After doing the mark phase, GC will walk this linked list
-   and free any lcrecord which hasn't been marked. */
-static struct old_lcrecord_header *all_lcrecords;
+   and free any lcrecord which hasn't been marked.
+
+   Note that the managed lcrecords that have been freed using
+   free_managed_lcrecord() (that is, they are in some lcrecord_list) stay in
+   this linked list; they may be reused as non-managed lcrecords and will need
+   to be garbage collected in the normal way then.  */
+static struct lcheader *all_lcrecords;
 
 static Lisp_Object
 old_alloc_sized_lcrecord_1 (Bytecount size,
 			    const struct lrecord_implementation *implementation,
 			    Boolint c_readonly_p)
 {
-  struct old_lcrecord_header *lcheader;
+  struct lcheader *lcheader;
   Lisp_Object result;
 
   assert_proper_sizing (size);
+
+  size += offsetof (struct lcheader, a.lheader);
+
   type_checking_assert
     (!implementation->frob_block_p
      &&
      !(implementation->hash == NULL && implementation->equal != NULL));
 
-  lcheader = (struct old_lcrecord_header *) allocate_lisp_storage (size);
-  set_lheader_implementation (&lcheader->lheader, implementation);
-  result = wrap_pointer_1 (lcheader);
+  lcheader = (struct lcheader *) allocate_lisp_storage (size);
+  set_lheader_implementation (LCHEADER_LHEADER_NO_ASSERT (lcheader),
+			      implementation);
+  result = wrap_pointer_1 (LCHEADER_LHEADER (lcheader));
   if (c_readonly_p)
     {
+      /* The allocate_lisp_storage() sets lcheader->next to
+	 NULL. free_managed_lcrecord() and clear_c_readonly_record_header()
+	 check for this and add the record to all_lcrecords if needed. */
       SET_C_READONLY (result);
     }
   else
     {
-      lcheader->next = all_lcrecords;
+      SET_LCHEADER_NEXT (lcheader, all_lcrecords);
       all_lcrecords = lcheader;
     }
   INCREMENT_CONS_COUNTER (size, implementation);
@@ -749,21 +840,23 @@ old_alloc_sized_lcrecord (Bytecount size,
  * Otherwise, just let the GC do its job -- that's what it's there for
  */
 void
-very_old_free_lcrecord (struct old_lcrecord_header *lcrecord)
+very_old_free_lcrecord (Lisp_Object object)
 {
+  struct lcheader lcrecord = OBJECT_LCHEADER (object);
+
   if (all_lcrecords == lcrecord)
     {
-      all_lcrecords = lcrecord->next;
+      all_lcrecords = LCHEADER_NEXT (lcrecord);
     }
   else
     {
-      struct old_lcrecord_header *header = all_lcrecords;
+      struct lcheader *header = all_lcrecords;
       for (;;)
 	{
-	  struct old_lcrecord_header *next = header->next;
+	  struct lcheader *next = LCHEADER_NEXT (header->next);
 	  if (next == lcrecord)
 	    {
-	      header->next = lrecord->next;
+	      SET_LCHEADER_NEXT (header, LCHEADER_NEXT (lcrecord));
 	      break;
 	    }
 	  else if (next == 0)
@@ -774,13 +867,12 @@ very_old_free_lcrecord (struct old_lcrecord_header *lcrecord)
     }
   if (lrecord->implementation->finalizer)
     lrecord->implementation->finalizer (wrap_pointer_1 (lrecord));
-  xfree (lrecord);
+  xfree (lcrecord);
   return;
 }
 #endif /* Unused */
 
 /* Bitwise copy all parts of a Lisp object other than the header */
-
 void
 copy_lisp_object (Lisp_Object dst, Lisp_Object src)
 {
@@ -791,16 +883,9 @@ copy_lisp_object (Lisp_Object dst, Lisp_Object src)
   assert (imp == XRECORD_LHEADER_IMPLEMENTATION (dst));
   assert (size == lisp_object_size (dst));
 
-  if (imp->frob_block_p)
-    memcpy ((char *) XRECORD_LHEADER (dst) + sizeof (struct lrecord_header),
-	    (char *) XRECORD_LHEADER (src) + sizeof (struct lrecord_header),
-	    size - sizeof (struct lrecord_header));
-  else
-    memcpy ((char *) XRECORD_LHEADER (dst) +
-	    sizeof (struct old_lcrecord_header),
-	    (char *) XRECORD_LHEADER (src) +
-	    sizeof (struct old_lcrecord_header),
-	    size - sizeof (struct old_lcrecord_header));
+  memcpy ((Binbyte *) XRECORD_LHEADER (dst) + sizeof (struct lrecord_header),
+	  (Binbyte *) XRECORD_LHEADER (src) + sizeof (struct lrecord_header),
+	  size - sizeof (struct lrecord_header));
 }
 
 /* Zero out all parts of a Lisp object other than the header, for a
@@ -808,27 +893,16 @@ copy_lisp_object (Lisp_Object dst, Lisp_Object src)
    at the time this is called, the contents of the object may not be
    defined, or may not be set up in such a way that we can reliably
    retrieve the size, since it may depend on settings inside of the object. */
-
 void
 zero_sized_lisp_object (Lisp_Object obj, Bytecount size)
 {
-  const struct lrecord_implementation *imp =
-    XRECORD_LHEADER_IMPLEMENTATION (obj);
-
-  if (imp->frob_block_p)
-    memset ((char *) XRECORD_LHEADER (obj) + sizeof (struct lrecord_header), 0,
-	    size - sizeof (struct lrecord_header));
-  else
-    memset ((char *) XRECORD_LHEADER (obj) +
-	    sizeof (struct old_lcrecord_header), 0,
-	    size - sizeof (struct old_lcrecord_header));
+  memset ((Binbyte *) XRECORD_LHEADER (obj) + sizeof (struct lrecord_header),
+	  0, size - sizeof (struct lrecord_header));
 }
 
 /* Zero out all parts of a Lisp object other than the header, for an object
    that isn't variable-size.  Objects that are variable-size need to use
-   zero_sized_lisp_object().
-  */
-
+   zero_sized_lisp_object(). */
 void
 zero_nonsized_lisp_object (Lisp_Object obj)
 {
@@ -852,13 +926,13 @@ free_normal_lisp_object (Lisp_Object obj)
   old_free_lcrecord (obj);
 }
 
-int
+Boolint
 c_readonly (Lisp_Object obj)
 {
   return POINTER_TYPE_P (XTYPE (obj)) && C_READONLY (obj);
 }
 
-int
+Boolint
 lisp_readonly (Lisp_Object obj)
 {
   return POINTER_TYPE_P (XTYPE (obj)) && LISP_READONLY (obj);
@@ -3343,6 +3417,12 @@ make_string_nocopy (const Ibyte *contents, Bytecount length)
    See detailed comment in lcrecord.h.
 */
 
+struct free_lcrecord_header
+{
+  NORMAL_LISP_OBJECT_HEADER lheader;
+  Lisp_Object chain;
+};
+
 static const struct memory_description free_description[] = {
   { XD_LISP_OBJECT, offsetof (struct free_lcrecord_header, chain), 0, { 0 },
     XD_FLAG_FREE_LISP_OBJECT },
@@ -3397,8 +3477,8 @@ alloc_managed_lcrecord_1 (Lisp_Object lcrecord_list,
       struct free_lcrecord_header *free_header;
       struct lrecord_header *lheader;
 
-      free_header = (struct free_lcrecord_header *) XPNTR (val);
-      lheader = &free_header->lcheader.lheader;
+      lheader = XRECORD_LHEADER (val);
+      free_header = (struct free_lcrecord_header *) lheader;
 
 #ifdef ERROR_CHECK_GC
       /* Major overkill here. */
@@ -3475,14 +3555,14 @@ alloc_managed_lcrecord (Lisp_Object lcrecord_list,
    call the finalize method of the object, if it exists. */
 
 void
-free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object lcrecord)
+free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object object)
 {
   struct lcrecord_list *list = XLCRECORD_LIST (lcrecord_list);
-  struct free_lcrecord_header *free_header =
-    (struct free_lcrecord_header *) XPNTR (lcrecord);
-  struct lrecord_header *lheader = &free_header->lcheader.lheader;
+  struct lrecord_header *lheader = XRECORD_LHEADER (object);
   const struct lrecord_implementation *implementation
     = LHEADER_IMPLEMENTATION (lheader);
+  struct free_lcrecord_header *free_header
+    = (struct free_lcrecord_header *) lheader;
 
   /* If we try to debug-print during GC, we'll likely get a crash on the
      following assert (called from Lstream_delete(), from prin1_to_string()).
@@ -3505,22 +3585,22 @@ free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object lcrecord)
   
   /* Make sure the size is correct.  This will catch, for example,
      putting a window configuration on the wrong free list. */
-  gc_checking_assert (lisp_object_size (lcrecord) == list->size);
+  gc_checking_assert (lisp_object_size (object) == list->size);
   /* Make sure the object isn't already freed. */
   gc_checking_assert (!LRECORD_FREE_P (lheader));
   /* Freeing stuff in dumped memory is bad.  If you trip this, you
      may need to check for this before freeing. */
-  gc_checking_assert (!OBJECT_DUMPED_P (lcrecord));
+  gc_checking_assert (!OBJECT_DUMPED_P (object));
   
   if (implementation->finalizer)
-    implementation->finalizer (lcrecord);
+    implementation->finalizer (object);
 
   /* Change the lrecord's type to lrecord_type_free; this the one and only way
      we mark it as free. */
   MARK_LRECORD_AS_FREE (lheader);
   CLEAR_C_READONLY_RECORD_HEADER (lheader);
   free_header->chain = list->free;
-  list->free = lcrecord;
+  list->free = object;
 }
 
 /* This is a list of lcrecord_list objects, kept sorted in ascending order of
@@ -3923,7 +4003,7 @@ tick_string_stats (Lisp_String *p, int from_sweep)
     gc_count_num_string_in_use++;
 }
 
-/* As objects are sweeped, we record statistics about their memory usage.
+/* As objects are swept, we record statistics about their memory usage.
    Currently, all lcrecords are processed this way as well as any frob-block
    objects that were saved and restored as a result of the pdump process.
    (See pdump_objects_unmark().) Other frob-block objects do NOT get their
@@ -4509,6 +4589,29 @@ See also `consing-since-gc' and `object-memory-usage-stats'.
 
 #endif /* ALLOC_TYPE_STATS */
 
+/* Clear the C_READONLY flag in LHEADER. If the object was initially allocated
+   using alloc_automanaged_c_readonly_lcrecord(), it is not in all_lcrecords,
+   and so it will be leaked. In that case the NEXT pointer of the allocated
+   old_lcrecord_ will be NULL; set it so that it will be garbage collected
+   should it become free. */
+void
+clear_c_readonly_record_header (struct lrecord_header *lheader)
+{
+  /* Note that this asserts that the relevant object is not frob_block_p; this
+     is intentional, if frob block objects are to be made C_READONLY this needs
+     to be rewritten. */
+  struct lcheader *lcheader = OBJECT_LCHEADER (wrap_pointer_1 (lheader));
+
+  lheader->lisp_readonly = 0;
+  lheader->mark = 0;
+  lheader->c_readonly = 0;
+  if (LCHEADER_NEXT (lcheader) == NULL)
+    {
+      SET_LCHEADER_NEXT (lcheader, all_lcrecords);
+      all_lcrecords = lcheader;
+    }
+}
+
 
 /************************************************************************/
 /*                Allocation statistics: Initialization                 */
@@ -4839,8 +4942,8 @@ undef_lisp_object (int lrecord_type_index)
 static void
 sweep_lcrecords (void)
 {
-  struct old_lcrecord_header **prev = &all_lcrecords;
-  struct old_lcrecord_header *header;
+  struct lcheader **prev = &all_lcrecords;
+  struct lcheader *header;
 
   /* First go through and call all the finalize methods.
      Then go through and free the objects.  There used to
@@ -4852,9 +4955,9 @@ sweep_lcrecords (void)
      we could easily be screwed by having already freed that
      other object. */
 
-  for (header = *prev; header; header = header->next)
+  for (header = *prev; header; header = LCHEADER_NEXT (header))
     {
-      struct lrecord_header *h = &(header->lheader);
+      struct lrecord_header *h = LCHEADER_LHEADER (header);
 
       GC_CHECK_LHEADER_INVARIANTS (h);
 
@@ -4867,7 +4970,8 @@ sweep_lcrecords (void)
 
   for (header = *prev; header; )
     {
-      struct lrecord_header *h = &(header->lheader);
+      struct lrecord_header *h = LCHEADER_LHEADER (header);
+
       if (MARKED_RECORD_HEADER_P (h))
 	{
 	  if (! C_READONLY_RECORD_HEADER_P (h))
@@ -4880,7 +4984,7 @@ sweep_lcrecords (void)
 	}
       else
 	{
-	  struct old_lcrecord_header *next = header->next;
+	  struct lcheader *next = LCHEADER_NEXT (header);
           *prev = next;
 	  tick_lcrecord_stats (h, 1);
 	  /* used to call finalizer right here. */
@@ -5544,21 +5648,21 @@ gc_sweep (void)
 static void
 disksave_object_finalization_1 (void)
 {
-  struct old_lcrecord_header *header;
+  struct lcheader *header;
 
-  for (header = all_lcrecords; header; header = header->next)
+  for (header = all_lcrecords; header; header = LCHEADER_NEXT (header))
     {
-      struct lrecord_header *objh = &header->lheader;
+      struct lrecord_header *objh = LCHEADER_LHEADER (header);
       const struct lrecord_implementation *imp = LHEADER_IMPLEMENTATION (objh);
 #if 0 /* possibly useful for debugging */
       if (!RECORD_DUMPABLE (objh) && !objh->free)
 	{
 	  stderr_out ("Disksaving a non-dumpable object: ");
-	  debug_print (wrap_pointer_1 (header));
+	  debug_print (wrap_pointer_1 (objh));
 	}
 #endif
-      if (imp->disksave && !LRECORD_FREE_P (header))
-	(imp->disksave) (wrap_pointer_1 (header));
+      if (imp->disksave && !LRECORD_FREE_P (objh))
+	(imp->disksave) (wrap_pointer_1 (objh));
     }
 #ifdef ERROR_CHECK_TYPES
   {
