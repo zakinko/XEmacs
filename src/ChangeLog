@@ -1,3 +1,35 @@
+2026-06-12  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Mark the entries in lrecord_implementations_table,
+	lrecord_memory_descriptions const, only modify them via the
+	Dynarrs.
+	* alloc.c:
+	Update declarations for lrecord_implementations_table,
+	lrecord_memory_descriptions.
+	* alloc.c (lisp_object_has_method_1): New. De-inlined implementation
+	of the bulk of OBJECT_HAS_METHOD(), wrapping write access to
+	lrecord_implementations.
+	* alloc.c (lisp_object_has_property_1): New. De-inlined
+	implementation of the bulk of OBJECT_HAS_PROPERTY, wrapping write
+	access to lrecord_implementations. Handle the description
+	specially.
+	* alloc.c (undef_lisp_object):
+	* alloc.c (init_alloc_once_early):
+	* file-coding.c:
+	* file-coding.c (initialize_detector_description):
+	Use OBJECT_HAS_PROPERTY() here when setting the 
+	* lisp.h:
+	Move the typedef of lisp_fn_t before #include of lrecord.h, now it
+	uses it.
+	* lisp.h (struct Lisp_Subr):
+	* lrecord.h:
+	Declare lrecord_implementations_table as a pointer to a const
+	table of const struct lrecord_implementation *, avoid modification
+	of it beyond the sanctioned way.
+	Declare lisp_object_has_method_1(), lisp_object_has_property_1()
+	here. Revise OBJECT_HAS_METHOD(), OBJECT_HAS_PROPERTY() and
+	friends to use them.
+
 2026-06-09  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Implement lrecord_implementations_table using a Dynarr, remove

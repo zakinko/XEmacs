@@ -8563,9 +8563,9 @@ itself.  The tag for all such objects is the generic @dfn{lrecord}
 (Lisp_Type_Record) tag.  The first bytes of the object's structure are a
 small integer characterizing the object's type and some
 flags, in particular the mark bit used for garbage collection.  A
-structure describing the type is accessible thru the
+structure describing the type is accessible through the
 lrecord_implementation_table indexed with said integer.  This structure
-includes the method pointers and a pointer to a string naming the type.
+includes the method pointers and a pointer to a symbol naming the type.
 
 @itemize @bullet
 @item
@@ -22685,7 +22685,8 @@ process, quite error-prone, and interfered with a lot of system libraries
 which are automatically called when the program is started (even before
 @code{main()}); those constructors tend to crash when they were called
 multiple times, once before dumping and once after (IRIX 6.x @file{libz.so}
-pulls in some C++ image libraries thru dependencies which have this problem).
+pulls in some C++ image libraries through dependencies which have this
+problem).
 
 Writing the dumper was also one of the most difficult parts of porting
 XEmacs to a new operating system.
@@ -22796,7 +22797,7 @@ object of the group, the per-object size and the count of objects in the
 group, along with some other information which is initialized later.
 
 These entries are linked together in @code{pdump_block_list} structures
-and can be enumerated thru either:
+and can be enumerated through either:
 
 @enumerate
 @item

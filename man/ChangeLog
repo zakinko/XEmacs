@@ -1,3 +1,14 @@
+2026-06-12  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* internals/internals.texi (Introduction to Allocation):
+	I had planned to change this to reflect changes to the size of
+	struct lrecord.type and to the implementation of
+	lrecord_implementations_table as a Dynarr, but that turns out not
+	to be necessary.
+	Corrected documentation of the type of the name of the object,
+	changed spelling of "through" from "thru" throughout the
+	document.
+
 2026-06-06  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* internals/internals.texi (Dumping and restoring hash tables):

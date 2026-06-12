@@ -491,7 +491,7 @@ struct lrecord_implementation
   unsigned int dumpable :1;
 };
 
-extern MODULE_API struct lrecord_implementation **
+extern MODULE_API const struct lrecord_implementation * const *
 lrecord_implementations_table;
 
 /* Given a built-in C type name (cons, bignum and so on; usually the entry in
@@ -1342,7 +1342,8 @@ extern MODULE_API void init_memory_usage_stats (int type,
                              sizer);                                       \
   } while (0)
 
-extern MODULE_API const struct memory_description **lrecord_memory_descriptions;
+extern MODULE_API const struct memory_description * const *
+lrecord_memory_descriptions;
 
 extern MODULE_API void define_lisp_object (int lrecord_type,
                                            const CIbyte *name,
@@ -1365,19 +1366,52 @@ extern MODULE_API void undef_lisp_object (int lrecord_type);
 /*************** Macros for declaring that a Lisp object has a
                  particular method, or for calling such a method. ********/
 
+/* Don't call these directly, use the macros instead, which do type checking
+   and calculate offsets, sizes appropriately.  */
+extern MODULE_API void lisp_object_has_method_1 (int lrecord_type_index,
+						 size_t offset,
+						 lisp_fn_t);
+extern MODULE_API void lisp_object_has_property_1 (int lrecord_type,
+						   size_t offset,
+						   size_t size,
+						   const void *prop);
+
+#define OBJECT_HAS_METHOD_1(type, method, method_implementation) do	\
+    {									\
+      struct lrecord_implementation o_h_m_1_l_i_##__LINE__;		\
+      /* Type check, avoid multiple evaluation. */			\
+      o_h_m_1_l_i_##__LINE__.method = (method_implementation);		\
+      lisp_object_has_method_1 (type ,					\
+				offsetof (struct lrecord_implementation,\
+					  method),			\
+				(lisp_fn_t)				\
+				o_h_m_1_l_i_##__LINE__.method);		\
+    } while (0)
+
 /* Declare that object-type TYPE has method M; used in
    initialization routines */
 #define OBJECT_HAS_METHOD(type, m) \
-  (LRECORD_IMPLEMENTATION (type)->m = type##_##m)
+  OBJECT_HAS_METHOD_1 (lrecord_type_##type, m, type##_##m)
 /* Same but the method name come before the type */
 #define OBJECT_HAS_PREMETHOD(type, m) \
-  (LRECORD_IMPLEMENTATION (type)->m = m##_##type)
+  OBJECT_HAS_METHOD_1 (lrecord_type_##type, m, m##_##type)
 /* Same but the name of the method is explicitly given */
 #define OBJECT_HAS_NAMED_METHOD(type, m, func) \
-  (LRECORD_IMPLEMENTATION (type)->m = (func))
-/* Object type has a property with the given value. */
-#define OBJECT_HAS_PROPERTY(type, prop, val) \
-  (LRECORD_IMPLEMENTATION (type)->prop = (val))
+  OBJECT_HAS_METHOD_1 (lrecord_type_##type, m, func)
+
+/* Object type has a property with the given value. This does special handling
+   for DESCRIPTION as appropriate. */
+#define OBJECT_HAS_PROPERTY(type, prop, val) do {			\
+    struct lrecord_implementation o_h_p_l_i_##type##_##prop;		\
+    /* Type check, avoid multiple evaluation. */			\
+    o_h_p_l_i_##type##_##prop.prop = (val);				\
+    lisp_object_has_property_1 (lrecord_type_##type ,			\
+				offsetof (struct lrecord_implementation,\
+					  prop),			\
+				sizeof (o_h_p_l_i_##type##_##prop.prop),\
+				(const void *)				\
+				(&o_h_p_l_i_##type##_##prop.prop));	\
+  } while (0)
 
 /* Does the given object method exist? */
 #define HAS_OBJECT_METH_P(obj, m) \

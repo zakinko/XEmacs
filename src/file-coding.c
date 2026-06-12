@@ -4460,10 +4460,8 @@ initialize_detector_description (int detector_id,
       /* Set the object's description to the Dynarr base. We're post
          pdump_load() (we did not fatal() above), we no longer care about the
          differing relocations of dump file vs. data segment pointers. */
-      LRECORD_IMPLEMENTATION (detection_state)->description
-        = Dynarr_begin (detection_state_description.els);
-      lrecord_memory_descriptions[lrecord_type_detection_state]
-        = Dynarr_begin (detection_state_description.els);
+      OBJECT_HAS_PROPERTY (detection_state, description,
+			   Dynarr_begin (detection_state_description.els));
     }
 }
 

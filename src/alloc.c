@@ -109,8 +109,13 @@ typedef struct
 static lrecord_implementation_ptr_dynarr *lrecord_implementations;
 
 /* This always reflects lrecord_implementations->base, and is accessible to
-   other source files (and modules).  */
-struct lrecord_implementation **lrecord_implementations_table;
+   other source files (and modules).
+
+   This implementation has the disadvantage for non-ASLR non-HAVE_SHLIB
+   DUMP_IN_EXEC builds, that its value is not a compile-time constant as it was
+   in the previous implementation. This is fixable, I choose not to do it
+   today. */
+const struct lrecord_implementation * const * lrecord_implementations_table;
 
 int lrecord_type_count = lrecord_type_last_built_in_type;
 
@@ -228,7 +233,7 @@ static const struct sized_memory_description lrecord_memory_descriptions_descrip
 };
 
 /* This always reflect lrecord_memory_descriptions_table->base. */
-const struct memory_description **lrecord_memory_descriptions;
+const struct memory_description * const * lrecord_memory_descriptions;
 
 /* This is just for use by the printer, to allow things to print uniquely.
    We have a separate UID space for each object. (Important because the
@@ -4620,7 +4625,8 @@ get_unused_lrecord_type (void)
       Dynarr_set_length_and_zero (lrecord_implementations,
 				  lrecord_type_count);
       lrecord_implementations_table
-	= Dynarr_begin (lrecord_implementations);
+	= (const lrecord_implementation * const *) Dynarr_begin
+	(lrecord_implementations);
 
       Dynarr_set_length_and_zero (lrecord_uid_counter_table,
 				  lrecord_type_count);
@@ -4742,6 +4748,32 @@ define_lisp_object (int tipo, const CIbyte *name, Bytecount static_size,
   LOADHIST_ATTACH (Fcons (Qobject, make_fixnum (tipo)));
 }
 
+void
+lisp_object_has_method_1 (int lrecord_type, size_t offset, lisp_fn_t method)
+{
+  struct lrecord_implementation *meths
+    = Dynarr_at (lrecord_implementations, lrecord_type);
+  lisp_fn_t *this_method = (lisp_fn_t *) (((Rawbyte *) meths) + offset);
+  *this_method = method;
+}
+
+void
+lisp_object_has_property_1 (int lrecord_type, size_t offset, size_t size,
+			    const void *prop)
+{
+  struct lrecord_implementation *meths
+    = Dynarr_at (lrecord_implementations, lrecord_type);
+
+  memcpy ((((Rawbyte *) meths) + offset), prop, size);
+
+  if (offsetof (struct lrecord_implementation, description) == offset)
+    {
+      Dynarr_set (lrecord_memory_descriptions_table,
+		  lrecord_type,
+		  ((const struct memory_description **) prop)[0]);
+    }
+}
+
 #ifdef HAVE_SHLIB
 
 void
@@ -4770,7 +4802,7 @@ undef_lisp_object (int lrecord_type_index)
   else
     {
       struct lrecord_implementation *impl =
-        lrecord_implementations_table[lrecord_type_index];
+        Dynarr_at (lrecord_implementations, lrecord_type_index);
       Lisp_Object name = impl->name;
       Bytecount static_size = impl->static_size;
 
@@ -5808,9 +5840,14 @@ init_alloc_once_early (void)
   dump_add_root_block_ptr (&lrecord_implementations,
 			   &lrecord_implementations_description);
 
-  lrecord_implementations_table = Dynarr_begin (lrecord_implementations);
-  dump_add_root_block_ptr (&lrecord_implementations_table,
-			   &lrecord_implementations_table_description);
+  {
+    struct lrecord_implementation **silence_compiler
+      = Dynarr_begin (lrecord_implementations);
+    lrecord_implementations_table
+      = (const struct lrecord_implementation **) silence_compiler;
+    dump_add_root_block_ptr (&lrecord_implementations_table,
+			     &lrecord_implementations_table_description);
+  }
 
   lrecord_memory_descriptions_table = Dynarr_new (memory_description);
   Dynarr_set_length_and_zero (lrecord_memory_descriptions_table,

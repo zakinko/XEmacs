@@ -1850,6 +1850,10 @@ MODULE_API int eq_with_ebola_notice (Lisp_Object, Lisp_Object);
 
 END_C_DECLS
 
+/* A function that takes no arguments and returns a Lisp_Object.
+   We could define such types for n arguments, if needed. */
+typedef Lisp_Object (*lisp_fn_t) (void);
+
 #include "lrecord.h"
 
 /* Turn any void * pointer into a Lisp object.  This is the counterpart of
@@ -2907,10 +2911,6 @@ DECLARE_MODULE_API_LISP_OBJECT (symbol, Lisp_Symbol);
 
 
 /*------------------------------- subr ---------------------------------*/
-
-/* A function that takes no arguments and returns a Lisp_Object.
-   We could define such types for n arguments, if needed. */
-typedef Lisp_Object (*lisp_fn_t) (void);
 
 struct Lisp_Subr
 {
