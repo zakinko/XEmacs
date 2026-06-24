@@ -916,8 +916,7 @@ void
 syms_of_signal (void)
 {
   Vasync_timer_queue = Qnil;
-  dump_add_root_lisp_object (&Vasync_timer_queue);
-  dump_mark_nil_lisp_object (&Vasync_timer_queue);
+  staticpro_dump_nil (&Vasync_timer_queue);
 
   DEFSUBR (Fwaiting_for_user_input_p);
 }

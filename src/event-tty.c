@@ -346,8 +346,7 @@ void
 vars_of_event_tty (void)
 {
   Vtty_timer_queue = Qnil;
-  dump_add_root_lisp_object (&Vtty_timer_queue);
-  dump_mark_nil_lisp_object (&Vtty_timer_queue);
+  staticpro_dump_nil (&Vtty_timer_queue);
 
   DEFINE_EVENT_STREAM (tty);
 

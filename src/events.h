@@ -844,11 +844,7 @@ void run_pre_idle_hook (void);
 
 struct low_level_timeout
 {
-  /* This object is not actually a frob block object, but because the relevant
-     objects are C_READONLY there is no need for the
-     NORMAL_LISP_OBJECT_HEADER's NEXT pointer. See comments in
-     event-stream.c. */
-  FROB_BLOCK_LISP_OBJECT_HEADER header;
+  NORMAL_LISP_OBJECT_HEADER header;
   Lisp_Object next;
   EMACS_TIME time;
   int id;

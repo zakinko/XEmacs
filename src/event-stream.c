@@ -922,9 +922,7 @@ execute_help_form (Lisp_Object event)
    anything else.
 
    Each timeout queue is implemented as a linked list, with the next pointer
-   within the structure (within the Lisp_Object implementation). The elements
-   are marked C_READONLY, so they are not traced for GC and not swept, with a
-   view to preserving the performance characteristics of the old code; the
+   within the structure (within the Lisp_Object implementation). The
    free_normal_lisp_object() within remove_low_level_timeout() and
    pop_low_level_timeout() is equivalent for our purposes to the
    Blocktype_free() of the old code.
@@ -953,7 +951,7 @@ add_low_level_timeout (Lisp_Object *timeout_list, EMACS_TIME thyme)
   Lisp_Object elt, prev_elt = Qnil;
 
   /* Allocate a new time struct. */
-  tm = XLOW_LEVEL_TIMEOUT (ALLOC_C_READONLY_LISP_OBJECT (low_level_timeout));
+  tm = XLOW_LEVEL_TIMEOUT (ALLOC_NORMAL_LISP_OBJECT (low_level_timeout));
 
   /* Don't just use ++low_level_timeout_id_tick, for the (admittedly
      rare) case in which numbers wrap around. */

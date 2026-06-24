@@ -1,3 +1,18 @@
+2026-06-24  Aidan Kehoe  <kehoea@parhasard.net>
+
+	No longer allocate low level timeouts as C readonly, in
+	preparation for further work which interacted poorly with this.
+	* event-stream.c:
+	Update a comment here.
+	* event-stream.c (add_low_level_timeout):
+	Call ALLOC_NORMAL_LISP_OBJECT() for the timeout.
+	* events.h (struct low_level_timeout):
+	Update the header to be NORMAL_LISP_OBJECT_HEADER.
+	* event-tty.c (vars_of_event_tty):
+	* signal.c (syms_of_signal):
+	Make the dumper and GC aware of a couple of queues using
+	staticpro_dump_nil() rather than dump_add_root_lisp_object().
+
 2026-06-12  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Get the last change working on non-C++ compilers. In passing add
