@@ -2040,7 +2040,7 @@ typedef struct
 
 struct Lisp_Cons
 {
-  FROB_BLOCK_LISP_OBJECT_HEADER lheader;
+  LISP_OBJECT_HEADER lheader;
   Lisp_Object car_, cdr_;
 };
 typedef struct Lisp_Cons Lisp_Cons;
@@ -2732,7 +2732,7 @@ DECLARE_MODULE_API_LISP_OBJECT (string, Lisp_String);
 
 struct Lisp_Vector
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Elemcount size;
   Lisp_Object contents[1];
 };
@@ -2769,7 +2769,7 @@ DECLARE_LISP_OBJECT (vector, Lisp_Vector);
 
 struct Lisp_Bit_Vector
 {
-  NORMAL_LISP_OBJECT_HEADER lheader;
+  LISP_OBJECT_HEADER lheader;
   Elemcount size;
   unsigned long bits[1];
 };
@@ -2823,7 +2823,7 @@ set_bit_vector_bit (Lisp_Bit_Vector *v, Elemcount n, int value)
 /* For when we want to include a bit vector in another structure, and we
    know it's of a fixed size. */
 #define DECLARE_INLINE_LISP_BIT_VECTOR(numbits) struct {	\
-  NORMAL_LISP_OBJECT_HEADER lheader;				        \
+  LISP_OBJECT_HEADER lheader;				        \
   Elemcount size;						\
   unsigned long bits[BIT_VECTOR_LONG_STORAGE(numbits)];		\
 }
@@ -2860,7 +2860,7 @@ struct Lisp_Symbol
 {
   union
   {
-    FROB_BLOCK_LISP_OBJECT_HEADER lheader;
+    LISP_OBJECT_HEADER lheader;
     struct
     {
       /* Everything before package_count must agree exactly with struct
@@ -2914,7 +2914,7 @@ DECLARE_MODULE_API_LISP_OBJECT (symbol, Lisp_Symbol);
 
 struct Lisp_Subr
 {
-  FROB_BLOCK_LISP_OBJECT_HEADER lheader;
+  LISP_OBJECT_HEADER lheader;
   /* The symbol name of the subr. */
   Lisp_Object name;
   /* Either a fixnum (an offset into DOC) or a Lisp string (for functions in
@@ -2946,7 +2946,7 @@ DECLARE_LISP_OBJECT (subr, Lisp_Subr);
 typedef struct Lisp_Marker Lisp_Marker;
 struct Lisp_Marker
 {
-  FROB_BLOCK_LISP_OBJECT_HEADER lheader;
+  LISP_OBJECT_HEADER lheader;
   Lisp_Marker *next;
   Lisp_Marker *prev;
   struct buffer *buffer;
@@ -3187,7 +3187,7 @@ XCHAR_OR_CHAR_INT_1 (Lisp_Object obj, const Ascbyte *file, int line)
 
 struct Lisp_Float
 {
-  FROB_BLOCK_LISP_OBJECT_HEADER lheader;
+  LISP_OBJECT_HEADER lheader;
   union { double d; struct Lisp_Float *unused_next_; } data;
 };
 typedef struct Lisp_Float Lisp_Float;
@@ -3282,7 +3282,7 @@ void define_structure_type_keyword (struct structure_type *st,
 
 struct ephemeron 
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   Lisp_Object key;
 
@@ -3341,7 +3341,7 @@ enum weak_list_type
 
 struct weak_list
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Lisp_Object list; /* don't mark through this! */
   enum weak_list_type type;
   Lisp_Object next_weak; /* don't mark through this! */

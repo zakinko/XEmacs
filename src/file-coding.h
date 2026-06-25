@@ -238,7 +238,7 @@ enum handle_coding_error
 
 struct Lisp_Coding_System
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   const struct coding_system_methods *methods;
 
 #define CODING_SYSTEM_SLOT_DECLARATION
@@ -722,7 +722,7 @@ initialize_coding_system_type (struct coding_system_methods **dest,
 
 struct detection_state
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   int seen_non_ascii;
   Bytecount bytes_seen;

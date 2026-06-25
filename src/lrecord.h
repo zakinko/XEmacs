@@ -24,51 +24,46 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 #ifndef INCLUDED_lrecord_h_
 #define INCLUDED_lrecord_h_
 
-/* All objects other than char and int are implemented as structures and
+/* All objects other than char and fixnum are implemented as structures and
    passed by reference.  Such objects are called "record objects" ("record"
    is another term for "structure").  The "wrapped" value of such an object
    (i.e. when stored in a variable of type Lisp_Object) is simply the raw
    pointer coerced to an integral type the same size as the pointer.
    
-   There are two kinds of record objects: normal objects (those allocated on
-   their own with xmalloc()) and frob-block objects (those allocated as pieces
-   of large, usually 2K, chunks of memory known as "frob blocks").
-
    Record objects have a header at the beginning of their structure, which
    is used internally to identify the type of the object (so that an
    object's type can be recovered from its pointer); in addition, it holds
    a few flags and a "UID", which for most objects is shown when it is
    printed, and is primarily useful for debugging purposes.  The header of
-   a normal object is declared as NORMAL_LISP_OBJECT_HEADER and that of a
-   frob-block object FROB_BLOCK_LISP_OBJECT_HEADER.
+   an object is declared as LISP_OBJECT_HEADER.
 
-   FROB_BLOCK_LISP_OBJECT_HEADER boils down to a `struct lrecord_header'.
-   This is a 32-bit value made up of bit fields, where 16 bits are used to
-   hold the type, 3 bits are used for flags associated with the
-   garbage collector, and the remaining 13 bits hold the UID.
+   LISP_OBJECT_HEADER boils down to a `struct lrecord_header'.  This is a
+   32-bit value made up of bit fields, where 16 bits are used to hold the type,
+   3 bits are used for flags associated with the garbage collector, and the
+   remaining 13 bits hold the UID.
 
-   NORMAL_LISP_OBJECT_HEADER resolves to a `struct old_lcrecord_header' (note
-   the `c'), which is a larger structure -- on 32-bit machines it occupies 2
-   machine words instead of 1.  Such an object is known internally as an
-   "lcrecord".  The first word of `struct old_lcrecord_header' is an embedded
-   `struct lrecord_header' with the same information as for frob-block
-   objects; that way, all objects can be cast to a `struct lrecord_header' to
-   determine their type or other info.  The other word is a pointer, used to
-   thread all lcrecords together in one big linked list.
+   There are two kinds of record objects from the perspective of the allocator:
+   normal objects (those allocated on their own with xmalloc(), termed
+   lcrecords) and frob-block objects (those allocated as pieces of large,
+   usually 2K, chunks of memory known as "frob blocks").
 
-   Normal objects (i.e. lcrecords) are allocated in individual chunks using
-   the underlying allocator (i.e. xmalloc(), which is a thin wrapper around
-   malloc()).  Frob-block objects are more efficient than normal objects, as
-   they have a smaller header and don't have the additional memory overhead
-   associated with malloc() -- instead, as mentioned above, they are carved
+   Normal objects (lcrecords) are allocated in individual chunks using the
+   underlying allocator (i.e. xmalloc(), which is a thin wrapper around
+   malloc()), with a chain pointer before the lrecord_header to allow them to
+   be swept. This chain pointer is not dumped, since dumped objects are traced
+   for GC in a different way (and they are not currently freed).
+
+   Frob-block objects are more efficient than normal objects, as they don't
+   have the additional memory overhead associated with malloc() and have no
+   need for the chain pointer -- instead, as mentioned above, they are carved
    out of 2K chunks of memory called "frob blocks").  However, it is slightly
    more tricky to create such objects, as they require special routines in
    alloc.c to create an object of each such type and to sweep them during
    garbage collection.  In addition, there is currently no mechanism for
    handling variable-sized frob-block objects (e.g. vectors), whereas
    variable-sized normal objects are not a problem.  Frob-block objects are
-   typically used for basic objects that exist in large numbers, such as
-   `cons' or `string'.
+   typically used for basic objects that exist in large numbers, such as `cons'
+   or `string'.
 
    Note that strings are an apparent exception to the statement above that
    variable-sized objects can't be handled.  Strings work as follows.  A
@@ -95,11 +90,8 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 /*
   How to declare a Lisp object:
 
-   NORMAL_LISP_OBJECT_HEADER:
-      Header for normal objects
-
-   FROB_BLOCK_LISP_OBJECT_HEADER:
-      Header for frob-block objects
+   LISP_OBJECT_HEADER:
+      Header for all Lisp objects.
 
   How to allocate a Lisp object:
 
@@ -143,10 +135,11 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 #define ALLOC_SIZED_LISP_OBJECT(size, type) \
   old_alloc_sized_lcrecord (size, LRECORD_IMPLEMENTATION (type))
 
-#define NORMAL_LISP_OBJECT_HEADER struct lrecord_header
-#define FROB_BLOCK_LISP_OBJECT_HEADER struct lrecord_header
+#define LISP_OBJECT_HEADER struct lrecord_header
+#define NORMAL_LISP_OBJECT_HEADER LISP_OBJECT_HEADER
+#define FROB_BLOCK_LISP_OBJECT_HEADER LISP_OBJECT_HEADER
+
 #define LISP_OBJECT_FROB_BLOCK_P(obj) (XRECORD_LHEADER_IMPLEMENTATION(obj)->frob_block_p)
-#define IF_OLD_GC(x) x
 
 #define ALLOC_C_READONLY_LISP_OBJECT(type) \
   alloc_automanaged_c_readonly_lcrecord (LRECORD_IMPLEMENTATION (type))
@@ -675,7 +668,7 @@ void clear_c_readonly_record_header (struct lrecord_header *);
 
    struct Lisp_Cons
    {
-     FROB_BLOCK_LISP_OBJECT_HEADER lheader;
+     LISP_OBJECT_HEADER lheader;
      Lisp_Object car_, cdr_;
    };
 
@@ -748,7 +741,7 @@ void clear_c_readonly_record_header (struct lrecord_header *);
    
    struct Lisp_Hash_Table
    {
-     NORMAL_LISP_OBJECT_HEADER header;
+     LISP_OBJECT_HEADER header;
      Elemcount size;
      Elemcount count;
      Elemcount rehash_count;
@@ -811,7 +804,7 @@ void clear_c_readonly_record_header (struct lrecord_header *);
 
    struct Lisp_Specifier
    {
-     NORMAL_LISP_OBJECT_HEADER header;
+     LISP_OBJECT_HEADER header;
      struct specifier_methods *methods;
    
      ...
@@ -1437,7 +1430,7 @@ do							\
    1. Declare the struct for your object in a header file somewhere.
    Remember that it must begin with
 
-   NORMAL_LISP_OBJECT_HEADER header;
+   LISP_OBJECT_HEADER header;
 
    2. Put the "standard junk" (DECLARE_LISP_OBJECT()/XFOO/etc.) below the
       struct definition -- see below.
@@ -1474,7 +1467,7 @@ do							\
 
   struct toolbar_button
   {
-    NORMAL_LISP_OBJECT_HEADER header;
+    LISP_OBJECT_HEADER header;
   
     Lisp_Object next;
     Lisp_Object frame;

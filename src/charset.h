@@ -93,7 +93,7 @@ extern Lisp_Object Vcharset_hash_table;
 
 struct Lisp_Charset
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   int id; /* ID for this charset.  If old-Mule, this is the actual leading
 	     byte for this charset; otherwise, an arbitrary unique value. */

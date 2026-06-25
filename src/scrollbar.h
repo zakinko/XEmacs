@@ -26,7 +26,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 struct scrollbar_instance
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   /* Used by the frame caches. */
   struct scrollbar_instance *next;

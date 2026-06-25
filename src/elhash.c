@@ -157,7 +157,7 @@ Bytecount page_size_reorganize_threshold = 0;
    the hash is of the string data or the string data of the symbol name). */
 struct Hash_Table_Test
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Lisp_Object name;
   hash_table_equal_function_t equal_function;
   Lisp_Object lisp_equal_function;
@@ -182,7 +182,7 @@ static const struct memory_description hash_table_test_description[] = {
 
 struct Lisp_Hash_Table
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Elemcount size;
   Elemcount count;
   Elemcount rehash_count;

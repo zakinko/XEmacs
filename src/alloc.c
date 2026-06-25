@@ -1496,7 +1496,7 @@ do									\
 
 struct lcrecord_list
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Lisp_Free *free;
   /* This is the size of a Lisp_Object in the list including its
      lcheader_overhead. This means that lcrecord_lists for objects of varying
@@ -4723,7 +4723,7 @@ See also `consing-since-gc' and `object-memory-usage-stats'.
 /* Clear the C_READONLY flag in LHEADER. If the object was initially allocated
    using alloc_automanaged_c_readonly_lcrecord(), it is not in all_lcrecords,
    and so it will be leaked. In that case the NEXT pointer of the allocated
-   lcrecord_header will be NULL; set it so that it will be garbage collected
+   lcheader will be NULL; set it so that it will be garbage collected
    should it become free. If LHEADER is a frob-block object, just clear the
    bits in LHEADER and don't attempt to examine the nonexistent LCHEADER. */
 void

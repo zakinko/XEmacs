@@ -560,7 +560,7 @@ struct subwindow_image_instance
 
 struct Lisp_Image_Instance
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Lisp_Object domain;		/* The domain in which we were cached. */
   Lisp_Object device;		/* The device of the domain. Recorded
 				   since the domain may get deleted
@@ -912,7 +912,7 @@ enum glyph_type
 
 struct Lisp_Glyph
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   enum glyph_type type;
 
@@ -1145,7 +1145,7 @@ void clear_frame_subwindow_instance_caches (struct frame*);
 
 struct expose_ignore
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   int x, y;
   int width, height;
 };

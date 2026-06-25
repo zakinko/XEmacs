@@ -25,7 +25,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 struct extent
 {
-  FROB_BLOCK_LISP_OBJECT_HEADER lheader;
+  LISP_OBJECT_HEADER lheader;
 
   Memxpos start;
   Memxpos end;
@@ -123,7 +123,7 @@ typedef struct extent_auxiliary extent_auxiliary;
 
 struct extent_auxiliary
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 #define SLOT(x) Lisp_Object x;
   EXTENT_AUXILIARY_SLOTS
 #undef SLOT
@@ -134,7 +134,7 @@ extern Lisp_Object Vextent_auxiliary_defaults;
 
 struct extent_info
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   struct extent_list *extents;
   struct stack_of_extents *soe;

@@ -36,7 +36,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 struct Lisp_LDAP
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   /* The LDAP connection handle used by the LDAP API */
   LDAP *ld;
   /* Name of the host we connected to */

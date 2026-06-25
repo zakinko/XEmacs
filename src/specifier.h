@@ -215,7 +215,7 @@ struct specifier_methods
 
 struct Lisp_Specifier
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   const struct specifier_methods *methods;
 
   /* This is a straight list of instantiators. */

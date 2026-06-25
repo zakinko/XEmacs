@@ -41,7 +41,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 struct toolbar_button
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   Lisp_Object next;
   Lisp_Object frame;

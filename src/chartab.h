@@ -59,7 +59,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 struct Lisp_Char_Subtable
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Lisp_Object ptr[256];
 };
 
@@ -155,7 +155,7 @@ enum char_table_type
 
 struct Lisp_Char_Table
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   /* Currently we use the same structure as for the Unicode->charset
      translation tables in unicode.c.  This is extremely fast (constant-
@@ -300,7 +300,7 @@ extern Lisp_Object Vall_syntax_tables;
 
 struct Lisp_Category_Table
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Lisp_Object tables[CHAR_TABLES_PER_CATEGORY_TABLE];
 };
 typedef struct Lisp_Category_Table Lisp_Category_Table;

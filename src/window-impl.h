@@ -82,7 +82,7 @@ the window configuration. */
 
 struct window
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   /* The upper left corner coordinates of this window,
      as integers (pixels) relative to upper left corner of frame = 0, 0 */
@@ -166,7 +166,7 @@ struct window
 
 struct window_mirror
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   /* Frame this mirror is on. */
   struct frame *frame;

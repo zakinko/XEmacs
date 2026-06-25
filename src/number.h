@@ -74,7 +74,7 @@ BEGIN_C_DECLS
 
 struct Lisp_Bignum
 {
-  FROB_BLOCK_LISP_OBJECT_HEADER lheader;
+  LISP_OBJECT_HEADER lheader;
   bignum data;
 };
 typedef struct Lisp_Bignum Lisp_Bignum;
@@ -243,7 +243,7 @@ extern Fixnum Vmost_negative_fixnum, Vmost_positive_fixnum;
 
 struct Lisp_Ratio
 {
-  FROB_BLOCK_LISP_OBJECT_HEADER lheader;
+  LISP_OBJECT_HEADER lheader;
   ratio data;
 };
 typedef struct Lisp_Ratio Lisp_Ratio;
@@ -311,7 +311,7 @@ EXFUN (Fdenominator, 1);
 #ifdef HAVE_BIGFLOAT
 struct Lisp_Bigfloat
 {
-  FROB_BLOCK_LISP_OBJECT_HEADER lheader;
+  LISP_OBJECT_HEADER lheader;
   bigfloat bf;
 };
 typedef struct Lisp_Bigfloat Lisp_Bigfloat;

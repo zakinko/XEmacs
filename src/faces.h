@@ -30,7 +30,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 struct Lisp_Face
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   Lisp_Object name;
   Lisp_Object doc_string;

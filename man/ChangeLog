@@ -1,3 +1,16 @@
+2026-06-25  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* internals/internals.texi (lrecords):
+	Update the documentation regarding lcrecords, which no longer have
+	a struct old_lcrecord_header at their beginning.
+
+	* internals/internals.texi (Top):
+	* internals/internals.texi (Garbage Collection - Step by Step):
+	* internals/internals.texi (compact_string_chars):
+	* internals/internals.texi (sweep_strings):
+	* internals/internals.texi (pdump_objects_unmark): New.
+	Document this in passing, never previously documented.
+
 2026-06-12  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* internals/internals.texi (Introduction to Allocation):

@@ -53,7 +53,7 @@ static dll_handle dlhandle;
 
 struct Lisp_Module
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   /* Full path to the the shared object loaded. */
   Lisp_Object soname;
   /* The name of the module */

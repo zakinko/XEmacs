@@ -491,6 +491,7 @@ Garbage Collection - Step by Step
 * sweep_lcrecords::
 * compact_string_chars::        
 * sweep_strings::               
+* pdump_objects_unmark::
 
 Evaluation; Stack Frames; Bindings
 
@@ -8818,6 +8819,7 @@ this already-rarely-elicited bug further.
 * sweep_lcrecords::
 * compact_string_chars::        
 * sweep_strings::               
+* pdump_objects_unmark::
 @end menu
 
 @node Invocation, garbage_collect, Garbage Collection - Step by Step, Garbage Collection - Step by Step
@@ -9236,7 +9238,7 @@ is reset on the last block to which we moved a string,
 i.e. @code{to_block}, and all remaining blocks (we know that they just
 carry garbage) are explicitly @code{xfree}d.
 
-@node sweep_strings, , compact_string_chars, Garbage Collection - Step by Step
+@node sweep_strings, pdump_objects_unmark, compact_string_chars, Garbage Collection - Step by Step
 @subsection @code{sweep_strings}
 @cindex @code{sweep_strings}
 
@@ -9256,6 +9258,23 @@ addition: in case, the string was not allocated in a
 @code{string_chars_block} because it exceeded the maximal length, and
 therefore it was @code{malloc}ed separately, we know also @code{xfree}
 it explicitly.
+
+@node pdump_objects_unmark, , sweep_strings, Garbage Collection - Step by Step
+@subsection @code{pdump_objects_unmark}
+@cindex @code{pdump_objects_unmark}
+
+The dumper constructs a table enumerating all the dumped Lisp_Objects
+called @code{pdump_relocation_table}, needed for relocation of those
+Lisp_Objects on restart.
+
+There is no intrinsic barrier to sweeping dumped Lisp_Objects (and
+putting the data on either a frob block's free list or an lcrecord_list;
+calling @code{xfree()} on that data would be unwise), but that is not
+currently done.
+
+Instead @code{pdump_objects_unmark()} traverses that table and just
+clears the mark bit in their headers, so they will be unmarked for the
+next GC.
 
 @node Fixnums and Characters, Allocation from Frob Blocks, Garbage Collection - Step by Step, Allocation of Objects in XEmacs Lisp
 @section Fixnums and Characters
@@ -9320,12 +9339,6 @@ lrecord_implementation structure is allocated on the heap.  The modules
 implementation previously allocated the structure in the data segment of the
 module; this functioned poorly when a module was unloaded.
 
-Frob-block lrecords just have a @code{struct lrecord_header} at their
-beginning.  lcrecords, however, actually have a
-@code{struct old_lcrecord_header}.  This, in turn, has a @code{struct
-lrecord_header} at its beginning, so sanity is preserved; but it also
-has a pointer used to chain all lcrecords together.
-
 Frob-block objects are created using @code{ALLOC_FROB_BLOCK_LISP_OBJECT()}.
 All this does is call @code{ALLOCATE_FIXED_TYPE()} to allocate an
 object, and @code{set_lheader_implementation()} to initialize the header.
@@ -9336,11 +9349,13 @@ internally to a structure named @code{lrecord_implementation_foo} for type
 @code{foo}).  If they are of variable size, however, they are created
 with @code{ALLOC_SIZED_LISP_OBJECT()}, which takes a size to allocate
 in addition to a type.  This basically just @code{malloc()}s the
-storage, initializes the @code{struct lcrecord_header}, and chains the
+storage, initializes the @code{struct lrecord_header}, and chains the
 lcrecord onto the head of the list of all lcrecords, which is stored
 in the variable @code{all_lcrecords}.  The calls to the above
 allocation macros generally occur in the lowest-level allocation
-function for each lrecord type.
+function for each lrecord type. The chain pointer is stored before the
+@code{struct lrecord_header}, with appropriate padding if needed for
+alignment.
 
 Whenever you create a normal object, you need to call one of the
 @code{DEFINE_*_LISP_OBJECT()} macros.  This needs to be specified in a
@@ -9398,7 +9413,7 @@ method, or wanting to customize the print method, use the normal
 
 @code{MAKE_LISP_OBJECT} is what underlies all of these; it defines a
 structure containing pointers to object methods and other info such as
-the size of the structure containing the object.
+the size and alignment of the structure containing the object.
 
 For the purpose of keeping allocation statistics, the allocation engine keeps
 a list of all the different types that exist.  This information is also

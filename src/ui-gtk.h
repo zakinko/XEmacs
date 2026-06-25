@@ -34,7 +34,7 @@ typedef void (*ffi_marshalling_function) (ffi_actual_function, GValue *);
 #define MAX_GTK_ARGS 100
 
 typedef struct {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   GType return_type;
   GType arg_type[MAX_GTK_ARGS];
   gint n_args;
@@ -64,7 +64,7 @@ DECLARE_LISP_OBJECT (emacs_ffi, emacs_ffi_data);
 
 /* Encapsulate a GtkObject in Lisp */
 typedef struct {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   gboolean alive_p;
   GObject *object;
   Lisp_Object plist;
@@ -81,7 +81,7 @@ extern Lisp_Object build_gtk_object (GObject *obj);
 
 /* Encapsulate a G_TYPE_BOXED in lisp */
 typedef struct {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   GType object_type;
   void *object;
 } emacs_gtk_boxed_data;

@@ -26,7 +26,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 typedef struct Lisp_Opaque
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Bytecount size;
   max_align_t data[1];
 } Lisp_Opaque;
@@ -52,7 +52,7 @@ Lisp_Object make_opaque (const void *data, Bytecount size);
 
 typedef struct Lisp_Opaque_Ptr
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   void *ptr;
 } Lisp_Opaque_Ptr;
 

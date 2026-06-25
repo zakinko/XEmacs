@@ -50,7 +50,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 struct Lisp_Compiled_Function
 {
-  FROB_BLOCK_LISP_OBJECT_HEADER lheader;
+  LISP_OBJECT_HEADER lheader;
   unsigned short stack_depth;
   unsigned short specpdl_depth;
   struct

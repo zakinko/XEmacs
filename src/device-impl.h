@@ -68,7 +68,7 @@ struct pixel_to_glyph_translation_cache
 
 struct device
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   /* Methods for this device's console.  This can also be retrieved
      through device->console, but it's faster this way. */

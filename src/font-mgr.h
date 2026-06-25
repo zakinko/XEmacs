@@ -52,7 +52,7 @@ extern Fixnum debug_xft;
 
 struct fc_pattern
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   FcPattern *fcpatPtr;
 };
 
@@ -71,7 +71,7 @@ DECLARE_LISP_OBJECT(fc_pattern, struct fc_pattern);
 
 struct fc_config
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   FcConfig *fccfgPtr;
 };
 

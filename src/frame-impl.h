@@ -38,7 +38,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 struct frame
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   /* Methods for this frame's console.  This can also be retrieved
      through frame->device->console, but it's faster this way. */

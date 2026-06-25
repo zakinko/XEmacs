@@ -72,7 +72,7 @@ enum symbol_value_type
 
 struct symbol_value_magic
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   enum symbol_value_type type;
 };
 #define SYMBOL_VALUE_MAGIC_P(x)						\
@@ -202,7 +202,7 @@ typedef EMACS_INT Fixnum;
 
 struct symbol_value_forward_fixnum_magic
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   enum symbol_value_type type;
   Fixnum *value;
 };
@@ -234,7 +234,7 @@ DECLARE_LISP_OBJECT (symbol_value_forward_fixnum,
 
 struct symbol_value_forward_boolint_magic
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   enum symbol_value_type type;
   Boolint *value;
 };
@@ -541,7 +541,7 @@ do									\
 void flush_all_buffer_local_cache (void);
 
 struct multiple_value {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Elemcount count;
   Elemcount allocated_count; 
   Elemcount first_desired;

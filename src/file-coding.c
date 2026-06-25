@@ -6182,7 +6182,7 @@ syms_of_file_coding (void)
 {
   DEFINE_DUMPABLE_SIZABLE_LISP_OBJECT ("coding-system", coding_system,
                                        print_coding_system,
-                                       IF_OLD_GC (finalize_coding_system),
+                                       finalize_coding_system,
                                        0, 0, coding_system_description,
                                        sizeof_coding_system,
                                        Lisp_Coding_System);

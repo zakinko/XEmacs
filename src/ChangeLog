@@ -1,5 +1,89 @@
 2026-06-25  Aidan Kehoe  <kehoea@parhasard.net>
 
+	* lrecord.h:
+	Update documentation regarding headers for Lisp_Objects, now there
+	is no further need for a distinct struct lcrecord_header.
+	* lrecord.h (LISP_OBJECT_HEADER): New #define.
+
+	* lrecord.h (NORMAL_LISP_OBJECT_HEADER): #define this to
+	LISP_OBJECT_HEADER, which should ease porting of modules.
+	* lrecord.h (FROB_BLOCK_LISP_OBJECT_HEADER): Ditto.
+	* lrecord.h (IF_OLD_GC): Remove this in passing, no longer needed.
+
+	* alloc.c (struct lcrecord_list):
+	* buffer.h (struct buffer):
+	* bytecode.h (struct Lisp_Compiled_Function):
+	* casetab.h (struct Lisp_Case_Table):
+	* charset.h (struct Lisp_Charset):
+	* chartab.h (struct Lisp_Char_Subtable):
+	* chartab.h (struct Lisp_Char_Table):
+	* chartab.h (struct Lisp_Category_Table):
+	* console-impl.h (struct console):
+	* console-msw-impl.h (struct Lisp_Devmode):
+	* console-msw-impl.h (struct mswindows_dialog_id):
+	* database.c (struct Lisp_Database):
+	* device-impl.h (struct device):
+	* elhash.c (struct Hash_Table_Test):
+	* elhash.c (struct Lisp_Hash_Table):
+	* emodules.c (struct Lisp_Module):
+	* events.h (struct Lisp_Timeout):
+	* events.h (struct Lisp_Event):
+	* events.h (struct low_level_timeout):
+	* events.h (struct command_builder):
+	* extents-impl.h (struct extent):
+	* extents-impl.h (struct extent_auxiliary):
+	* extents-impl.h (struct extent_info):
+	* faces.h (struct Lisp_Face):
+	* file-coding.c (syms_of_file_coding):
+	* file-coding.h (struct Lisp_Coding_System):
+	* file-coding.h (struct detection_state):
+	* font-mgr.h:
+	* font-mgr.h (struct fc_pattern):
+	* font-mgr.h (struct fc_config):
+	* fontcolor-impl.h (struct Lisp_Color_Instance):
+	* fontcolor-impl.h (struct Lisp_Font_Instance):
+	* frame-impl.h (struct frame):
+	* glyphs.h (struct Lisp_Image_Instance):
+	* glyphs.h (struct Lisp_Glyph):
+	* glyphs.h (struct expose_ignore):
+	* gui.h (struct Lisp_Gui_Item):
+	* keymap.c (struct Lisp_Keymap):
+	* lisp.h (struct Lisp_Cons):
+	* lisp.h (struct Lisp_Vector):
+	* lisp.h (struct Lisp_Bit_Vector):
+	* lisp.h (DECLARE_INLINE_LISP_BIT_VECTOR):
+	* lisp.h (struct Lisp_Symbol):
+	* lisp.h (struct Lisp_Subr):
+	* lisp.h (struct Lisp_Marker):
+	* lisp.h (struct Lisp_Float):
+	* lisp.h (struct ephemeron):
+	* lisp.h (struct weak_list):
+	* number.h (struct Lisp_Bignum):
+	* number.h (struct Lisp_Ratio):
+	* number.h (struct Lisp_Bigfloat):
+	* opaque.h:
+	* opaque.h (Lisp_Opaque):
+	* opaque.h (Lisp_Opaque_Ptr):
+	* procimpl.h (struct Lisp_Process):
+	* rangetab.h (struct Lisp_Range_Table):
+	* scrollbar.h (struct scrollbar_instance):
+	* specifier.h (struct Lisp_Specifier):
+	* symeval.h:
+	* symeval.h (SYMBOL_VALUE_MAGIC_P):
+	* symeval.h (struct symbol_value_forward_fixnum_magic):
+	* symeval.h (struct symbol_value_forward_boolint_magic):
+	* toolbar.h (struct toolbar_button):
+	* tooltalk.c (struct Lisp_Tooltalk_Message):
+	* tooltalk.c (struct Lisp_Tooltalk_Pattern):
+	* ui-gtk.h:
+	* unicode.h (struct precedence_array):
+	* window-impl.h (struct window):
+	* window-impl.h (struct window_mirror):
+	Change FROB_BLOCK_LISP_OBJECT_HEADER, NORMAL_LISP_OBJECT_HEADER to
+	LISP_OBJECT_HEADER in all these structures.
+
+2026-06-25  Aidan Kehoe  <kehoea@parhasard.net>
+
 	Fix my last change, no longer leak an extra sizeof (void *) of
 	memory per lcrecord at runtime.
 

@@ -382,7 +382,7 @@ extern void initialize_console_type (struct console_methods **dest,
 
 struct console
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   /* Description of this console's methods.  */
   const struct console_methods *conmeths;

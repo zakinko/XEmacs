@@ -47,7 +47,7 @@ enum range_table_type
 
 struct Lisp_Range_Table
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Gap_Array *entries;
   enum range_table_type type;
 };

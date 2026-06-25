@@ -564,7 +564,7 @@ typedef struct Lisp_Magic_Data Lisp_Magic_Data;
 
 struct Lisp_Timeout
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   int id; /* Id we use to identify the timeout over its lifetime */
   EMACS_INT interval_id; /* Id for this particular interval; this may be
                             different each time the timeout is signalled.*/
@@ -593,7 +593,7 @@ struct Lisp_Event
      - Likewise for events chained in the command builder.
      - Otherwise it's Qnil.
    */
-  FROB_BLOCK_LISP_OBJECT_HEADER lheader;
+  LISP_OBJECT_HEADER    lheader;
   Lisp_Object           next;
   emacs_event_type      event_type;
 
@@ -844,7 +844,7 @@ void run_pre_idle_hook (void);
 
 struct low_level_timeout
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Lisp_Object next;
   EMACS_TIME time;
   int id;
@@ -964,7 +964,7 @@ fd_to_lisp_usid (int fd)
  */
 struct command_builder
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Lisp_Object console; /* back pointer to the console this command
                           builder is for */
 #if 0

@@ -55,7 +55,7 @@ DECLARE_CONSOLE_TYPE (msprinter);
 
 struct Lisp_Devmode
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   /* Pointer to the DEVMODE structure */
   DEVMODEW *devmode;
@@ -270,7 +270,7 @@ struct msprinter_frame
 
 struct mswindows_dialog_id
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
 
   Lisp_Object frame;
   Lisp_Object callbacks;

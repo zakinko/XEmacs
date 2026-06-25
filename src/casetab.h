@@ -27,7 +27,7 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 struct Lisp_Case_Table
 {
-  NORMAL_LISP_OBJECT_HEADER header;
+  LISP_OBJECT_HEADER header;
   Lisp_Object downcase_table;
   Lisp_Object upcase_table;
   Lisp_Object case_canon_table;
