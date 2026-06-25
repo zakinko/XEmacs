@@ -1,3 +1,141 @@
+2026-06-25  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Fix my last change, no longer leak an extra sizeof (void *) of
+	memory per lcrecord at runtime.
+
+	* alloc.c:
+	* alloc.c (assert_proper_sizing):
+	Take IMPLEMENTATION as an argument, rather than assuming it is
+	available in the current function.
+	* alloc.c:
+	Move the typedef and Lisp object boilerplate, memory description
+	for Lisp_Free earlier in this file, now it is used by the
+	lcrecord_list implementation.
+
+	* alloc.c (struct lcheader):
+	Revise this type, just include NEXT.
+	New structures, lcheader_max_align_t_aligned,
+	lcheader_void_ptr_aligned, reflecting differing header sizes
+	depending on header alignment need.
+	* alloc.c (LCHEADER_OVERHEAD_VOID_PTR_ALIGNED):
+	* alloc.c (LCHEADER_OVERHEAD_MAX_ALIGN_T_ALIGNED):
+	New constants, determined from the above new structures.
+	* alloc.c (LCHEADER_MAX_ALIGNEDP): New macro.
+	* alloc.c (SET_LCHEADER_MAX_ALIGNEDP): New macro.
+	* alloc.c (LCHEADER_LHEADER_NO_ASSERT):
+	Take the lcheader argument twice to avoid multiple evaluation. Two
+	implementations, depending on whether we can implement it without
+	branching or not.
+	* alloc.c (SET_LCHEADER_NEXT_NO_ASSERT): New macro, set an
+	lcheader's next field preserving its MAX_ALIGNEDP bit.
+	* alloc.c (LCHEADER_NEXT_NO_ASSERT): New macro, access an
+	lcheader's next field ignoring its MAX_ALIGNEDP bit.
+	* alloc.c (GC_CHECK_LCHEADER_INVARIANTS) New inline function on
+	ERROR_CHECK_GC builds, analagous to GC_CHECK_LHEADER_INVARIANTS.
+	* alloc.c (LCHEADER_NEXT_1): Function using it on ERROR_CHECK_GC
+	builds.
+	* alloc.c (LCHEADER_NEXT): #define for this, using LCHEADER_NEXT_1
+	on ERROR_CHECK_GC builds.
+	* alloc.c (SET_LCHEADER_NEXT_1): New inline function used
+	on ERROR_CHECK_GC builds, does consistency checking.
+	* alloc.c (SET_LCHEADER_NEXT): #define for this, using
+	SET_LCHEADER_NEXT_1 on ERROR_CHECK_GC builds.
+	* alloc.c (LCHEADER_LHEADER_1, LCHEADER_LHEADER): Same approach
+	with an inline function, assertions.
+	* alloc.c (OBJECT_LCHEADER_1): Use GC_CHECK_LCHEADER_INVARIANTS()
+	here.
+	* alloc.c (MARK_LCRECORD_AS_FREE):
+	New macro.
+	* alloc.c (old_alloc_sized_lcrecord_1):
+	Examine implementation->lcheader_overhead, pass IMPLEMENTATION to
+	assert_proper_sizing(). Call SET_LCHEADER_MAX_ALIGNEDP() as
+	appropriate. Call LCHEADER_LHEADER() with its new calling
+	convention.
+	* alloc.c (free_normal_lisp_object):
+	Move the implementation of old_free_lcrecord() into this. Remove
+	the latter's declaration.
+	* alloc.c (lcrecord_list):
+	Move the declaration for this struct and the boilerplate for the
+	Lisp_Object here from lrecord.h, no need to expose it to other
+	files. Declare FREE as a Lisp_Free * rather than a Lisp_Object,
+	for better compatibility with the frob block free lists.
+	Remove the declaration for struct free_lcrecord_header, no longer
+	needed.
+	* alloc.c (disksave_lcrecord_list):
+	Remove a comment that is no longer true. Set the free pointer to
+	NULL rather than Qnil.
+	* alloc.c (make_lcrecord_list):
+	Set the free pointer to NULL rather than Qnil.
+	* alloc.c (alloc_managed_lcrecord_1):
+	Examine list->free as a pointer rather than a Lisp_Object. Call
+	SET_LCHEADER_MAX_ALIGNEDP() as appropriate. Use
+	LCHEADER_LHEADER_NO_ASSERT(), call zero_sized_lisp_object() using
+	the implementation's lcheader_overhead.
+	* alloc.c (print_lcrecord_list):
+	Examine list->free as a pointer rather than a Lisp_Object.
+	* alloc.c (free_managed_lcrecord):
+	Manipulate list->free as a pointer rather than a Lisp_Object. Call
+	MARK_LCRECORD_AS_FREE().
+	* alloc.c (compare_lcrecord_lists): Give this a better name in
+	passing.
+	* alloc.c (find_lcrecord_list):
+	Take a new argument, lcheader_overhead. Call
+	compare_lcrecord_lists() with its new name.
+	* alloc.c (get_lcrecord_list): Take a new argument,
+	lcheader_overhead.
+	* alloc.c (old_free_lcrecord): Removed, implementation moved to
+	free_normal_lisp_object().
+	* alloc.c (clear_c_readonly_record_header):
+	Update this to accept frob block objects.
+	* alloc.c (define_lisp_object):
+	New argument, ALIGNMENT. Store this in the
+	lrecord_implementation. Calculate lcheader_overhead from this,
+	initialize it. Call get_lcrecord_list() with its new name.
+	No need now for bootstrap handling of the FREE slot of the created
+	lcrecord_list.
+	* alloc.c (sweep_lcrecords):
+	Call LCHEADER_LHEADER with its new calling convention. Manipulate
+	the beginning of the list slightly differently.
+	* alloc.c (gc_sweep):
+	Traverse the FREE slot of the lcrecord_lists as a pointer rather
+	than a Lisp_Object.
+	* alloc.c (disksave_object_finalization_1):
+	Call LCHEADER_LHEADER() with its new convention.
+	* alloc.c (init_alloc_once_early):
+	Update the call to DEFINE_NODUMP_INTERNAL_LISP_OBJECT() using
+	struct Lisp_Free as the structure argument.
+	* config.h.in:
+	Make SIZEOF_MAX_ALIGN_T available here.
+	* gc.h (GC_CHECK_LHEADER_INVARIANTS):
+	Declare GCLI_lh as const, placate callers in alloc.c.
+	* lrecord.h:
+	* lrecord.h (struct lrecord_implementation):
+	Declare ALIGNMENT, LCHEADER_OVERHEAD as slots in this.
+	* lrecord.h (DEFINE_DUMPABLE_LISP_OBJECT):
+	* lrecord.h (DEFINE_DUMPABLE_SIZABLE_LISP_OBJECT):
+	* lrecord.h (DEFINE_DUMPABLE_FROB_BLOCK_LISP_OBJECT):
+	* lrecord.h (DEFINE_DUMPABLE_FROB_BLOCK_SIZABLE_LISP_OBJECT):
+	* lrecord.h (DEFINE_DUMPABLE_SIZABLE_INTERNAL_LISP_OBJECT):
+	* lrecord.h (DEFINE_NODUMP_LISP_OBJECT):
+	* lrecord.h (DEFINE_NODUMP_SIZABLE_LISP_OBJECT):
+	* lrecord.h (DEFINE_NODUMP_FROB_BLOCK_LISP_OBJECT):
+	* lrecord.h (DEFINE_NODUMP_FROB_BLOCK_SIZABLE_LISP_OBJECT):
+	Update all these to pass the structtype to MAKE_LISP_OBJECT().
+	* lrecord.h (MAKE_LISP_OBJECT):
+	Pass ALIGNOF (structtype) to define_lisp_object().
+	Update declaration for define_lisp_object().
+	* lrecord.h (struct lcrecord_list):
+	Move the declaration of this to alloc.c, no need to expose it to
+	other code. Update some comments.
+	Update declaration of get_lcrecord_list().
+	* lstream.c:
+	* lstream.c (sizeof_lstream):
+	SIZE slot of lcrecord_list is no longer exposed, revert to the
+	previous implementation of this.
+	* lstream.h (DEFINE_LSTREAM_IMPLEMENTATION_WITH_DATA):
+	* lstream.h (DEFINE_LSTREAM_IMPLEMENTATION):
+	Call get_lcrecord_list() with its new argument in these macros.
+
 2026-06-24  Aidan Kehoe  <kehoea@parhasard.net>
 
 	No longer allocate low level timeouts as C readonly, in

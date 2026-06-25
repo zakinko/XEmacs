@@ -461,6 +461,12 @@ struct lrecord_implementation
      outwith those. */
   int lrecord_type_index;
 
+  /* Alignment requirements of the object. */
+  int alignment;
+
+  /* Calculated from the above; only of relevance for lcrecords */
+  Binbyte lcheader_overhead;
+
   /* A "frob-block" lrecord is any lrecord that's not an lcrecord, i.e.
      one that does not have an old_lcrecord_header at the front and which
      is (usually) allocated in frob blocks. */
@@ -1234,19 +1240,20 @@ extern MODULE_API void init_memory_usage_stats (int type,
 #define DEFINE_DUMPABLE_LISP_OBJECT(name, c_name, printer, nuker, equal, \
                                     hash, desc, structtype)              \
   MAKE_LISP_OBJECT (name, c_name, 1 /*dumpable*/, printer, nuker, equal, \
-                    hash, desc, sizeof (structtype), 0, 0)
+                    hash, desc, sizeof (structtype), 0, 0, structtype)
 
 #define DEFINE_DUMPABLE_SIZABLE_LISP_OBJECT(name, c_name, printer, nuker,\
                                             equal, hash, desc, sizer,    \
                                             structtype)                  \
   MAKE_LISP_OBJECT (name, c_name, 1 /*dumpable*/, printer, nuker, equal, \
-                    hash, desc, 0, sizer, 0)
+                    hash, desc, 0, sizer, 0, structtype)
 
 #define DEFINE_DUMPABLE_FROB_BLOCK_LISP_OBJECT(name, c_name, printer, \
                                                nuker, equal, hash,    \
                                                desc, structtype)      \
   MAKE_LISP_OBJECT (name, c_name, 1 /*dumpable*/, printer, nuker,     \
-                    equal, hash, desc, sizeof(structtype), 0, 1)
+                    equal, hash, desc, sizeof(structtype), 0, 1,      \
+		    structtype)
 
 #define DEFINE_DUMPABLE_FROB_BLOCK_SIZABLE_LISP_OBJECT(name, c_name,    \
                                                        printer, nuker,  \
@@ -1254,7 +1261,7 @@ extern MODULE_API void init_memory_usage_stats (int type,
                                                        desc, sizer,     \
                                                        structtype)      \
   MAKE_LISP_OBJECT (name, c_name, 1 /*dumpable*/, printer, nuker,       \
-                    equal, hash, desc, 0, sizer, 1)
+                    equal, hash, desc, 0, sizer, 1, structtype)
 
 #define DEFINE_DUMPABLE_INTERNAL_LISP_OBJECT(name, c_name, desc,        \
                                              structtype)                \
@@ -1265,32 +1272,34 @@ extern MODULE_API void init_memory_usage_stats (int type,
                                                      sizer, structtype)  \
   DEFINE_DUMPABLE_SIZABLE_LISP_OBJECT(name, c_name,                      \
                                       internal_object_printer, 0, 0, 0,  \
-                                      desc, sizer)
+                                      desc, sizer, structtype)
 
 /********* The non-dumpable versions *********** */
 
 #define DEFINE_NODUMP_LISP_OBJECT(name, c_name, printer, nuker, equal,  \
                                   hash, desc, structtype)               \
   MAKE_LISP_OBJECT (name, c_name, 0 /*non-dumpable*/, printer, nuker,   \
-                    equal, hash, desc, sizeof (structtype), 0, 0)
+                    equal, hash, desc, sizeof (structtype), 0, 0,	\
+		    structtype)
 
 #define DEFINE_NODUMP_SIZABLE_LISP_OBJECT(name, c_name, printer, nuker, \
                                           equal, hash, desc, sizer,     \
                                           structtype)                   \
   MAKE_LISP_OBJECT (name, c_name, 0 /*non-dumpable*/, printer, nuker,   \
-                    equal, hash, desc, 0, sizer, 0)
+                    equal, hash, desc, 0, sizer, 0, structtype)
 
 #define DEFINE_NODUMP_FROB_BLOCK_LISP_OBJECT(name, c_name, printer,     \
                                              nuker, equal, hash, desc,  \
                                              structtype)                \
   MAKE_LISP_OBJECT (name, c_name, 0 /*non-dumpable*/, printer, nuker,   \
-                    equal, hash, desc, sizeof (structtype), 0, 1)
+                    equal, hash, desc, sizeof (structtype), 0, 1,	\
+		    structtype)
 
 #define DEFINE_NODUMP_FROB_BLOCK_SIZABLE_LISP_OBJECT(name, c_name, printer,   \
                                                      nuker, equal, hash,      \
                                                      desc, sizer, structtype) \
   MAKE_LISP_OBJECT (name, c_name, 0 /*non-dumpable*/, printer, nuker,   \
-                    equal, hash, desc, 0, sizer, 1)
+                    equal, hash, desc, 0, sizer, 1, structtype)
 
 #define DEFINE_NODUMP_INTERNAL_LISP_OBJECT(name, c_name, desc, structtype) \
   DEFINE_NODUMP_LISP_OBJECT (name, c_name, internal_object_printer, 0,     \
@@ -1306,10 +1315,11 @@ extern MODULE_API void init_memory_usage_stats (int type,
 
 #define MAKE_LISP_OBJECT(lisp_name, c_name, dumpable, m_l_o_printer,       \
                          nuker, m_l_o_equal, m_l_o_hash, desc, size, sizer,\
-                         frob_block_p)                                     \
+                         frob_block_p, structtype)			   \
   do {                                                                     \
     define_lisp_object (init_lrecord_type_##c_name (), lisp_name, size,    \
-                        desc, dumpable, frob_block_p);                     \
+                        desc, dumpable, frob_block_p,			   \
+			ALIGNOF (structtype));				   \
     OBJECT_HAS_NAMED_METHOD (c_name, printer, m_l_o_printer);              \
     OBJECT_HAS_NAMED_METHOD (c_name, finalizer, nuker);                    \
     OBJECT_HAS_NAMED_METHOD (c_name, equal, m_l_o_equal);                  \
@@ -1326,7 +1336,8 @@ extern MODULE_API void define_lisp_object (int lrecord_type,
                                            Bytecount size,
                                            const struct memory_description *,
                                            Boolint dumpable,
-                                           Boolint frob_block_p)
+                                           Boolint frob_block_p,
+                                           int alignment)
 	ATTRIBUTE_COLD;
 
 #ifdef HAVE_SHLIB
@@ -1724,23 +1735,6 @@ visibility Lisp_Object Q##c_name##p
    dead_wrong_type_argument (predicate, x);		\
  } while (0)
 
-/*-------------------------- lcrecord-list -----------------------------*/
-
-struct lcrecord_list
-{
-  NORMAL_LISP_OBJECT_HEADER header;
-  Lisp_Object free;
-  Bytecount size;
-};
-
-DECLARE_LISP_OBJECT (lcrecord_list, struct lcrecord_list);
-#define XLCRECORD_LIST(x) XRECORD (x, lcrecord_list, struct lcrecord_list)
-#define wrap_lcrecord_list(p) wrap_record (p, lcrecord_list)
-#define LCRECORD_LISTP(x) RECORDP (x, lcrecord_list)
-/* #define CHECK_LCRECORD_LIST(x) CHECK_RECORD (x, lcrecord_list)
-   Lcrecord lists should never escape to the Lisp level, so
-   functions should not be doing this. */
-
 /* Various ways of allocating lcrecords.  All bytes (except lcrecord
    header) are zeroed in returned structure.
 
@@ -1777,9 +1771,11 @@ DECLARE_LISP_OBJECT (lcrecord_list, struct lcrecord_list);
    them with free_managed_lcrecord().
 
    The "auto-managed" and "hand-managed" models share lcrecord-lists when the
-   desired size is the same. The function get_lcrecord_list(), if passed the
-   same SIZE argument multiple times, will return the same lcrecord-list
-   object.
+   desired size (after adjustment for alignment) are the same. The function
+   get_lcrecord_list(), if passed the same SIZE and LCRECORD_OVERHEAD arguments
+   multiple times, will return the same lcrecord-list object. If SIZE is
+   different but the sum of SIZE and LCRECORD_OVERHEAD comes to the same value,
+   get_lcrecord_list() will also return the same lcrecord-list object.
 
    -- "Unmanaged" means you simply allocate lcrecords, period.  No
    lcrecord-lists, no way to free them.  This may be suitable when the
@@ -1799,8 +1795,11 @@ DECLARE_LISP_OBJECT (lcrecord_list, struct lcrecord_list);
 
    1) Obtain an lcrecord-list object using get_lcrecord_list().  This is often
       done at initialization.  No need to staticpro() this, it will remain
-      reachable by means of Vall_lcrecord_lists.  The argument to
-      get_lcrecord_list() is just the size of the desired object in bytes.
+      reachable by means of Vall_lcrecord_lists.  The arguments to
+      get_lcrecord_list() are the size of the desired object in bytes and the
+      overhead needed for the allocator, generally automatically determined by
+      define_lisp_object() (use the lcheader_overhead field in struct
+      lrecord_implementation).
 
    2) Instead of calling ALLOC_SIZED_LISP_OBJECT(), call
       alloc_managed_lcrecord() and pass the lcrecord-list obtained earlier,
@@ -1825,7 +1824,7 @@ Lisp_Object old_alloc_sized_lcrecord (Bytecount size,
 				      const struct lrecord_implementation *);
 
 /* HAND-MANAGED MODEL: */
-Lisp_Object get_lcrecord_list (Bytecount size);
+Lisp_Object get_lcrecord_list (Bytecount size, Binbyte lcrecord_overhead);
 Lisp_Object alloc_managed_lcrecord (Lisp_Object lcrecord_list, 
 				    const struct lrecord_implementation *);
 void free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object lcrecord);

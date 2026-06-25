@@ -2684,6 +2684,7 @@ AC_CHECK_SIZEOF(long)
 AC_CHECK_SIZEOF(long long)
 AC_CHECK_SIZEOF(void *)
 AC_CHECK_SIZEOF(double)
+AC_CHECK_SIZEOF(max_align_t, [], [#include <stddef.h>])
 
 dnl check for long file names
 AC_SYS_LONG_FILE_NAMES

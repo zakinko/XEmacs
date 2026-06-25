@@ -689,73 +689,224 @@ allocate_lisp_storage (Bytecount size)
   return val;
 }
 
-#define assert_proper_sizing(size)			\
-  type_checking_assert					\
-    (implementation->static_size == 0 ?			\
-     implementation->size_in_bytes_method != NULL :	\
-     implementation->size_in_bytes_method == NULL &&	\
+#define assert_proper_sizing(size, implementation)      \
+  type_checking_assert                                  \
+    (implementation->static_size == 0 ?                 \
+     implementation->size_in_bytes_method != NULL :     \
+     implementation->size_in_bytes_method == NULL &&    \
      implementation->static_size == size)
 
+/* Lisp_Free is the type used to represent free objects. If a free object has
+   not had xfree() called on it, it is reachable from either its frob block
+   free list, or from some lcrecord_list. (#### The frob block free list should
+   be implemented as an lcrecord_list, and the name of the latter should be
+   changed.) CHAIN is used to reach the next free object, and is NULL if there
+   isn't one. This means that any Lisp_Object must have space for this pointer
+   (see the declaration of Lisp_Float for a relevant concern). */
+typedef struct Lisp_Free
+{
+  struct lrecord_header lheader;
+  struct Lisp_Free *chain;
+} Lisp_Free;
+
+DECLARE_LISP_OBJECT (free, struct Lisp_Free);
+#define XFREE_LRECORD(x) XRECORD (x, free, struct Lisp_Free)
+#define wrap_free(p) wrap_record (p, free)
+#define FREEP(x) RECORDP (x, free)
+
+#define LRECORD_FREE_P(ptr) \
+(((struct lrecord_header *) ptr)->type == lrecord_type_free)
+
+#define MARK_LRECORD_AS_FREE(ptr) \
+((void) (((struct lrecord_header *) ptr)->type = lrecord_type_free))
+
+#ifdef ERROR_CHECK_GC
+#define MARK_LRECORD_AS_NOT_FREE(ptr) \
+((void) (((struct lrecord_header *) ptr)->type = lrecord_type_undefined))
+#else
+#define MARK_LRECORD_AS_NOT_FREE(ptr) DO_NOTHING
+#endif
+
+static const struct memory_description free_description[] = {
+  { XD_LISP_OBJECT, offsetof (struct Lisp_Free, chain), 0, { 0 },
+    XD_FLAG_FREE_LISP_OBJECT },
+  { XD_END }
+};
+
+/************************************************************************/
+/*                           Lcrecords                                  */
+/************************************************************************/
+
 struct lcheader
 {
   /* The `next' field is used to chain all lcrecords together so that the GC
      can find (and free) all of them.  `old_alloc_sized_lcrecord' threads
-     lcrecords together. */
+     lcrecords together.
+
+     NEXT is a pointer to an object that needs, at minimum, four byte
+     alignment; the low-order two bits will always be zero, in the same way as
+     the low-order two bits of a non-immediate Lisp_Object will always be zero.
+
+     This implementation uses the lowest-order bit to document whether the
+     lheader is maximally aligned or packed immediately after the first 64 (or
+     32) bits. */
   struct lcheader *next;
-  union
-  {
-    struct lrecord_header lheader;
-    max_align_t align;
-  } a;
 };
 
-#define LCHEADER_LHEADER_NO_ASSERT(lcheader) (&((lcheader)->a.lheader))
+struct lcheader_void_ptr_aligned
+{
+  struct lcheader *next;
+  union {
+    struct lrecord_header lheader;
+  } u;
+};
+
+struct lcheader_max_align_t_aligned
+{
+  struct lcheader *next;
+  union {
+    struct lrecord_header lheader;
+    max_align_t align;
+  } u;
+};
+
+#define LCHEADER_OVERHEAD_VOID_PTR_ALIGNED	\
+  ((Binbyte) offsetof (struct lcheader_void_ptr_aligned, u.lheader))
+#define LCHEADER_OVERHEAD_MAX_ALIGN_T_ALIGNED	\
+  ((Binbyte) offsetof (struct lcheader_max_align_t_aligned, u.lheader))
+
+#define LCHEADER_MAX_ALIGNEDP(lcheader) \
+  ((EMACS_UINT) ((lcheader)->next) & 1)
+
+#define SET_LCHEADER_MAX_ALIGNEDP(lch, value) do                        \
+    {                                                                   \
+      struct lcheader *s_l_m_a_lcheader = (lch);                        \
+      s_l_m_a_lcheader->next                                            \
+	= (struct lcheader *) ((~((EMACS_UINT) 1)			\
+				& ((EMACS_UINT) s_l_m_a_lcheader->next))\
+			       | !!(value));				\
+    } while (0)
+
+#if SIZEOF_MAX_ALIGN_T == (SIZEOF_VOID_P << 1)
+#define LCHEADER_LHEADER_NO_ASSERT(lch_again, lch)                      \
+  ((struct lrecord_header *) ((Rawbyte *) (lch_again) +                 \
+                              (SIZEOF_VOID_P <<                         \
+                               ((EMACS_UINT) ((lch)->next) & 1)
+#else
+static const Binbyte lcheader_offsets[] = {
+  LCHEADER_OVERHEAD_VOID_PTR_ALIGNED,
+  LCHEADER_OVERHEAD_MAX_ALIGN_T_ALIGNED
+};
+
+#define LCHEADER_LHEADER_NO_ASSERT(lch_again, lch)                      \
+  ((struct lrecord_header *) ((Rawbyte *) (lch_again) +                 \
+                              lcheader_offsets                          \
+                              [(EMACS_UINT) ((lch)->next) & 1]))
+#endif
+
+#define SET_LCHEADER_NEXT_NO_ASSERT(lch, naechstes) do                  \
+    {                                                                   \
+      struct lcheader *s_l_n_n_a_lch = (lch);                           \
+      s_l_n_n_a_lch->next                                               \
+        = (struct lcheader *) (((EMACS_UINT) naechstes)                 \
+                               | ((EMACS_UINT) s_l_n_n_a_lch->next      \
+                                  & 1));                                \
+    } while (0)
+
+#define LCHEADER_NEXT_NO_ASSERT(lch)                    \
+  ((struct lcheader *) ((EMACS_UINT) ((lch)->next)      \
+			& ~((EMACS_UINT) 1)))
+
+#define OBJECT_LCHEADER_NO_ASSERT(object)                               \
+  ((struct lcheader *)							\
+   ((Rawbyte *) XRECORD_LHEADER (object) -				\
+    XRECORD_LHEADER_IMPLEMENTATION (object)->lcheader_overhead))
 
 #ifdef ERROR_CHECK_GC
 
 DECLARE_INLINE_HEADER (
-struct lrecord_header *
-LCHEADER_LHEADER_1 (struct lcheader *lcheader,
-		    const Ascbyte *file,
-		    int line)
+void
+GC_CHECK_LCHEADER_INVARIANTS (const struct lcheader *lcheader,
+                              const struct lrecord_header *lheader,
+                              const Ascbyte *file, int line)
 )
 {
-  struct lrecord_header *result = LCHEADER_LHEADER_NO_ASSERT (lcheader);
-  assert_at_line (!(LHEADER_IMPLEMENTATION (result)->frob_block_p),
-		  file, line);
-  return result;
-}
+  if (lheader == NULL)
+    {
+      assert_at_line (lcheader != NULL, file, line);
+      lheader = LCHEADER_LHEADER_NO_ASSERT (lcheader, lcheader);
+    }
+  else if (lcheader == NULL)
+    {
+      assert_at_line (lheader != NULL, file, line);
+      lcheader = OBJECT_LCHEADER_NO_ASSERT (wrap_pointer_1 (lheader));
+    }
 
-#define LCHEADER_LHEADER(lcrecord)\
-  LCHEADER_LHEADER_1 (lcrecord, __FILE__, __LINE__)
+  if (lheader->type == 0)
+    {
+      static const struct lrecord_header zero_lheader = { 0 };
+      assert_at_line (!memcmp (lheader, &zero_lheader, sizeof (zero_lheader)),
+                      file, line);
+    }
+  else
+    {
+      GC_CHECK_LHEADER_INVARIANTS (lheader);
+      assert_at_line (!(LHEADER_IMPLEMENTATION (lheader)->frob_block_p),
+                      file, line);
+    }
+}
 
 DECLARE_INLINE_HEADER (
 struct lcheader *
-LCHEADER_NEXT (struct lcheader *lcheader)
+LCHEADER_NEXT_1 (const struct lcheader *lcheader, const Ascbyte *file,
+                 int line)
 )
 {
-  return lcheader->next;
+  GC_CHECK_LCHEADER_INVARIANTS (lcheader, NULL, file, line);
+  return LCHEADER_NEXT_NO_ASSERT (lcheader);
 }
+
+#define LCHEADER_NEXT(lcheader) LCHEADER_NEXT_1 (lcheader,		\
+						 __FILE__, __LINE__)
 
 DECLARE_INLINE_HEADER (
 void
-SET_LCHEADER_NEXT (struct lcheader *lcheader,
-		   struct lcheader *next)
+SET_LCHEADER_NEXT_1 (struct lcheader *lcheader, const struct lcheader *next,
+		     const Ascbyte *file, int line)
 )
 {
-  lcheader->next = next;
+  assert_at_line (((EMACS_UINT) next & 3) == 0, file, line);
+  SET_LCHEADER_NEXT_NO_ASSERT (lcheader, next);
+  GC_CHECK_LCHEADER_INVARIANTS (lcheader, NULL, file, line);
 }
+
+#define SET_LCHEADER_NEXT(lcheader, next) \
+  SET_LCHEADER_NEXT_1 (lcheader, next, __FILE__, __LINE__)
+
+DECLARE_INLINE_HEADER (
+struct lrecord_header *
+LCHEADER_LHEADER_1 (const struct lcheader *lch_again,
+		    const struct lcheader *lch,
+		    const Ascbyte *file, int line)
+)
+{
+  const struct lrecord_header *result
+    = LCHEADER_LHEADER_NO_ASSERT (lch_again, lch);
+  GC_CHECK_LCHEADER_INVARIANTS (lch, result, file, line);
+  return (struct lrecord_header *) result;
+}
+
+#define LCHEADER_LHEADER(lcheader_again, lcheader)			\
+  LCHEADER_LHEADER_1 (lcheader_again, lcheader, __FILE__, __LINE__)
 
 DECLARE_INLINE_HEADER (
 struct lcheader *
 OBJECT_LCHEADER_1 (Lisp_Object object, const Ascbyte *file, int line)
 )
 {
-  struct lrecord_header *lheader = XRECORD_LHEADER (object);
-  assert_at_line (!(LHEADER_IMPLEMENTATION (lheader)->frob_block_p), file, line);
-  return (struct lcheader *) ((Rawbyte *) lheader
-				     - offsetof (struct lcheader,
-						 a.lheader));
+  struct lcheader *result = OBJECT_LCHEADER_NO_ASSERT (object);
+  GC_CHECK_LCHEADER_INVARIANTS (result, XRECORD_LHEADER (object), file, line);
+  return result;
 }
 
 #define OBJECT_LCHEADER(object) \
@@ -763,17 +914,19 @@ OBJECT_LCHEADER_1 (Lisp_Object object, const Ascbyte *file, int line)
 
 #else /* not ERROR_CHECK_GC */
 
+#define LCHEADER_NEXT LCHEADER_NEXT_NO_ASSERT
+#define SET_LCHEADER_NEXT SET_LCHEADER_NEXT_NO_ASSERT
 #define LCHEADER_LHEADER LCHEADER_LHEADER_NO_ASSERT
-#define LCHEADER_NEXT(lcheader) ((lcheader)->next)
-#define SET_LCHEADER_NEXT(lcheader, naechstes) ((lcheader)->next = (naechstes))
+#define OBJECT_LCHEADER OBJECT_LCHEADER_NO_ASSERT
 
-#define OBJECT_LCHEADER(object)				       \
-  ((struct lcheader *) ((Rawbyte *) XRECORD_LHEADER (object)    \
-			       - offsetof (struct lcheader,     \
-					   a.lheader)))
 #endif
 
-#define LCRECORD_OBJECT(lcheader) wrap_pointer_1 (LCHEADER_LHEADER (lcheader))
+#define MARK_LCRECORD_AS_FREE(lcheader, sz) do {                        \
+    struct lcheader *m_l_a_f_lcheader = (lcheader);                     \
+    SET_LCHEADER_MAX_ALIGNEDP (m_l_a_f_lcheader, 0);			\
+    MARK_LRECORD_AS_FREE (LCHEADER_LHEADER_NO_ASSERT			\
+			  (m_l_a_f_lcheader, m_l_a_f_lcheader));	\
+  } while (0)
 
 /* lcrecords are chained together through their "next" field.
    After doing the mark phase, GC will walk this linked list
@@ -790,22 +943,28 @@ old_alloc_sized_lcrecord_1 (Bytecount size,
 			    const struct lrecord_implementation *implementation,
 			    Boolint c_readonly_p)
 {
+  Binbyte lcheader_overhead = implementation->lcheader_overhead;
   struct lcheader *lcheader;
   Lisp_Object result;
 
-  assert_proper_sizing (size);
-
-  size += offsetof (struct lcheader, a.lheader);
+  assert_proper_sizing (size, implementation);
 
   type_checking_assert
     (!implementation->frob_block_p
      &&
      !(implementation->hash == NULL && implementation->equal != NULL));
 
+  size += lcheader_overhead;
   lcheader = (struct lcheader *) allocate_lisp_storage (size);
-  set_lheader_implementation (LCHEADER_LHEADER_NO_ASSERT (lcheader),
+
+  SET_LCHEADER_MAX_ALIGNEDP (lcheader,
+			     (lcheader_overhead ==
+			      LCHEADER_OVERHEAD_MAX_ALIGN_T_ALIGNED));
+  set_lheader_implementation (LCHEADER_LHEADER_NO_ASSERT (lcheader,
+							  lcheader),
 			      implementation);
-  result = wrap_pointer_1 (LCHEADER_LHEADER (lcheader));
+
+  result = wrap_pointer_1 (LCHEADER_LHEADER (lcheader, lcheader));
   if (c_readonly_p)
     {
       /* The allocate_lisp_storage() sets lcheader->next to
@@ -913,8 +1072,6 @@ zero_nonsized_lisp_object (Lisp_Object obj)
   zero_sized_lisp_object (obj, lisp_object_size (obj));
 }
 
-static void old_free_lcrecord (Lisp_Object);
-
 void
 free_normal_lisp_object (Lisp_Object obj)
 {
@@ -923,7 +1080,11 @@ free_normal_lisp_object (Lisp_Object obj)
 
   assert (!imp->frob_block_p);
   assert (!imp->size_in_bytes_method);
-  old_free_lcrecord (obj);
+
+  if (OBJECT_DUMPED_P (obj))
+    return;
+
+  free_managed_lcrecord (imp->lcrecord_list, obj);
 }
 
 Boolint
@@ -1245,29 +1406,6 @@ do								\
                                   (type));                      \
 } while (0)
 
-/* Lisp_Free is the type to represent a free list member inside a frob
-   block of any lisp object type.  */
-typedef struct Lisp_Free
-{
-  struct lrecord_header lheader;
-  struct Lisp_Free *chain;
-} Lisp_Free;
-
-DECLARE_LISP_OBJECT (free, struct Lisp_Free);
-
-#define LRECORD_FREE_P(ptr) \
-(((struct lrecord_header *) ptr)->type == lrecord_type_free)
-
-#define MARK_LRECORD_AS_FREE(ptr) \
-((void) (((struct lrecord_header *) ptr)->type = lrecord_type_free))
-
-#ifdef ERROR_CHECK_GC
-#define MARK_LRECORD_AS_NOT_FREE(ptr) \
-((void) (((struct lrecord_header *) ptr)->type = lrecord_type_undefined))
-#else
-#define MARK_LRECORD_AS_NOT_FREE(ptr) DO_NOTHING
-#endif
-
 #ifdef ERROR_CHECK_GC
 
 #define PUT_FIXED_TYPE_ON_FREE_LIST(type, structtype, ptr) do {	\
@@ -1353,6 +1491,26 @@ do									\
 #define NOSEEUM_ALLOC_FROB_BLOCK_LISP_OBJECT(type, lisp_type, var, lrec_ptr) \
   NOSEEUM_ALLOC_FROB_BLOCK_LISP_OBJECT_1(type, lisp_type, var, lrec_ptr, \
                                          lheader) 
+
+/*-------------------------- lcrecord-list -----------------------------*/
+
+struct lcrecord_list
+{
+  NORMAL_LISP_OBJECT_HEADER header;
+  Lisp_Free *free;
+  /* This is the size of a Lisp_Object in the list including its
+     lcheader_overhead. This means that lcrecord_lists for objects of varying
+     alignment can be shared. */
+  Bytecount size;
+};
+
+DECLARE_LISP_OBJECT (lcrecord_list, struct lcrecord_list);
+#define XLCRECORD_LIST(x) XRECORD (x, lcrecord_list, struct lcrecord_list)
+#define wrap_lcrecord_list(p) wrap_record (p, lcrecord_list)
+#define LCRECORD_LISTP(x) RECORDP (x, lcrecord_list)
+/* #define CHECK_LCRECORD_LIST(x) CHECK_RECORD (x, lcrecord_list)
+   Lcrecord lists should never escape to the Lisp level, so
+   functions should not be doing this. */
 
 /************************************************************************/
 /*			   Cons allocation				*/
@@ -3417,18 +3575,6 @@ make_string_nocopy (const Ibyte *contents, Bytecount length)
    See detailed comment in lcrecord.h.
 */
 
-struct free_lcrecord_header
-{
-  NORMAL_LISP_OBJECT_HEADER lheader;
-  Lisp_Object chain;
-};
-
-static const struct memory_description free_description[] = {
-  { XD_LISP_OBJECT, offsetof (struct free_lcrecord_header, chain), 0, { 0 },
-    XD_FLAG_FREE_LISP_OBJECT },
-  { XD_END }
-};
-
 static const struct memory_description lcrecord_list_description[] = {
   { XD_LISP_OBJECT, offsetof (struct lcrecord_list, free), 0, { 0 },
     XD_FLAG_FREE_LISP_OBJECT },
@@ -3440,14 +3586,7 @@ static void disksave_lcrecord_list (Lisp_Object) ATTRIBUTE_COLD;
 static void
 disksave_lcrecord_list (Lisp_Object lcrecord_list)
 {
-  /* This causes a leak of xmalloc()ed data at dump time, when we immediately
-     exit. Explicitly freeing the entries in the chain does not currently add
-     value, since the GC is (somehow) still aware of some of them; this may be
-     an artefact of ERROR_CHECK_GC (see Ben's comment above about never
-     freeing a frob block when ERROR_CHECK_GC.) This will not be relevant for
-     valgrind and friend since we are most interested in what they think post
-     pdump_load(). */
-  XLCRECORD_LIST (lcrecord_list)->free = Qnil;
+  XLCRECORD_LIST (lcrecord_list)->free = NULL;
 }
 
 static Lisp_Object
@@ -3461,7 +3600,7 @@ make_lcrecord_list (Bytecount size)
                                               (LRECORD_IMPLEMENTATION
                                                (lcrecord_list))));
   p->size = size;
-  p->free = Qnil;
+  p->free = NULL;
   return wrap_lcrecord_list (p);
 }
 
@@ -3471,37 +3610,43 @@ alloc_managed_lcrecord_1 (Lisp_Object lcrecord_list,
 			  Boolint c_readonly_p)
 {
   struct lcrecord_list *list = XLCRECORD_LIST (lcrecord_list);
-  if (!NILP (list->free))
+  if (list->free)
     {
-      Lisp_Object val = list->free;
-      struct free_lcrecord_header *free_header;
+      struct lcheader *lcheader = OBJECT_LCHEADER (wrap_free (list->free));
       struct lrecord_header *lheader;
-
-      lheader = XRECORD_LHEADER (val);
-      free_header = (struct free_lcrecord_header *) lheader;
+      Lisp_Object result;
 
 #ifdef ERROR_CHECK_GC
       /* Major overkill here. */
       /* There should be no other pointers to the free list. */
-      assert (! MARKED_RECORD_HEADER_P (lheader));
-      /* Only free lcrecords should be here. */
-      assert (lheader->type == lrecord_type_free);
+      assert (!MARKED_RECORD_HEADER_P (&(list->free->lheader)));
       /* Only lcrecords should be here. */
-      assert (! (implementation->frob_block_p));
+      assert (!(implementation->frob_block_p));
       /* The size of the lcrecord must be right. */
       assert (implementation->static_size == 0 ||
-	      implementation->static_size == list->size);
+	      (implementation->static_size + implementation->lcheader_overhead)
+	      == list->size);
 #endif /* ERROR_CHECK_GC */
 
-      list->free = free_header->chain;
+      list->free = list->free->chain;
+
+      SET_LCHEADER_MAX_ALIGNEDP (lcheader,
+				 (implementation->lcheader_overhead
+				  == LCHEADER_OVERHEAD_MAX_ALIGN_T_ALIGNED));
+      lheader = LCHEADER_LHEADER_NO_ASSERT (lcheader, lcheader);
+
       /* Put back the correct type, as we set it to lrecord_type_free. */
-      lheader->type = implementation->lrecord_type_index;
-      zero_sized_lisp_object (val, list->size);
-      return val;
+      set_lheader_implementation (lheader, implementation);
+      result = wrap_pointer_1 (lheader);
+      zero_sized_lisp_object (result,
+			      list->size - implementation->lcheader_overhead);
+
+      gc_checking_assert (lcheader == OBJECT_LCHEADER (result));
+      return result;
     }
 
-  return old_alloc_sized_lcrecord_1 (list->size, implementation,
-				     c_readonly_p);
+  return old_alloc_sized_lcrecord_1 (list->size - implementation->lcheader_overhead,
+				     implementation, c_readonly_p);
 }
 
 static void
@@ -3509,15 +3654,13 @@ print_lcrecord_list (Lisp_Object obj, Lisp_Object printcharfun,
 		     int UNUSED (escapeflag))
 {
   struct lcrecord_list *list = XLCRECORD_LIST (obj);
-  Lisp_Object next = list->free;
+  struct Lisp_Free *next = list->free;
   Elemcount num_free = 0;
 
-  while (!NILP (next))
+  while (next)
     {
-      struct free_lcrecord_header *free_header
-	= (struct free_lcrecord_header *) XPNTR (next);
       num_free++;
-      next = free_header->chain;
+      next = next->chain;
     }
 
   if (print_readably)
@@ -3561,8 +3704,7 @@ free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object object)
   struct lrecord_header *lheader = XRECORD_LHEADER (object);
   const struct lrecord_implementation *implementation
     = LHEADER_IMPLEMENTATION (lheader);
-  struct free_lcrecord_header *free_header
-    = (struct free_lcrecord_header *) lheader;
+  struct lcheader *lcheader = OBJECT_LCHEADER (object);
 
   /* If we try to debug-print during GC, we'll likely get a crash on the
      following assert (called from Lstream_delete(), from prin1_to_string()).
@@ -3585,7 +3727,9 @@ free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object object)
   
   /* Make sure the size is correct.  This will catch, for example,
      putting a window configuration on the wrong free list. */
-  gc_checking_assert (lisp_object_size (object) == list->size);
+  gc_checking_assert (lisp_object_size (object) +
+		      implementation->lcheader_overhead
+		      == list->size);
   /* Make sure the object isn't already freed. */
   gc_checking_assert (!LRECORD_FREE_P (lheader));
   /* Freeing stuff in dumped memory is bad.  If you trip this, you
@@ -3595,12 +3739,10 @@ free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object object)
   if (implementation->finalizer)
     implementation->finalizer (object);
 
-  /* Change the lrecord's type to lrecord_type_free; this the one and only way
-     we mark it as free. */
-  MARK_LRECORD_AS_FREE (lheader);
-  CLEAR_C_READONLY_RECORD_HEADER (lheader);
-  free_header->chain = list->free;
-  list->free = object;
+  MARK_LCRECORD_AS_FREE (lcheader, list->size);
+  object = wrap_pointer_1 (LCHEADER_LHEADER (lcheader, lcheader));
+  XFREE_LRECORD (object)->chain = list->free;
+  list->free = XFREE_LRECORD (object);
 }
 
 /* This is a list of lcrecord_list objects, kept sorted in ascending order of
@@ -3608,7 +3750,7 @@ free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object object)
 static Lisp_Object Vall_lcrecord_lists;
 
 static int
-compare_lcrecords (const void *a, const void *b)
+compare_lcrecord_lists (const void *a, const void *b)
 {
   Lisp_Object aa = *((Lisp_Object *) a);
   Lisp_Object bb = *((Lisp_Object *) b);
@@ -3620,12 +3762,13 @@ compare_lcrecords (const void *a, const void *b)
    e.g. vectors, if the desired size happens to line up with an existing
    lcrecord list. */
 static Lisp_Object
-find_lcrecord_list (Bytecount size, Boolint make_onep)
+find_lcrecord_list (Bytecount size, Binbyte lcheader_overhead,
+		    Boolint make_onep)
 {
   static Lisp_Object *saved_lcrecord_lists, *saved_lcrecord_lists_pointer;
   Lisp_Object cons_before = Qnil;
 
-  structure_checking_assert (size > 0);
+  size += lcheader_overhead;
 
   if (EQ (Vall_lcrecord_lists, Qnull_pointer))
     {
@@ -3662,7 +3805,7 @@ find_lcrecord_list (Bytecount size, Boolint make_onep)
 	 way. */
       qsort (saved_lcrecord_lists,
 	     saved_lcrecord_lists_pointer - saved_lcrecord_lists,
-	     sizeof (Lisp_Object), compare_lcrecords);
+	     sizeof (Lisp_Object), compare_lcrecord_lists);
 
       Vall_lcrecord_lists = Flist ((int) (saved_lcrecord_lists_pointer -
 					  saved_lcrecord_lists),
@@ -3704,9 +3847,9 @@ find_lcrecord_list (Bytecount size, Boolint make_onep)
 }
 
 Lisp_Object
-get_lcrecord_list (Bytecount size)
+get_lcrecord_list (Bytecount size, Binbyte lcheader_overhead)
 {
-  return find_lcrecord_list (size, 1);
+  return find_lcrecord_list (size, lcheader_overhead, 1);
 }
 
 Lisp_Object
@@ -3726,18 +3869,6 @@ alloc_automanaged_c_readonly_lcrecord (const struct lrecord_implementation
 {
   type_checking_assert (imp->static_size > 0);
   return alloc_managed_lcrecord_1 (imp->lcrecord_list, imp, 1);
-}
-
-static void
-old_free_lcrecord (Lisp_Object rec)
-{
-  const struct lrecord_implementation *imp =
-    XRECORD_LHEADER_IMPLEMENTATION (rec);
-
-  if (OBJECT_DUMPED_P (rec))
-    return;
-
-  free_managed_lcrecord (imp->lcrecord_list, rec);
 }
 
 
@@ -4592,23 +4723,27 @@ See also `consing-since-gc' and `object-memory-usage-stats'.
 /* Clear the C_READONLY flag in LHEADER. If the object was initially allocated
    using alloc_automanaged_c_readonly_lcrecord(), it is not in all_lcrecords,
    and so it will be leaked. In that case the NEXT pointer of the allocated
-   old_lcrecord_ will be NULL; set it so that it will be garbage collected
-   should it become free. */
+   lcrecord_header will be NULL; set it so that it will be garbage collected
+   should it become free. If LHEADER is a frob-block object, just clear the
+   bits in LHEADER and don't attempt to examine the nonexistent LCHEADER. */
 void
 clear_c_readonly_record_header (struct lrecord_header *lheader)
 {
-  /* Note that this asserts that the relevant object is not frob_block_p; this
-     is intentional, if frob block objects are to be made C_READONLY this needs
-     to be rewritten. */
-  struct lcheader *lcheader = OBJECT_LCHEADER (wrap_pointer_1 (lheader));
-
   lheader->lisp_readonly = 0;
   lheader->mark = 0;
   lheader->c_readonly = 0;
-  if (LCHEADER_NEXT (lcheader) == NULL)
+
+  if (LHEADER_IMPLEMENTATION (lheader)->frob_block_p == 0
+      && !DUMPEDP (lheader))
     {
-      SET_LCHEADER_NEXT (lcheader, all_lcrecords);
-      all_lcrecords = lcheader;
+      struct lcheader *lcheader
+	= OBJECT_LCHEADER (wrap_pointer_1 (lheader));
+
+      if (LCHEADER_NEXT (lcheader) == NULL)
+	{
+	  SET_LCHEADER_NEXT (lcheader, all_lcrecords);
+	  all_lcrecords = lcheader;
+	}
     }
 }
 
@@ -4759,7 +4894,8 @@ struct saved_object_name
 void
 define_lisp_object (int tipo, const CIbyte *name, Bytecount static_size,
                     const struct memory_description *description,
-                    Boolint dumpable, Boolint frob_block_p)
+                    Boolint dumpable, Boolint frob_block_p,
+                    int alignment)
 {
   static struct saved_object_name *saved_object_names;
   static struct saved_object_name *saved_object_name_ptr;
@@ -4772,10 +4908,16 @@ define_lisp_object (int tipo, const CIbyte *name, Bytecount static_size,
   Dynarr_at (lrecord_implementations, tipo)->description = description;
   Dynarr_at (lrecord_implementations, tipo)->dumpable = dumpable;
   Dynarr_at (lrecord_implementations, tipo)->frob_block_p = frob_block_p;
+  Dynarr_at (lrecord_implementations, tipo)->alignment = alignment;
+  Dynarr_at (lrecord_implementations, tipo)->lcheader_overhead
+    = alignment > (int) (ALIGNOF (void *)) ?
+    LCHEADER_OVERHEAD_MAX_ALIGN_T_ALIGNED : LCHEADER_OVERHEAD_VOID_PTR_ALIGNED;
 
   Dynarr_at (lrecord_implementations, tipo)->lcrecord_list
     = (frob_block_p || static_size == 0) ? Qnil
-    : get_lcrecord_list (static_size);
+    : get_lcrecord_list (static_size,
+			 Dynarr_at (lrecord_implementations,
+				    tipo)->lcheader_overhead);
 
   Dynarr_set (lrecord_memory_descriptions_table, tipo, description);
 
@@ -4819,20 +4961,6 @@ define_lisp_object (int tipo, const CIbyte *name, Bytecount static_size,
 	      structure_checking_assert (imp->frob_block_p
 					 || !(imp->static_size));
 	      imp->lcrecord_list = Qnil;
-	    }
-	  else if (EQ (XLCRECORD_LIST (imp->lcrecord_list)->free,
-		       Qnull_pointer))
-	    {
-	      XLCRECORD_LIST (imp->lcrecord_list)->free = Qnil;
-	    }
-	  else
-	    {
-	      /* If this assumption does not hold (and it should, we shouldn't
-		 have GCed up to this point), we need to trace down the chain
-		 of free objects to check for Qnull_pointer. */
-	      structure_checking_assert (NILP (XLCRECORD_LIST
-					       (imp->lcrecord_list)
-					       ->free));
 	    }
           init_memory_usage_stats (saved_object_name_ptr->tipo, Qnil);
         }
@@ -4942,8 +5070,11 @@ undef_lisp_object (int lrecord_type_index)
 static void
 sweep_lcrecords (void)
 {
-  struct lcheader **prev = &all_lcrecords;
-  struct lcheader *header;
+  struct lcheader_void_ptr_aligned head = { all_lcrecords };
+  struct lcheader *previous, *header;
+
+  set_lheader_implementation (&head.u.lheader, LRECORD_IMPLEMENTATION (free));
+  previous = OBJECT_LCHEADER (wrap_pointer_1 (&head.u.lheader));
 
   /* First go through and call all the finalize methods.
      Then go through and free the objects.  There used to
@@ -4955,9 +5086,9 @@ sweep_lcrecords (void)
      we could easily be screwed by having already freed that
      other object. */
 
-  for (header = *prev; header; header = LCHEADER_NEXT (header))
+  for (header = previous->next; header; header = LCHEADER_NEXT (header))
     {
-      struct lrecord_header *h = LCHEADER_LHEADER (header);
+      struct lrecord_header *h = LCHEADER_LHEADER (header, header);
 
       GC_CHECK_LHEADER_INVARIANTS (h);
 
@@ -4968,9 +5099,9 @@ sweep_lcrecords (void)
 	}
     }
 
-  for (header = *prev; header; )
+  for (header = previous->next; header;)
     {
-      struct lrecord_header *h = LCHEADER_LHEADER (header);
+      struct lrecord_header *h = LCHEADER_LHEADER (header, header);
 
       if (MARKED_RECORD_HEADER_P (h))
 	{
@@ -4978,20 +5109,26 @@ sweep_lcrecords (void)
 	    UNMARK_RECORD_HEADER (h);
 
 	  /* #### May modify header->next on a C_READONLY lcrecord */
-	  prev = &(header->next);
-	  header = *prev;
+	  previous = header;
+	  header = LCHEADER_NEXT (header);
 	  tick_lcrecord_stats (h, 0);
 	}
       else
 	{
 	  struct lcheader *next = LCHEADER_NEXT (header);
-          *prev = next;
+	  SET_LCHEADER_NEXT (previous, next);
 	  tick_lcrecord_stats (h, 1);
+
+	  /* This might be of help if free() doesn't immediately mung the
+	     object.*/
+	  MARK_LRECORD_AS_FREE (header);
 	  /* used to call finalizer right here. */
 	  xfree (header);
 	  header = next;
 	}
     }
+
+  all_lcrecords = head.next;
 }
 
 /* And the Lord said: Thou shalt use the `c-backslash-region' command
@@ -5626,14 +5763,12 @@ gc_sweep (void)
        place. */
     LIST_LOOP_2 (elt, Vall_lcrecord_lists)
       {
-        Lisp_Object chain = XLCRECORD_LIST (elt)->free;
+        struct Lisp_Free *chain = XLCRECORD_LIST (elt)->free;
 
-        while (!NILP (chain))
+        while (chain)
           {
-            struct free_lcrecord_header *free_header
-              = (struct free_lcrecord_header *) XPNTR (chain);
-            UNMARK_RECORD_HEADER (XRECORD_LHEADER (chain));
-            chain = free_header->chain;
+            UNMARK_RECORD_HEADER (&(chain->lheader));
+            chain = chain->chain;
           }
       }
   }
@@ -5652,7 +5787,7 @@ disksave_object_finalization_1 (void)
 
   for (header = all_lcrecords; header; header = LCHEADER_NEXT (header))
     {
-      struct lrecord_header *objh = LCHEADER_LHEADER (header);
+      struct lrecord_header *objh = LCHEADER_LHEADER (header, header);
       const struct lrecord_implementation *imp = LHEADER_IMPLEMENTATION (objh);
 #if 0 /* possibly useful for debugging */
       if (!RECORD_DUMPABLE (objh) && !objh->free)
@@ -6039,7 +6174,7 @@ init_alloc_once_early (void)
   OBJECT_HAS_PREMETHOD (lcrecord_list, disksave);
 
   DEFINE_NODUMP_INTERNAL_LISP_OBJECT ("free", free, free_description,
-                                      struct free_lcrecord_header);
+                                      struct Lisp_Free);
 }
 
 void

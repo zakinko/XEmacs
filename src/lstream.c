@@ -97,7 +97,8 @@ disksave_lstream (Lisp_Object lstream)
 static Bytecount
 sizeof_lstream (Lisp_Object obj)
 {
-  return XLCRECORD_LIST (XLSTREAM (obj)->imp->lcrecord_list)->size;
+  return (Bytecount) (MAX_ALIGN_SIZE (offsetof (Lstream, data) +
+				      XLSTREAM (obj)->imp->size));
 }
 
 static const struct memory_description lstream_implementation_description_1[]

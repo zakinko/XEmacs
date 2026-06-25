@@ -66,7 +66,7 @@ extern EMACS_INT gc_cons_percentage;
 
 #ifdef ERROR_CHECK_GC
 #define GC_CHECK_LHEADER_INVARIANTS(lheader) do {		\
-  struct lrecord_header * GCLI_lh = (lheader);			\
+  const struct lrecord_header * GCLI_lh = (lheader);            \
   assert (GCLI_lh != 0);					\
   assert (GCLI_lh->type < (unsigned int) lrecord_type_count);	\
 } while (0)

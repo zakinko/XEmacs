@@ -1,3 +1,10 @@
+2026-06-24  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* configure.ac:
+	Check for the size of max_align_t, helpful in changes today to
+	avoid leaking a word of data for every lcrecord allocated.
+	* configure: Regenerate.
+
 2026-05-15  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* configure.ac (have_aslr): New.

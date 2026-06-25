@@ -737,6 +737,7 @@ things are arranged in config.h.in.  In particular:
 #undef SIZEOF_VOID_P
 #undef SIZEOF_DOUBLE
 #undef SIZEOF_OFF_T
+#undef SIZEOF_MAX_ALIGN_T
 
 /* Large file support */
 #undef HAVE_FSEEKO
