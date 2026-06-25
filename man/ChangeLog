@@ -1,5 +1,14 @@
 2026-06-25  Aidan Kehoe  <kehoea@parhasard.net>
 
+	* internals/internals.texi (Introduction to Writing C Code):
+	Remove guidance regarding naming of Lisp_Subr structures,
+	irrelevant with the current implementation.
+	* internals/internals.texi (Discussion -- Incremental Collector):
+	Remove mention of the Lisp_Subr objects as static C data, which is
+	no longer the case.
+
+2026-06-25  Aidan Kehoe  <kehoea@parhasard.net>
+
 	* internals/internals.texi (lrecords):
 	Update the documentation regarding lcrecords, which no longer have
 	a struct old_lcrecord_header at their beginning.

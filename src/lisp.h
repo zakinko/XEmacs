@@ -4246,7 +4246,6 @@ Lisp_Object make_uninit_vector (Elemcount);
 Lisp_Object make_bit_vector (Elemcount, Lisp_Object);
 Lisp_Object make_bit_vector_from_byte_vector (unsigned char *, Elemcount);
 Lisp_Object clone_bit_vector (Lisp_Object bitvec);
-Lisp_Object make_subr (void);
 Lisp_Object noseeum_make_marker (void);
 void garbage_collect (void);
 MODULE_API Lisp_Object cons3 (Lisp_Object, Lisp_Object, Lisp_Object);

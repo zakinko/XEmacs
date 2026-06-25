@@ -7356,8 +7356,8 @@ warn_when_safe (Lisp_Object class_, Lisp_Object level, const Ascbyte *fmt, ...)
 void
 syms_of_eval (void)
 {
-  DEFINE_DUMPABLE_FROB_BLOCK_LISP_OBJECT ("subr", subr, print_subr, 0, 0, 0,
-                                          subr_description, Lisp_Subr);
+  DEFINE_DUMPABLE_LISP_OBJECT ("subr", subr, print_subr, 0, 0, 0,
+			       subr_description, Lisp_Subr);
 
   DEFINE_DUMPABLE_SIZABLE_LISP_OBJECT ("multiple-value", multiple_value,
                                        print_multiple_value, 0,

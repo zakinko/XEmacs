@@ -1,5 +1,23 @@
 2026-06-25  Aidan Kehoe  <kehoea@parhasard.net>
 
+	Move Lisp_Subr to being an lcrecord, now the NEXT pointer is not
+	leaked when dumping. It is not an object that is allocated with
+	sufficient frequency to merit having a frob block.
+
+	* alloc.c (make_subr): Removed. Callers should just call
+	ALLOC_NORMAL_LISP_OBJECT() instead.
+	* alloc.c (sweep_subrs): Removed.
+	* alloc.c (gc_sweep): No longer call sweep_subrs().
+	* eval.c (syms_of_eval):
+	Define it with DEFINE_DUMPABLE_LISP_OBJECT() rather than
+	DEFINE_DUMPABLE_FROB_BLOCK_LISP_OBJECT().
+	* lisp.h:
+	Remove declaration for make_subr().
+	* symbols.c (defsubr):
+	Call ALLOC_NORMAL_LISP_OBJECT() instead of make_subr().
+
+2026-06-25  Aidan Kehoe  <kehoea@parhasard.net>
+
 	* lrecord.h:
 	Update documentation regarding headers for Lisp_Objects, now there
 	is no further need for a distinct struct lcrecord_header.

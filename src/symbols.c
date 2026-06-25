@@ -3409,7 +3409,7 @@ defsubr (const CIbyte *lname, lisp_fn_t subr_fn, short min_args,
         }
     }
   
-  fun = make_subr ();
+  fun = ALLOC_NORMAL_LISP_OBJECT (subr);
   subr = XSUBR (fun);
 
   subr->name = sym;
