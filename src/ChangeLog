@@ -1,3 +1,15 @@
+2026-06-27  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* alloc.c:
+	Update comment regarding the size of a frob block.
+	* alloc.c (TYPE_ALLOC_SIZE):
+	No longer hard-code 2048 as the size of a frob block, use sizeof
+	(Lisp_Object) << 9, which will give the same behaviour on 32 bit
+	builds, but better locality of reference (with, yes, more memory
+	usage) for 64 bit builds.
+	* gc.h:
+	Add a comment regarding MALLOC_OVERHEAD on glibc.
+
 2026-06-25  Aidan Kehoe  <kehoea@parhasard.net>
 
 	Move Lisp_Subr to being an lcrecord, now the NEXT pointer is not

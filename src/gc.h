@@ -56,6 +56,9 @@ extern EMACS_INT gc_cons_percentage;
 
 #ifndef MALLOC_OVERHEAD
 #ifdef HAVE_GLIBC
+/* This is actually sizeof (size_t) as of 2026. Unclear that there is any
+   benefit (apart from more accurate, but still inaccurate, reporting of memory
+   usage) to setting this non-zero on glibc. */
 #define MALLOC_OVERHEAD 0
 #elif defined (rcheck)
 #define MALLOC_OVERHEAD 20

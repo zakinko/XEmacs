@@ -1206,10 +1206,12 @@ dbg_eq (Lisp_Object obj1, Lisp_Object obj2)
    We store cons cells inside of cons_blocks, allocating a new cons_block
    with malloc() whenever necessary.  Cons cells reclaimed by GC are put on
    a free list to be reallocated before allocating any new cons cells from
-   the latest cons_block.  Each cons_block is just under 2^n -
-   MALLOC_OVERHEAD bytes long, since malloc (at least the versions in
-   malloc.c and gmalloc.c) really allocates in units of powers of two and
-   uses 4 bytes for its own overhead.
+   the latest cons_block.  Each cons_block is just under 4096 -
+   MALLOC_OVERHEAD bytes long (2048 - MALLOC_OVERHEAD on 32-bit builds);
+   size chosen for historical reasons related to the gmalloc implementation
+   that no longer apply as of 2026.  This could be explored further, though
+   it is not clear that it would be of benefit, given there is no longer
+   any size that is optimal.
 
    What GC actually does is to search through all the cons_blocks, from the
    most recently allocated to the oldest, and put all cons cells that are
@@ -1291,8 +1293,9 @@ dbg_eq (Lisp_Object obj1, Lisp_Object obj2)
 # define TYPE_ALLOC_SIZE(type, structtype) 1
 #else
 # define TYPE_ALLOC_SIZE(type, structtype)			\
-    ((2048 - MALLOC_OVERHEAD - sizeof (struct type##_block *))	\
-     / sizeof (structtype))
+	(((sizeof (Lisp_Object) << 9) - MALLOC_OVERHEAD	\
+	  - sizeof (struct type##_block *))			\
+	 / sizeof (structtype))
 #endif /* ALLOC_NO_POOLS */
 
 #define DECLARE_FIXED_TYPE_ALLOC(type, structtype)	\

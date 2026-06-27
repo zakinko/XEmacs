@@ -9297,18 +9297,18 @@ only occurs inside of the lowest-level object-creating functions in
 @code{Fmake_byte_code()}, @code{Fmake_symbol()},
 @code{allocate_extent()}, @code{allocate_event()},
 @code{Fmake_marker()}, and @code{make_uninit_string()}.  The idea is
-that, for each type, there are a number of frob blocks (each 2K in
-size); each frob block is divided up into object-sized chunks.  Each
-frob block will have some of these chunks that are currently assigned
-to objects, and perhaps some that are free. (If a frob block has
-nothing but free chunks, it is freed at the end of the garbage
-collection cycle.)  The free chunks are stored in a free list, which
-is chained by storing a pointer in the first four bytes of the
-chunk. (Except for the free chunks at the end of the last frob block,
-which are handled using an index which points past the end of the
-last-allocated chunk in the last frob block.)
-@code{ALLOCATE_FIXED_TYPE()} first tries to retrieve a chunk from the
-free list; if that fails, it calls
+that, for each type, there are a number of frob blocks (each 2K or 4K in
+size, depending on 32-bit vs 64-bit; theoretically 8K on a 128-bit
+system); each frob block is divided up into object-sized chunks.  Each
+frob block will have some of these chunks that are currently assigned to
+objects, and perhaps some that are free. (If a frob block has nothing
+but free chunks, it is freed at the end of the garbage collection
+cycle.)  The free chunks are stored in a free list, which is chained by
+storing a pointer in the first four bytes of the chunk. (Except for the
+free chunks at the end of the last frob block, which are handled using
+an index which points past the end of the last-allocated chunk in the
+last frob block.)  @code{ALLOCATE_FIXED_TYPE()} first tries to retrieve
+a chunk from the free list; if that fails, it calls
 @code{ALLOCATE_FIXED_TYPE_FROM_BLOCK()}, which looks at the end of the
 last frob block for space, and creates a new frob block if there is
 none. (There are actually two versions of these macros, one of which
