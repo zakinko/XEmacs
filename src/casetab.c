@@ -515,8 +515,10 @@ case_table_memory_usage (Lisp_Object casetab,
 
   stats->downcase = lisp_object_memory_usage (XCASE_TABLE_DOWNCASE (casetab));
   stats->upcase = lisp_object_memory_usage (XCASE_TABLE_UPCASE (casetab));
-  stats->case_canon = lisp_object_memory_usage (XCASE_TABLE_CANON (casetab));
-  stats->case_eqv = lisp_object_memory_usage (XCASE_TABLE_EQV (casetab));
+  stats->case_canon
+    = lisp_object_memory_usage (CASE_TABLE_CANON (XCASE_TABLE (casetab)));
+  stats->case_eqv
+    = lisp_object_memory_usage (CASE_TABLE_EQV (XCASE_TABLE (casetab)));
 }
 
 #endif /* MEMORY_USAGE_STATS */

@@ -1,3 +1,29 @@
+2026-07-11  Aidan Kehoe  <kehoea@parhasard.net>
+
+	XCASE_TABLE_UPDATE() can allocate fresh Lisp_Objects, and if this is
+	done late in GC they may not be unmarked appropriately, leading to
+	them not being traced appropriately at next GC, giving a crash
+	with access to free memory.
+
+	Avoid this by calling CASE_TABLE_CANON (XCASE_TABLE (casetab)),
+	CASE_TABLE_EQV (XCASE_TABLE (casetab) in
+	case_table_memory_usage().
+
+	Thank you for the bug report, Henry S. Thompson. Longstanding bug
+	that happened to make itself known after my change of 5dbab3b8c408
+	in a specific configuration he uses.
+
+	* casetab.c (case_table_memory_usage):
+	As above.
+
+	* casetab.h (XCASE_TABLE_UPDATE):
+	Add a gc_checking_assert (!gc_in_progress) to this function.
+	Update comments for XCASE_TABLE_CANON(), XCASE_TABLE_EQV().
+
+	* alloc.c (sweep_lcrecords):
+	Mark H (an lrecord_header) as free rather than HEADER (which is an
+	LCRECORD_HEADER) in passing
+
 2026-06-27  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* alloc.c:

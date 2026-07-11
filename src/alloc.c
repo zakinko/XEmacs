@@ -5106,7 +5106,7 @@ sweep_lcrecords (void)
 
 	  /* This might be of help if free() doesn't immediately mung the
 	     object.*/
-	  MARK_LRECORD_AS_FREE (header);
+	  MARK_LRECORD_AS_FREE (h);
 	  /* used to call finalizer right here. */
 	  xfree (header);
 	  header = next;

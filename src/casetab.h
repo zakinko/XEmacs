@@ -55,6 +55,13 @@ XCASE_TABLE_UPDATE (Lisp_Object table)
      structures updated), recompute first. */
   if (ct->dirty)
     recompute_case_table (table);
+
+  /* recompute_case_table() creates new Lisp_Objects that may not be marked
+     correctly if this function is called within GC; use CASE_TABLE_EQV
+     (XCASE_TABLE (table)), CASE_TABLE_CANON (XCASE_TABLE (table)) instead of
+     XCASE_TABLE_EQV(), XCASE_TABLE_CANON(), both of which call
+     XCASE_TABLE_UPDATE(). This bit us in case_table_memory_usage().  */
+  gc_checking_assert (!gc_in_progress);
   return ct;
 }
 
@@ -68,7 +75,16 @@ XCASE_TABLE_UPDATE (Lisp_Object table)
    automatically computed and that are not up to date.  These are not
    normally used by the simple case routines.  canon is used by
    compare-buffer-substrings when case-insensitive and by the regex
-   routines, and eqv is used only by the Boyer-Moore search routines. */
+   routines, and eqv is used only by the Boyer-Moore search routines.
+
+   *Don't do this in GC, since it allocates new objects that may not be marked
+   and unmarked appropriately.* You will get an assertion failure if you
+   try.
+
+   If it becomes necessary to do this, the dirty flag should have a setter
+   function that pushes any case table that needs recomputation onto a weak
+   list, and that weak list should be traversed and its element recomputed at
+   the beginning of the next GC. */
 #define XCASE_TABLE_CANON(ct) (XCASE_TABLE_UPDATE (ct)->case_canon_table)
 #define XCASE_TABLE_EQV(ct) (XCASE_TABLE_UPDATE (ct)->case_eqv_table)
 
