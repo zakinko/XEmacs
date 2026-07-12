@@ -27,21 +27,8 @@
 ;;; Commentary:
 
 ;; Sets the case table for the ISO-8859/1 character set.
-;; Provides ascii-case-table, for use in environments where multilingual
-;; case-insensitive processing is inappropriate.
 
 ;;; Code:
-
-(defvar ascii-case-table
-  (loop
-    for lower from (char-int ?a) to (char-int ?z)
-    and upper from (char-int ?A) to (char-int ?Z)
-    with table = (make-case-table)
-    do (put-case-table-pair (coerce upper 'character)
-                            (coerce lower 'character)
-                            table)
-    finally return table)
-  "Case table for the ASCII character set.")
 
 (loop
   for (upper lower)

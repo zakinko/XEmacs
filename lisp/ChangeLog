@@ -1,3 +1,11 @@
+2026-07-12  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* iso8859-1.el (ascii-case-table): Removed.
+	* mule/english.el:
+	* mule/english.el (ascii-case-table): New.
+	Move ascii-case-table here from iso8859-1.el, a better home for it
+	given #'ascii-text-p is also here.
+
 2026-05-30  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* modeline.el (modeline-update-buffer-names):

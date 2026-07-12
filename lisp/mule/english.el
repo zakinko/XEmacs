@@ -23,11 +23,23 @@
 
 ;;; Commentary:
 
-;; We need nothing special to support English on Emacs.  Selecting
-;; English as a language environment is one of the ways to reset
-;; various multilingual environment to the original setting.
+;; Selecting English as a language environment is one of the ways to reset
+;; various multilingual environment to the original setting, so this file does
+;; very little. It does provide ascii-case-table, #'ascii-text-p, useful in
+;; environments where non-ASCII processing is undesirable.
 
 ;;; Code
+
+(defvar ascii-case-table
+  (loop
+    for lower from (char-int ?a) to (char-int ?z)
+    and upper from (char-int ?A) to (char-int ?Z)
+    with table = (make-case-table)
+    do (put-case-table-pair (coerce upper 'character)
+                            (coerce lower 'character)
+                            table)
+    finally return table)
+  "Case table for the ASCII character set.")
 
 ;; Used by C code when erroring in situations where non-ASCII text is
 ;; not appropriate.
