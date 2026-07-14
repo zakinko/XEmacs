@@ -470,25 +470,26 @@ MODULE_API void defvar_magic (const Ascbyte *symbol_name, Lisp_Object magic);
        aofmft == SYMVAL_SOME_BUFFER_LOCAL);                             \
   } while (0)
 
-#define DEFVAR_SYMVAL_FWD_NON_LISP(lname, c_location, forward_type, magic_fun, subtype) \
-do									\
-{									\
-  struct symbol_value_forward_##subtype *symbol_value_forward =		\
-    XRECORD (ALLOC_C_READONLY_LISP_OBJECT				\
-	     (symbol_value_forward_##subtype),				\
-	     symbol_value_forward_##subtype,				\
-	     struct symbol_value_forward_##subtype);			\
-									\
-  symbol_value_forward->magic.type = forward_type;			\
-  symbol_value_forward->magic.value = c_location;			\
-  symbol_value_forward->magicfun = magic_fun;				\
-  if (symbol_value_forward->magicfun)					\
+#define DEFVAR_SYMVAL_FWD_NON_LISP(lname, c_location, forward_type,	\
+				   magic_fun, subtype) do		\
     {									\
-      ASSERT_OK_FOR_MAGIC (symbol_value_forward->magic.type);		\
-    }									\
+      Lisp_Object d_s_f_n_l_result =					\
+	ALLOC_NORMAL_LISP_OBJECT (symbol_value_forward_##subtype);	\
+      struct symbol_value_forward_##subtype *symbol_value_forward	\
+	= XRECORD (d_s_f_n_l_result, symbol_value_forward_##subtype,	\
+		   struct symbol_value_forward_##subtype);		\
+    									\
+      symbol_value_forward->magic.type = forward_type;			\
+      symbol_value_forward->magic.value = c_location;			\
+      symbol_value_forward->magicfun = magic_fun;			\
+      if (symbol_value_forward->magicfun)				\
+	{								\
+	  ASSERT_OK_FOR_MAGIC (symbol_value_forward->magic.type);	\
+	}								\
       									\
-  defvar_magic (lname, wrap_symbol_value_magic (symbol_value_forward));	\
-} while (0)
+      SET_C_READONLY (d_s_f_n_l_result);				\
+      defvar_magic (lname, d_s_f_n_l_result);				\
+    } while (0)
 
 #define DEFVAR_SYMVAL_FWD_FIXNUM(lname, c_location, forward_type, magicfun) \
 DEFVAR_SYMVAL_FWD_NON_LISP(lname, c_location, forward_type, magicfun, fixnum)

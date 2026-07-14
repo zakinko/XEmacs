@@ -1,3 +1,10 @@
+2026-07-14  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* internals/internals.texi (The header):
+	Update this to reflect current reality.
+	* internals/internals.texi (Reloading phase):
+	Rearrange this to reflect the order things are currently done.
+
 2026-06-27  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* internals/internals.texi (Allocation from Frob Blocks):

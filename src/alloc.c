@@ -938,10 +938,13 @@ OBJECT_LCHEADER_1 (Lisp_Object object, const Ascbyte *file, int line)
    to be garbage collected in the normal way then.  */
 static struct lcheader *all_lcrecords;
 
-static Lisp_Object
-old_alloc_sized_lcrecord_1 (Bytecount size,
-			    const struct lrecord_implementation *implementation,
-			    Boolint c_readonly_p)
+/* The most basic of the lcrecord allocation functions.  Not usually called
+   directly.  Allocates an lcrecord not (yet) managed by any lcrecord-list, of
+   a specified size.  See lrecord.h for explanation of lcrecord-lists and the
+   differing models of allocation. */
+Lisp_Object
+old_alloc_sized_lcrecord (Bytecount size,
+			  const struct lrecord_implementation *implementation)
 {
   Binbyte lcheader_overhead = implementation->lcheader_overhead;
   struct lcheader *lcheader;
@@ -965,30 +968,12 @@ old_alloc_sized_lcrecord_1 (Bytecount size,
 			      implementation);
 
   result = wrap_pointer_1 (LCHEADER_LHEADER (lcheader, lcheader));
-  if (c_readonly_p)
-    {
-      /* The allocate_lisp_storage() sets lcheader->next to
-	 NULL. free_managed_lcrecord() and clear_c_readonly_record_header()
-	 check for this and add the record to all_lcrecords if needed. */
-      SET_C_READONLY (result);
-    }
-  else
-    {
-      SET_LCHEADER_NEXT (lcheader, all_lcrecords);
-      all_lcrecords = lcheader;
-    }
+
+  SET_LCHEADER_NEXT (lcheader, all_lcrecords);
+  all_lcrecords = lcheader;
+
   INCREMENT_CONS_COUNTER (size, implementation);
   return result;
-}
-
-/* The most basic of the lcrecord allocation functions.  Not usually called
-   directly.  Allocates an lrecord not managed by any lcrecord-list, of a
-   specified size.  See lrecord.h. */
-Lisp_Object
-old_alloc_sized_lcrecord (Bytecount size,
-			  const struct lrecord_implementation *implementation)
-{
-  return old_alloc_sized_lcrecord_1 (size, implementation, 0);
 }
 
 #if 0 /* Presently unused */
@@ -3589,10 +3574,9 @@ make_lcrecord_list (Bytecount size)
   return wrap_lcrecord_list (p);
 }
 
-static Lisp_Object
-alloc_managed_lcrecord_1 (Lisp_Object lcrecord_list,
-			  const struct lrecord_implementation *implementation,
-			  Boolint c_readonly_p)
+Lisp_Object
+alloc_managed_lcrecord (Lisp_Object lcrecord_list,
+			const struct lrecord_implementation *implementation)
 {
   struct lcrecord_list *list = XLCRECORD_LIST (lcrecord_list);
   if (list->free)
@@ -3630,8 +3614,9 @@ alloc_managed_lcrecord_1 (Lisp_Object lcrecord_list,
       return result;
     }
 
-  return old_alloc_sized_lcrecord_1 (list->size - implementation->lcheader_overhead,
-				     implementation, c_readonly_p);
+  return old_alloc_sized_lcrecord (list->size -
+				   implementation->lcheader_overhead,
+				   implementation);
 }
 
 static void
@@ -3663,13 +3648,6 @@ print_lcrecord_list (Lisp_Object obj, Lisp_Object printcharfun,
 		    (XRECORD_LHEADER_IMPLEMENTATION (obj)),
 		    XLCRECORD_LIST (obj)->size, num_free,
 		    LISP_OBJECT_UID (obj));
-}
-
-Lisp_Object
-alloc_managed_lcrecord (Lisp_Object lcrecord_list,
-                        const struct lrecord_implementation *imp)
-{
-  return alloc_managed_lcrecord_1 (lcrecord_list, imp, 0);
 }
 
 /* "Free" a Lisp object LCRECORD by placing it on its associated free list
@@ -3841,19 +3819,7 @@ Lisp_Object
 alloc_automanaged_lcrecord (const struct lrecord_implementation *imp)
 {
   type_checking_assert (imp->static_size > 0);
-  return alloc_managed_lcrecord_1 (imp->lcrecord_list, imp, 0);
-}
-
-/* This differs from the above in that it marks the record as C-readonly, which
-   also means that its MARKED flag (and its LISP_READONLY flag) is (are) always
-   1. It does not add the object to all_lcrecords since it is not necessary to
-   mark it. */
-Lisp_Object
-alloc_automanaged_c_readonly_lcrecord (const struct lrecord_implementation
-				       *imp)
-{
-  type_checking_assert (imp->static_size > 0);
-  return alloc_managed_lcrecord_1 (imp->lcrecord_list, imp, 1);
+  return alloc_managed_lcrecord (imp->lcrecord_list, imp);
 }
 
 
@@ -4704,34 +4670,6 @@ See also `consing-since-gc' and `object-memory-usage-stats'.
 }
 
 #endif /* ALLOC_TYPE_STATS */
-
-/* Clear the C_READONLY flag in LHEADER. If the object was initially allocated
-   using alloc_automanaged_c_readonly_lcrecord(), it is not in all_lcrecords,
-   and so it will be leaked. In that case the NEXT pointer of the allocated
-   lcheader will be NULL; set it so that it will be garbage collected
-   should it become free. If LHEADER is a frob-block object, just clear the
-   bits in LHEADER and don't attempt to examine the nonexistent LCHEADER. */
-void
-clear_c_readonly_record_header (struct lrecord_header *lheader)
-{
-  lheader->lisp_readonly = 0;
-  lheader->mark = 0;
-  lheader->c_readonly = 0;
-
-  if (LHEADER_IMPLEMENTATION (lheader)->frob_block_p == 0
-      && !DUMPEDP (lheader))
-    {
-      struct lcheader *lcheader
-	= OBJECT_LCHEADER (wrap_pointer_1 (lheader));
-
-      if (LCHEADER_NEXT (lcheader) == NULL)
-	{
-	  SET_LCHEADER_NEXT (lcheader, all_lcrecords);
-	  all_lcrecords = lcheader;
-	}
-    }
-}
-
 
 /************************************************************************/
 /*                Allocation statistics: Initialization                 */

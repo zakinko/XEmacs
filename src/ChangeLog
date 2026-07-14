@@ -1,3 +1,38 @@
+2026-07-14  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Remove alloc_automanaged_c_readonly_lcrecord(),
+	clear_c_readonly_record_header().
+	* alloc.c:
+	* alloc.c (old_alloc_sized_lcrecord_1): Remove this, avoid special
+	handling for c_readonly lcrecords.
+	* alloc.c (old_alloc_sized_lcrecord): Use the old implementation
+	here.
+	* alloc.c (alloc_managed_lcrecord_1): Remove this, avoid special
+	handling for c_readonly lcrecords.
+	* alloc.c (alloc_managed_lcrecord): Use the old implementation.
+	* alloc.c (alloc_automanaged_lcrecord): Call
+	alloc_managed_lcrecord() here.
+	* alloc.c (alloc_automanaged_c_readonly_lcrecord): Remove this.
+	* alloc.c (clear_c_readonly_record_header): Remove this.
+	* lrecord.h:
+	Update some comments.
+	* lrecord.h (ALLOC_C_READONLY_LISP_OBJECT): Remove this.
+	* lrecord.h (struct lrecord_header):
+	Give a bit more info on the C_READONLY flag.
+	Remove unneeded forward declaration for struct lrecord_implementation.
+	* lrecord.h (set_lheader_implementation):
+	Update this to avoid multiple evaluation of the IMP argument.
+	* lrecord.h (CLEAR_C_READONLY_RECORD_HEADER):
+	Revert to previous implementation of this. Remove declaration for
+	clear_c_readonly_record_header().
+	Remove mention of the reinit_vars_of_*() functions, now gone.
+	Re-order documentation of dumped data to prioritise root block
+	pointers.
+	Remove declaration for alloc_automanaged_c_readonly_lcrecord().
+	* symeval.h (DEFVAR_SYMVAL_FWD_NON_LISP):
+	No longer call ALLOC_C_READONLY_LISP_OBJECT() here, call
+	ALLOC_NORMAL_LISP_OBJECT() and SET_C_READONLY().
+
 2026-07-11  Aidan Kehoe  <kehoea@parhasard.net>
 
 	XCASE_TABLE_UPDATE() can allocate fresh Lisp_Objects, and if this is

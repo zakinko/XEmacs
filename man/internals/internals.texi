@@ -22940,17 +22940,21 @@ starting at an aligned address after the header.
 @cindex dumping, the header
 
 The next step creates the file and writes a header with a signature and
-some important information in it. 
+some important information in it. For alignment reasons to keep us
+portable to Microsoft Windows, there are actually two headers;
+@code{pdump_signature_header}, which is UINT_32_BIT aligned, contains a
+signature specific to this dump file, and, following it,
+@code{pdump_real_header} which is 64-bit aligned, which contains the
+following more important information needed to restore the dump file:
+
+The @code{block_ptrs_offset} field gives the offset within the dump file
+of the block pointers that need to be restored; the
+@code{nb_root_block_ptrs} gives a count for them.
 
 The @code{reloc_address} field, which indicates at which address the
 file should be loaded if we want to avoid post-reload relocation, is set
 to 0 (if the dump file is external) or the known address of the dump
 data (if dumping is into the executable file).
-
-The @code{rtab_offset} field gives the offset of the relocation table,
-allowing all objects to be relocated systematically. The @code{rtab_end}
-field gives the end of the relocation table, useful on systems without
-ASLR where this relocation is not needed.
 
 The @code{Fcons_address} field gives the dump-time address of the
 @code{Fcons()}, allowing a delta to be worked out for C functions.
@@ -22960,8 +22964,9 @@ address of lisp_object_description, guaranteed to be in the data
 segment, and allowing a delta to be worked out for C data segment
 addresses.
 
-There are also counts for the serialized objects, the root block
-pointers, and the root blocks.
+There are also counts for the root blocks and the serialized objects.
+These are stored immediately after the root blocks so there is no need
+for a specific offset to be saved for them.
 
 @node Data dumping, Pointers dumping, The header, Dumping phase
 @subsection Data dumping
@@ -23063,8 +23068,6 @@ prefix. It is then mmap'ed in memory (which ensures a PAGESIZE
 alignment, at least 4096), or if mmap is unavailable or fails, a
 @code{max_align_t}-aligned malloc is done and the file is loaded.
 
-Some variables are reinitialized from the values found in the header.
-
 The difference between the actual loading address and the reloc_address
 is computed and will be used for relocating the Lisp data. The
 difference between the address of Fcons at dump time and at load time is
@@ -23072,6 +23075,12 @@ computed and is used for relocating C function pointers, and the
 difference between the address of lisp_object_description at dump time
 and at load time is computed and used for relocating C data pointers,
 necessary for ASLR support.
+
+@subsection Putting back the pdump_root_block_ptrs
+@cindex dumping, putting back the pdump_root_block_ptrs
+
+The variables pointed to by pdump_root_block_ptrs in the dump phase are
+reset to the right relocated object addresses.
 
 @subsection Object relocation
 @cindex dumping, object relocation
@@ -23082,6 +23091,13 @@ non-Lisp_Object blocks are relocated using their descriptions and
 offsets by @code{pdump_reloc_one} in the same way. Neither step is
 necessary if the dump file is in the executable and ASLR is not present,
 so they are not done in that case.
+
+@subsection Putting back the pdump_root_blocks
+@cindex dumping, putting back the pdump_root_blocks
+
+The pdump_root_blocks have their contents restored from the dump file
+(to the data segment address), and the relocation is performed on the
+data segment copy (if appropriate).
 
 @subsection Putting back the XD_SERIALIZABLE_DATA, XD_SERIALIZABLE_PTR objects
 @cindex dumping, putting back XD_SERIALIZABLE_DATA, XD_SERIALIZABLE_PTR
@@ -23094,19 +23110,6 @@ its size. The deconversion function is then called with the
 XD_SERIALIZABLE_PTR serialized data, with NULL as the address to
 deconvert to, and the various addresses appropriate for that object are
 set to the result.
-
-@subsection Putting back the pdump_root_block_ptrs
-@cindex dumping, putting back the pdump_root_block_ptrs
-
-The variables pointed to by pdump_root_block_ptrs in the dump phase are
-reset to the right relocated object addresses.
-
-@subsection Putting back the pdump_root_blocks
-@cindex dumping, putting back the pdump_root_blocks
-
-The pdump_root_blocks have their contents restored from the dump file
-(to the data segment address), and the relocation is performed on the
-data segment copy (if appropriate).
 
 @node Dumping and restoring hash tables,  , Reloading phase, Dumping
 @section Dumping and restoring hash tables

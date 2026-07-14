@@ -56,10 +56,10 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
    Frob-block objects are more efficient than normal objects, as they don't
    have the additional memory overhead associated with malloc() and have no
    need for the chain pointer -- instead, as mentioned above, they are carved
-   out of 2K chunks of memory called "frob blocks").  However, it is slightly
-   more tricky to create such objects, as they require special routines in
-   alloc.c to create an object of each such type and to sweep them during
-   garbage collection.  In addition, there is currently no mechanism for
+   out of 4K or 2K chunks of memory called "frob blocks").  However, it is
+   slightly more tricky to create such objects, as they require special
+   routines in alloc.c to create an object of each such type and to sweep them
+   during garbage collection.  In addition, there is currently no mechanism for
    handling variable-sized frob-block objects (e.g. vectors), whereas
    variable-sized normal objects are not a problem.  Frob-block objects are
    typically used for basic objects that exist in large numbers, such as `cons'
@@ -141,9 +141,6 @@ along with XEmacs.  If not, see <http://www.gnu.org/licenses/>. */
 
 #define LISP_OBJECT_FROB_BLOCK_P(obj) (XRECORD_LHEADER_IMPLEMENTATION(obj)->frob_block_p)
 
-#define ALLOC_C_READONLY_LISP_OBJECT(type) \
-  alloc_automanaged_c_readonly_lcrecord (LRECORD_IMPLEMENTATION (type))
-
 #define LISP_OBJECT_UID(obj) (XRECORD_LHEADER (obj)->uid)
 
 BEGIN_C_DECLS
@@ -165,7 +162,26 @@ struct lrecord_header
 
   /* 1 if the object resides in logically read-only space, and does not
      reference other non-c_readonly objects.
-     Invariant: if (c_readonly == 1), then (mark == 1 && lisp_readonly == 1) */
+     Invariant: if (c_readonly == 1), then (mark == 1 && lisp_readonly == 1)
+
+     As a rough guideline, if a C_READONLY object is not usually dumped, you're
+     doing something wrong. Marking something as C_READONLY does not remove it
+     from all_lcrecords, so the GC sweep still has to spend cycles (and cache)
+     iterating through it. Dumped C_READONLY objects are still examined in the
+     sweep process but there is no loss of locality of reference there, since
+     the dumped objects are bunched together.
+
+     I offered an automanaged_c_readonly_lcrecord() for a while, implemented by
+     passing a C_READONLY_P flag to old_alloc_sized_lcrecord_1() which didn't
+     add the record to all_lcrecords. This slowed down allocation for
+     everything else by an extra C function call and was buggy when an object
+     on an lcrecord_list was reused.  We could have a separate function with a
+     separate implementation, but C_READONLY Lisp_Objects are so rare this is
+     not worth it.
+
+     (The C_READONLY idea dates from unexec, where various objects were
+     allocated in the C data segment, and it was particularly unwise to attempt
+     to free e.g. a Lisp_Subr in the data segment.) */
   unsigned int c_readonly :1;
 
   /* 1 if the object is readonly from lisp */
@@ -177,7 +193,6 @@ struct lrecord_header
   unsigned int uid :13;
 };
 
-struct lrecord_implementation;
 extern int *lrecord_uid_counter;
 
 #define set_lheader_implementation(header,imp) do {			\
@@ -186,7 +201,7 @@ extern int *lrecord_uid_counter;
   SLI_header->mark = 0;							\
   SLI_header->c_readonly = 0;						\
   SLI_header->lisp_readonly = 0;					\
-  SLI_header->uid = lrecord_uid_counter[(imp)->lrecord_type_index]++;   \
+  SLI_header->uid = lrecord_uid_counter[SLI_header->type]++;		\
 } while (0)
 
 /* DON'T FORGET to update .gdbinit.in.in if you change this list. */
@@ -515,10 +530,14 @@ extern int gc_in_progress;
 #define SET_C_READONLY(obj) \
   SET_C_READONLY_RECORD_HEADER (XRECORD_LHEADER (obj))
 
-void clear_c_readonly_record_header (struct lrecord_header *);
-
-#define CLEAR_C_READONLY_RECORD_HEADER(header)	\
-  clear_c_readonly_record_header (header)
+#define CLEAR_C_READONLY_RECORD_HEADER(lheader) do {	\
+  struct lrecord_header *CCRRH_lheader = (lheader);	\
+  CCRRH_lheader->c_readonly = 0;			\
+  CCRRH_lheader->lisp_readonly = 0;			\
+  CCRRH_lheader->mark = 0;				\
+} while (0)
+#define CLEAR_C_READONLY(obj) \
+  CLEAR_C_READONLY_RECORD_HEADER (XRECORD_LHEADER (obj))
 
 #define SET_LISP_READONLY_RECORD_HEADER(lheader) \
   ((void) ((lheader)->lisp_readonly = 1))
@@ -586,23 +605,18 @@ void clear_c_readonly_record_header (struct lrecord_header *);
    means it is more difficult for attackers to predict an address that would
    be useful to them and write that to the stack as the return address.)
 
-   As mentioned above, it is possible and indeed necessary for pdump to
-   restore non-Lisp data, the "root blocks".  Many files through XEmacs ignore
-   this possiblity, and have reinit_vars_of*() functions that usually push
-   to post-dump what could have been done at dump time. Some of this is
-   because of bugs in pdump (if a pointer to a Lisp object is to be found
-   within a root block, that Lisp_Object should be protected from garbage
-   collection, but that is not currently automatically done), some of it
-   really isn't possible because of problems with external libraries, and some
-   it may reflect confusion from the situation before unexec (the pre-pdump
-   solution to this problem) was removed and this code was very heavily
-   #ifdef'd and difficult to maintain.
-
    Descriptions are used by pdump in three places: (a) descriptions of Lisp
    objects, referenced in the DEFINE_*LRECORD_*IMPLEMENTATION*() call; (b)
-   descriptions of global objects to be dumped, registered by
-   dump_add_root_block(); (c) descriptions of global pointers to
-   non-Lisp_Object heap objects, registered by dump_add_root_block_ptr().
+   descriptions of global pointers to non-Lisp_Object heap objects, registered
+   by dump_add_root_block_ptr(); (c) descriptions of global non-Lisp objects to
+   be dumped, registered by dump_add_root_block();
+
+   Most non-Lisp data is restored by initializing a BSS-segment pointer value
+   to point into the dump file (e.g. lrecord_implementations,
+   the_specifier_methods_dynarr, the various coding system methods). Some of
+   it is copied from the dump file to the data segment or to BSS by
+   pdump_load_finish() (e.g. the_process_methods in process.c).
+
    The descriptions need to tell pdump which elements of your structure are
    Lisp_Objects or structure pointers, plus the descriptions in turn of the
    non-Lisp_Object structures pointed to.  If these structures are your own
@@ -1825,9 +1839,6 @@ void free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object lcrecord);
 /* AUTO-MANAGED MODEL: */
 MODULE_API Lisp_Object
 alloc_automanaged_lcrecord (const struct lrecord_implementation *imp);
-
-MODULE_API Lisp_Object
-alloc_automanaged_c_readonly_lcrecord (const struct lrecord_implementation *);
 
 DECLARE_INLINE_HEADER (
 Bytecount
