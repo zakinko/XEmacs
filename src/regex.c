@@ -2303,7 +2303,7 @@ struct reg_match_info_data {
   unsigned int reg_offset:24; /* Greater than 16 bits so we can have an UNSET
 				 value that is not a valid buffer offset. */
   unsigned int reg_match_null_info:3;
-} data[1];
+};
 
 typedef struct {
   regnum_t ngroups;
