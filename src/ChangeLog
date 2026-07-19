@@ -1,5 +1,13 @@
 2026-07-19  Aidan Kehoe  <kehoea@parhasard.net>
 
+	* xemacs.def.in.in:
+	Update this to reflect recent changes, get Cygwin and Visual
+	Studio building. Right thing to do is to use a similar export
+	infrastructure on Linux, which will also reduce startup times on
+	that platform (and other ELF platforms).
+
+2026-07-19  Aidan Kehoe  <kehoea@parhasard.net>
+
 	* regex.c (struct reg_match_info_data): Don't needlessly
 	create a one-element array of this when declaring the structure,
 	thank you clang++-11.
