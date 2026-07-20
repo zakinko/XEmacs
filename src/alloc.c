@@ -791,7 +791,7 @@ struct lcheader_max_align_t_aligned
 #define LCHEADER_LHEADER_NO_ASSERT(lch_again, lch)                      \
   ((struct lrecord_header *) ((Rawbyte *) (lch_again) +                 \
                               (SIZEOF_VOID_P <<                         \
-                               ((EMACS_UINT) ((lch)->next) & 1)
+                               ((EMACS_UINT) ((lch)->next) & 1))))
 #else
 static const Binbyte lcheader_offsets[] = {
   LCHEADER_OVERHEAD_VOID_PTR_ALIGNED,
@@ -6083,6 +6083,17 @@ init_alloc_once_early (void)
 			       lcrecord_list_description,
 			       struct lcrecord_list);
   OBJECT_HAS_PREMETHOD (lcrecord_list, disksave);
+
+#if SIZEOF_MAX_ALIGN_T == (SIZEOF_VOID_P << 1)
+  /* In theory MAX_ALIGN_T can have an alignment requirement that is
+     not its size. This is unlikely; if it comes up this should have
+     its own check in configure.ac. See the non-branching
+     implementation of LCHEADER_LHEADER_NO_ASSERT above. */
+  structure_checking_assert (SIZEOF_VOID_P
+			     == LCHEADER_OVERHEAD_VOID_PTR_ALIGNED);
+  structure_checking_assert (SIZEOF_MAX_ALIGN_T
+			     == LCHEADER_OVERHEAD_MAX_ALIGN_T_ALIGNED);
+#endif
 
   DEFINE_NODUMP_INTERNAL_LISP_OBJECT ("free", free, free_description,
                                       struct Lisp_Free);

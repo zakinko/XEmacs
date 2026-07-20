@@ -1,3 +1,10 @@
+2026-07-20  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* alloc.c (LCHEADER_LHEADER_NO_ASSERT):
+	Fix this on macOS, add three missing parentheses.
+	* alloc.c (init_alloc_once_early):
+	Add an assertion to ensure that this works.
+
 2026-07-19  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* xemacs.def.in.in:
