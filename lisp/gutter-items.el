@@ -188,8 +188,22 @@ If this is 0, then the full buffer name will be shown."
   "For use as a value of `buffers-tab-omit-function'.
 Omit buffers based on the value of `buffers-tab-omit-list', which
 see."
-  (let ((regexp (mapconcat 'concat buffers-tab-omit-list "\\|")))
-    (not (null (string-match-p regexp (buffer-name buf))))))
+  (let ((buffer-name (buffer-name buf))
+	(cache (load-time-value (make-weak-list 'key-assoc))))
+    (if (equal buffers-tab-omit-list '("\\` "))
+	(and (> (length buffer-name) 0)
+	     (eql ?\x20 (aref buffer-name 0)))
+      (not
+       (null
+	(string-match-p
+	 (or (cdr (assoc buffers-tab-omit-list (weak-list-list cache)))
+	     (progn
+	       (set-weak-list-list
+		cache (acons buffers-tab-omit-list
+			     (mapconcat 'concat buffers-tab-omit-list "\\|")
+			     (weak-list-list cache)))
+	       (cdar (weak-list-list cache))))
+	 buffer-name))))))
 
 (defun buffers-tab-switch-to-buffer (buffer)
   "For use as a value for `buffers-tab-switch-to-buffer-function'."

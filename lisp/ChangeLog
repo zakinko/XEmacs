@@ -1,3 +1,13 @@
+2026-07-21  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* gutter-items.el (buffers-tab-omit-some-buffers):
+	Avoid creating garbage at every redisplay in this function, rather
+	cache the result of (mapconcat #'concat buffers-tab-omit-list
+	"\\|").
+	If buffers-tab-omit-list is the default "\\` ", don't even fire up
+	the regexp engine, just check if the first character of the name
+	is space with aref.
+
 2026-07-12  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* iso8859-1.el (ascii-case-table): Removed.
