@@ -1488,7 +1488,7 @@ tag_sets_match_p (Lisp_Object a, Lisp_Object b, int exact_p)
 static Lisp_Object
 call_validate_method (Lisp_Object boxed_method, Lisp_Object instantiator)
 {
-  ((void (*)(Lisp_Object)) GET_VOID_FROM_LISP (boxed_method)) (instantiator);
+  ((void (*)(Lisp_Object)) get_opaque_ptr (boxed_method)) (instantiator);
   return Qt;
 }
 
@@ -1508,12 +1508,17 @@ check_valid_instantiator (Lisp_Object instantiator,
 	}
       else
 	{
-	  Lisp_Object opaque
-	    = STORE_VOID_IN_LISP ((void *) meths->validate_method);
+	  Lisp_Object opaque = make_opaque_ptr ((void *)
+						meths->validate_method);
+	  struct gcpro gcpro1;
 
+	  GCPRO1 (opaque);
 	  retval = call_with_suspended_errors
 	    ((lisp_fn_t) call_validate_method,
 	     Qnil, Qspecifier, errb, 2, opaque, instantiator);
+
+	  free_opaque_ptr (opaque);
+	  UNGCPRO;
 	}
 
       return retval;
@@ -2660,7 +2665,7 @@ static Lisp_Object
 call_validate_matchspec_method (Lisp_Object boxed_method,
 				Lisp_Object matchspec)
 {
-  ((void (*)(Lisp_Object)) GET_VOID_FROM_LISP (boxed_method)) (matchspec);
+  ((void (*)(Lisp_Object)) get_opaque_ptr (boxed_method)) (matchspec);
   return Qt;
 }
 
@@ -2680,12 +2685,17 @@ check_valid_specifier_matchspec (Lisp_Object matchspec,
 	}
       else
 	{
-	  Lisp_Object opaque
-	    = STORE_VOID_IN_LISP ((void *) meths->validate_matchspec_method);
+	  Lisp_Object opaque =
+	    make_opaque_ptr ((void *) meths->validate_matchspec_method);
+	  struct gcpro gcpro1;
 
+	  GCPRO1 (opaque);
 	  retval = call_with_suspended_errors
 	    ((lisp_fn_t) call_validate_matchspec_method,
 	     Qnil, Qspecifier, errb, 2, opaque, matchspec);
+
+	  free_opaque_ptr (opaque);
+	  UNGCPRO;
 	}
 
       return retval;

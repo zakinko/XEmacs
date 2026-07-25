@@ -3668,6 +3668,7 @@ free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object object)
   const struct lrecord_implementation *implementation
     = LHEADER_IMPLEMENTATION (lheader);
   struct lcheader *lcheader = OBJECT_LCHEADER (object);
+  Bytecount size = lisp_object_size (object);
 
   /* If we try to debug-print during GC, we'll likely get a crash on the
      following assert (called from Lstream_delete(), from prin1_to_string()).
@@ -3690,8 +3691,7 @@ free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object object)
   
   /* Make sure the size is correct.  This will catch, for example,
      putting a window configuration on the wrong free list. */
-  gc_checking_assert (lisp_object_size (object) +
-		      implementation->lcheader_overhead
+  gc_checking_assert (size + implementation->lcheader_overhead
 		      == list->size);
   /* Make sure the object isn't already freed. */
   gc_checking_assert (!LRECORD_FREE_P (lheader));
@@ -3706,6 +3706,7 @@ free_managed_lcrecord (Lisp_Object lcrecord_list, Lisp_Object object)
   object = wrap_pointer_1 (LCHEADER_LHEADER (lcheader, lcheader));
   XFREE_LRECORD (object)->chain = list->free;
   list->free = XFREE_LRECORD (object);
+  DECREMENT_CONS_COUNTER (size);
 }
 
 /* This is a list of lcrecord_list objects, kept sorted in ascending order of

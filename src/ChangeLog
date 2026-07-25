@@ -4,6 +4,23 @@
 	* specifier.c (check_valid_instantiator):
 	* specifier.c (call_validate_matchspec_method):
 	* specifier.c (check_valid_specifier_matchspec):
+	Revert this part of my last change, Matsl has demonstrated with
+	the buildbot that the not very exotic platform of g++ on AMD64 can
+	have one-byte aligned function pointers. (Odd, I was developing
+	today on clang on AMD64.)
+
+	* alloc.c (free_managed_lcrecord):
+	Use another approach to the same problem; just decrease the cons
+	counter when we free a managed lcrecord, in the same way that
+	free_cons() and friend decrease the cons counter for a frob block
+	object.
+
+2026-07-25  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* specifier.c (call_validate_method):
+	* specifier.c (check_valid_instantiator):
+	* specifier.c (call_validate_matchspec_method):
+	* specifier.c (check_valid_specifier_matchspec):
 	Avoid some GC noise when profiling in these functions, use
 	STORE_VOID_IN_LISP(), GET_VOID_FROM_LISP() rather than
 	make_opaque_ptr(), get_opaque_ptR() when passing around the C
