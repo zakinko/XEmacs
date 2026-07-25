@@ -739,44 +739,42 @@ Major modes that edit things other than ordinary files may change this
 
 (defun modeline-update-buffer-names (frame)
   (reduce-across-buffers
-   #'ignore
-   :key #'(lambda (buf)
-	    (when (or (not (eq (buffer-name buf)
-			       (symbol-value-in-buffer
-				'modeline-recorded-buffer-name buf)))
-		      (not (eq (buffer-file-name buf)
-			       (symbol-value-in-buffer
-				'modeline-recorded-buffer-file-name buf))))
-	      ;(dp "processing %s" buf)
-	      (with-current-buffer buf
-		(setq modeline-recorded-buffer-name (buffer-name))
-		(setq modeline-recorded-buffer-file-name (buffer-file-name))
-		(if (not modeline-recorded-buffer-file-name)
-		    (setq modeline-modified-buffer-non-highlighted-name
-			  modeline-recorded-buffer-name
-			  modeline-modified-buffer-highlighted-name nil)
-		  (let ((fn
-			 (if (<= (length modeline-recorded-buffer-file-name)
-				 modeline-max-buffer-name-size)
-			     modeline-recorded-buffer-file-name
-			   (concat "..."
-				   (substring
-				    modeline-recorded-buffer-file-name
-				    (- modeline-max-buffer-name-size))))))
-		    (setq modeline-modified-buffer-non-highlighted-name
-			  ;; if the filename is very long, the entire
-			  ;; directory will get truncated to
-			  ;; non-existence.
-			  (let ((dir (file-name-directory fn)))
-			    (if dir
-				(concat " ("
-					(directory-file-name
-					 (file-name-directory fn))
-					")")
-			      ""))
-			  modeline-modified-buffer-highlighted-name
-			  (file-name-nondirectory fn))))
-		(redraw-modeline))))))
+   #'(lambda (ignore buf)
+       (when (or (not (eq (buffer-name buf)
+			  (symbol-value-in-buffer
+			   'modeline-recorded-buffer-name buf)))
+		 (not (eq (buffer-file-name buf)
+			  (symbol-value-in-buffer
+			   'modeline-recorded-buffer-file-name buf))))
+	 (with-current-buffer buf
+	   (setq modeline-recorded-buffer-name (buffer-name))
+	   (setq modeline-recorded-buffer-file-name (buffer-file-name))
+	   (if (not modeline-recorded-buffer-file-name)
+	       (setq modeline-modified-buffer-non-highlighted-name
+		     modeline-recorded-buffer-name
+		     modeline-modified-buffer-highlighted-name nil)
+	     (let ((fn
+		    (if (<= (length modeline-recorded-buffer-file-name)
+			    modeline-max-buffer-name-size)
+			modeline-recorded-buffer-file-name
+		      (concat "..."
+			      (substring
+			       modeline-recorded-buffer-file-name
+			       (- modeline-max-buffer-name-size))))))
+	       (setq modeline-modified-buffer-non-highlighted-name
+		     ;; if the filename is very long, the entire
+		     ;; directory will get truncated to
+		     ;; non-existence.
+		     (let ((dir (file-name-directory fn)))
+		       (if dir
+			   (concat " ("
+				   (directory-file-name
+				    (file-name-directory fn))
+				   ")")
+			 ""))
+		     modeline-modified-buffer-highlighted-name
+		     (file-name-nondirectory fn))))
+	   (redraw-modeline))))))
 
 (defcustom modeline-new-buffer-id-format t
   "Whether the new format for the modeline buffer ID (with directory) is used.

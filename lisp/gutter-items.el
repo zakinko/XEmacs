@@ -188,22 +188,22 @@ If this is 0, then the full buffer name will be shown."
   "For use as a value of `buffers-tab-omit-function'.
 Omit buffers based on the value of `buffers-tab-omit-list', which
 see."
-  (let ((buffer-name (buffer-name buf))
-	(cache (load-time-value (make-weak-list 'key-assoc))))
+  (let ((buffer-name (buffer-name buf)))
     (if (equal buffers-tab-omit-list '("\\` "))
 	(and (> (length buffer-name) 0)
 	     (eql ?\x20 (aref buffer-name 0)))
-      (not
-       (null
-	(string-match-p
-	 (or (cdr (assoc buffers-tab-omit-list (weak-list-list cache)))
-	     (progn
-	       (set-weak-list-list
-		cache (acons buffers-tab-omit-list
-			     (mapconcat 'concat buffers-tab-omit-list "\\|")
-			     (weak-list-list cache)))
-	       (cdar (weak-list-list cache))))
-	 buffer-name))))))
+      (symbol-macrolet ((cache #:buffers-tab-omit-some-buffers-cache))
+	(defvar cache (load-time-value (make-weak-list 'key-assoc)))
+	(not
+	 (null
+	  (string-match-p
+	   (or (cdr (assoc buffers-tab-omit-list (weak-list-list cache)))
+	       (cdar (set-weak-list-list
+		      cache (acons buffers-tab-omit-list
+				   (mapconcat 'concat buffers-tab-omit-list
+					      "\\|")
+				   (weak-list-list cache)))))
+	   buffer-name)))))))
 
 (defun buffers-tab-switch-to-buffer (buffer)
   "For use as a value for `buffers-tab-switch-to-buffer-function'."
@@ -280,54 +280,55 @@ Optional FORCE-SELECTION makes the currently selected window first in list."
     ;; NB it is too late if we run the omit function as part of the
     ;; filter functions because we need to know which buffer is the
     ;; context buffer before they get run.
-    (let* ((buffers (delete-if 
-		     buffers-tab-omit-function (buffer-list frame)))
-	   (first-buf (car buffers)))
-      ;; maybe force the selected window
-      (when (and force-selection
-		 (not in-deletion)
-		 (not (eq first-buf (window-buffer (selected-window frame)))))
-	(setq buffers (cons (window-buffer (selected-window frame))
-			    (delete* first-buf buffers))))
-      ;; if we're in deletion ignore the current buffer
-      (when in-deletion 
-	(setq buffers (delete* (current-buffer) buffers))
-	(setq first-buf (car buffers)))
-      ;; filter buffers
+    (let* ((window-buffer (and force-selection
+			       (not in-deletion)
+			       (window-buffer (selected-window frame))))
+	   (buffers (reduce-across-buffers
+		     #'(lambda (buffer accum)
+			 (cond
+			  ((funcall buffers-tab-omit-function buffer)
+			   accum)
+			  ;; If we're in deletion ignore the current buffer
+			  ((and in-deletion (eq buffer (current-buffer)))
+			   accum)
+			  ((eq window-buffer buffer)
+			   accum)
+			  (t
+			   (cons buffer accum)))) :from-end t
+			  :initial-value nil :frame frame))
+	   (buffers (if window-buffer
+			;; Maybe force the selected window
+			(cons window-buffer buffers)
+		      buffers))
+	   (first-buf (car buffers))
+	   (selected t) n tail)
+      ;; Filter buffers.
       (when buffers-tab-filter-functions
 	(setq buffers
-              (mapcan
-               #'(lambda (buffer)
-                   (and (every #'(lambda (function)
-                                   (funcall function buffer first-buf))
-                               buffers-tab-filter-functions)
-                        (list buffer)))
+	      (delete-if-not
+	       #'(lambda (buffer)
+		   (every #'(lambda (function)
+			      (funcall function buffer first-buf))
+			  buffers-tab-filter-functions))
                buffers)))
-      ;; sort buffers in group (default is most-recently-selected)
+      ;; Sort buffers in group (no current default, which means
+      ;; ordered by the buffer list of the current frame, above).
       (when buffers-tab-sort-function
 	(setq buffers (funcall buffers-tab-sort-function buffers)))
-      ;; maybe shorten list of buffers
-      (when (fixnump buffers-tab-max-size)
-	(let ((n (1- buffers-tab-max-size))
-	      tail)
-	  (and (> n 0)
-	       (setf tail (nthcdr n buffers)) ;; Length greater than (1+ n)?
-	       (setf (cdr tail) nil))))
-      (labels
-          ((build-buffers-tab-internal (buffers)
-             "Convert BUFFERS to a list of structures used by the tab widget."
-             (let ((selected t))
-               (mapcar
+      ;; Maybe shorten list of buffers.
+      (when (integerp buffers-tab-max-size)
+	(and (> (setf n (1- buffers-tab-max-size)) 0)
+	     (setf tail (nthcdr n buffers)) ;; Length greater than (1+ n)?
+	     (setf (cdr tail) nil)))
+      (map-into buffers
                 #'(lambda (buffer)
-                    (prog1
-                        `[,(funcall buffers-tab-format-buffer-line-function
-                                    buffer)
-                          (,buffers-tab-switch-to-buffer-function ,buffer)
-                          :selected ,selected]
-                      (when selected (setq selected nil))))
+                    `[,(funcall buffers-tab-format-buffer-line-function
+				buffer)
+		      (,buffers-tab-switch-to-buffer-function ,buffer)
+		      :selected ,(prog1
+				     selected
+				   (when selected (setq selected nil)))])
                 buffers))))
-        (declare (inline build-buffers-tab-internal))
-	(build-buffers-tab-internal buffers)))))
 
 (defun add-tab-to-gutter ()
   "Put a tab control in the gutter area to select buffers."
@@ -366,31 +367,56 @@ Optional FORCE-SELECTION makes the currently selected window first in list."
 
 (defun update-tab-in-gutter (frame &optional force-selection)
   "Update the tab control in the gutter area.
-Optional FORCE-SELECTION makes the currently selected window first in list."    ;; dedicated frames don't get tabs
-  (unless (or (window-dedicated-p (frame-selected-window frame))
-	      (frame-property frame 'popup))
+Optional FORCE-SELECTION makes the currently selected window first in list."  
+  (unless (or
+	   (window-dedicated-p
+	    ;; Dedicated frames don't get tabs
+	    (frame-selected-window frame))
+	   (frame-property frame 'popup))
     (when (specifier-instance default-gutter-visible-p frame)
       (unless (and gutter-buffers-tab
 		   (eq (default-gutter-position)
 		       gutter-buffers-tab-orientation))
 	(add-tab-to-gutter))
       (when (valid-image-instantiator-format-p 'tab-control frame)
-	(let ((items (buffers-tab-items nil frame force-selection)))
-	  (when items
-	    (set-glyph-image
-	     gutter-buffers-tab
-	     (vector 'tab-control :descriptor "Buffers" :face buffers-tab-face
-		     :orientation gutter-buffers-tab-orientation
-		     (if (or (eq gutter-buffers-tab-orientation 'top)
-			     (eq gutter-buffers-tab-orientation 'bottom))
-			 :pixel-width :pixel-height)
-		     (if (or (eq gutter-buffers-tab-orientation 'top)
-			     (eq gutter-buffers-tab-orientation 'bottom))
-			 '(gutter-pixel-width) '(gutter-pixel-height)) 
-		     :items items)
-	     frame)
+	(let ((items (buffers-tab-items nil frame force-selection))
+	      (instantiator
+	       ;; This is called on practically every redisplay,
+	       ;; minimize allocation, reuse the vector.
+	       [tab-control
+		:descriptor "Buffers" nil nil nil nil nil nil nil nil]))
+	  (when (and items
+		     (setf (aref instantiator 3) :face
+			   (aref instantiator 4) buffers-tab-face
+			   (aref instantiator 5) :orientation
+			   (aref instantiator 6)
+			   gutter-buffers-tab-orientation
+			   (aref instantiator 7)
+			   (if (or (eq gutter-buffers-tab-orientation
+				       'top)
+				   (eq gutter-buffers-tab-orientation
+				       'bottom))
+			       :pixel-width
+			     :pixel-height)
+			   (aref instantiator 8)
+			   (if (or (eq gutter-buffers-tab-orientation 'top)
+				   (eq gutter-buffers-tab-orientation
+				       'bottom))
+			       '(gutter-pixel-width)
+			     '(gutter-pixel-height))
+			   (aref instantiator 9) :items
+			   (aref instantiator 10) items)
+		     (not (equal instantiator
+				 (specifier-instantiator
+				  (glyph-image gutter-buffers-tab)
+				  (frame-selected-window frame)))))
+	    (set-glyph-image gutter-buffers-tab instantiator
+			     frame)
 	    ;; set-glyph-image will not make the gutter dirty
-	    (set-gutter-dirty-p gutter-buffers-tab-orientation)))))))
+	    (set-gutter-dirty-p gutter-buffers-tab-orientation))
+	  ;; Make ITEMS unreachable for the next GC, clear the other
+	  ;; metadata.
+	  (fill instantiator nil :start 3))))))
 
 ;; A myriad of different update hooks all doing slightly different things
 (add-one-shot-hook 
@@ -417,50 +443,47 @@ Optional FORCE-SELECTION makes the currently selected window first in list."    
 ;; buffers-tab-omit-function and buffers-tab-filter-functions are not
 ;; available if that file is not dumped.
 
-;; Comments on their implementation:
-;;
-;; -- Repeatedly consing-up the buffer list is wasteful, but this function
-;; won't be called that often (I'd be surprised if it's called at all for
-;; most installations, it's a Ben Wing addition from the tail end of the
-;; 90s, not in GNU Emacs and not really advertised.).
-;; 
-;; -- You could argue that that buffer-list-filtering code could be factored
-;; out from #'buffers-tab-items, and we could just operate on that. This would
-;; be a little easier to maintain.
+(labels
+    ((first-in-buffer-list (&optional frame)
+       (reduce-across-buffers #'identity :end 1 :frame frame))
+     (last-in-buffer-list (&optional frame)
+       (reduce-across-buffers #'(lambda (buffer accum) (or accum buffer))
+			      :from-end t :initial-value nil :frame frame)))
+  (declare (inline first-in-buffer-list last-in-buffer-list))
 
-(defun switch-to-next-buffer-in-group (&optional n)
-  "Switch to the next-most-recent buffer in the current tab group.
+  (defun switch-to-next-buffer-in-group (&optional n)
+    "Switch to the next-most-recent buffer in the current tab group.
 This essentially rotates the buffer list forward.
 N (interactively, the prefix arg) specifies how many times to rotate
 forward, and defaults to 1.  Buffers whose name begins with a space
 \(i.e. \"invisible\" buffers) are ignored."
-  (interactive "p")
-  (dotimes (n (or n 1))
-    (let ((curbuf (car (buffer-list))))
-      (loop
-	do (bury-buffer (car (buffer-list)))
-	while (or (funcall buffers-tab-omit-function (car (buffer-list)))
-                  (notevery #'(lambda (function)
-                                (funcall function curbuf (car (buffer-list))))
-                            buffers-tab-filter-functions)))))
-  (switch-to-buffer (car (buffer-list))))
+    (interactive "p")
+    (dotimes (n (or n 1))
+      (let ((curbuf (first-in-buffer-list)))
+	(loop
+	  do (bury-buffer (first-in-buffer-list))
+	  while (or (funcall buffers-tab-omit-function (first-in-buffer-list))
+		    (notevery #'(lambda (function)
+				  (funcall function curbuf (first-in-buffer-list)))
+			      buffers-tab-filter-functions)))))
+    (switch-to-buffer (first-in-buffer-list)))
 
-(defun switch-to-previous-buffer-in-group (&optional n)
-  "Switch to the previously most-recent buffer in the current tab group.
+  (defun switch-to-previous-buffer-in-group (&optional n)
+    "Switch to the previously most-recent buffer in the current tab group.
 This essentially rotates the buffer list backward.
 N (interactively, the prefix arg) specifies how many times to rotate
 backward, and defaults to 1.  Buffers whose name begins with a space
 \(i.e. \"invisible\" buffers) are ignored."
-  (interactive "p")
-  (dotimes (n (or n 1))
-    (let ((curbuf (car (buffer-list))))
-      (loop
-	do (switch-to-buffer (car (last (buffer-list))))
-	while (or (funcall buffers-tab-omit-function (car (buffer-list)))
-                  (notevery #'(lambda (function)
-                                (funcall function curbuf (car (buffer-list))))
-                            buffers-tab-filter-functions))))))
-
+    (interactive "p")
+    (dotimes (n (or n 1))
+      (let ((curbuf (first-in-buffer-list)))
+	(loop
+	  do (switch-to-buffer (last-in-buffer-list))
+	  while (or (funcall buffers-tab-omit-function (first-in-buffer-list))
+		    (notevery #'(lambda (function)
+				  (funcall function curbuf (first-in-buffer-list)))
+			      buffers-tab-filter-functions)))))))
+
 ;;
 ;; progress display
 ;; ripped off from message display

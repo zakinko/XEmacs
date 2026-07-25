@@ -1,3 +1,38 @@
+2026-07-25  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* gutter-items.el (buffers-tab-omit-some-buffers):
+	Make this a bit more idiomatic, make the cache into a defvar with
+	a private symbol name, call #'cdar on the result of
+	#'set-weak-list-list.
+
+	* gutter-items.el (buffers-tab-items):
+	Be more conservative of memory in this function, called at
+	practically every redisplay.
+	Use #'reduce-across-buffers, only add entries to the list of
+	buffers examined if they are not matched by
+	buffers-tab-omit-function or a couple of other minor restrictions.
+	Use #'delete-if-not rather than #'mapcan when checking
+	buffers-tab-filter-function, since the #'mapcan conses a new list.
+	Call #'map-into with the generated buffer list when constructing
+	the list of vectors, don't cons a fresh list.
+
+	* gutter-items.el (update-tab-in-gutter):
+	Be more conservative of memory in this function. Examine the
+	existing instantiator and only set the glyph image and mark the
+	gutter dirty if it differs from the one we have determined to be
+	up to date.
+	
+	* gutter-items.el (first-in-buffer-list): New label.
+	* gutter-items.el (last-in-buffer-list): New label.
+	* gutter-items.el (switch-to-next-buffer-in-group): Use
+	#'first-in-buffer-list, #'last-in-buffer-list here to avoid
+	needless consing.
+	* gutter-items.el (switch-to-previous-buffer-in-group): Ditto.
+	* modeline.el (modeline-update-buffer-names):
+	Avoid noise in M-x profile-results RET, examine the buffers
+	directly in the FUNCTION argument to #'reduce-across-buffers,
+	don't use the key argument.
+
 2026-07-21  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* gutter-items.el (buffers-tab-omit-some-buffers):

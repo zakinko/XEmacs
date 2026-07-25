@@ -1,3 +1,14 @@
+2026-07-25  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* specifier.c (call_validate_method):
+	* specifier.c (check_valid_instantiator):
+	* specifier.c (call_validate_matchspec_method):
+	* specifier.c (check_valid_specifier_matchspec):
+	Avoid some GC noise when profiling in these functions, use
+	STORE_VOID_IN_LISP(), GET_VOID_FROM_LISP() rather than
+	make_opaque_ptr(), get_opaque_ptR() when passing around the C
+	function pointer.
+
 2026-07-20  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* alloc.c (LCHEADER_LHEADER_NO_ASSERT):
