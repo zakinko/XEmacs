@@ -686,6 +686,8 @@ allocate_lisp_storage (Bytecount size)
   if (need_to_check_c_alloca)
     xemacs_c_alloca (0);
 
+  gc_checking_assert (!gc_in_progress || in_debug_print);
+
   return val;
 }
 
@@ -1341,6 +1343,7 @@ static int gc_count_num_##type##_freelist
 #define ALLOCATE_FIXED_TYPE_1(type, structtype, result) do {	\
   gc_checking_assert (MINIMUM_ALLOWED_FIXED_TYPE_CELLS_##type   \
                       > 0);                                     \
+  gc_checking_assert (!gc_in_progress || in_debug_print);	\
   if (gc_count_num_##type##_freelist >				\
       MINIMUM_ALLOWED_FIXED_TYPE_CELLS_##type)			\
     {								\

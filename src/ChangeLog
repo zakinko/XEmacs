@@ -1,3 +1,11 @@
+2026-08-03  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* alloc.c (allocate_lisp_storage):
+	* alloc.c (ALLOCATE_FIXED_TYPE_1):
+	Add assertions that we are either not in GC or that we are
+	in_debug_print if allocating a Lisp object, since allocating Lisp
+	objects in GC will lead to use-after-free issues down the line.
+
 2026-07-25  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* specifier.c (call_validate_method):
