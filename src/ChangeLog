@@ -1,3 +1,9 @@
+2026-08-06  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* specifier.c (setup_charset_initial_specifier_tags):
+	Add a needed GCPRO() here, call_charset_tag_predicate() can GC and
+	CHARSET_TAG_LIST is not otherwise reachable.
+
 2026-08-03  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* alloc.c (allocate_lisp_storage):

@@ -1335,6 +1335,9 @@ setup_charset_initial_specifier_tags (Lisp_Object charset)
 {
   Lisp_Object rest, charset_predicate, tag, new_value;
   Lisp_Object charset_tag_list = Qnil;
+  struct gcpro gcpro1;
+
+  GCPRO1 (charset_tag_list);
 
   LIST_LOOP (rest, Vuser_defined_tags)
     {
@@ -1350,6 +1353,7 @@ setup_charset_initial_specifier_tags (Lisp_Object charset)
       charset_tag_list = Fcons (Fcons (tag, new_value), charset_tag_list);
     }
 
+  UNGCPRO;
   Fputhash (charset, charset_tag_list, Vcharset_tag_lists);
 }
 
