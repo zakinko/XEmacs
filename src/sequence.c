@@ -5342,10 +5342,13 @@ arguments: (FUNCTION SEQUENCE &key (START 0) (END (length SEQUENCE)) FROM-END IN
 {
   Lisp_Object function = args[0], sequence = args[1], accum = Qunbound;
   Elemcount starting, ending = MOST_POSITIVE_FIXNUM + 1, ii = 0;
+  struct gcpro gcpro1;
 
   PARSE_KEYWORDS (Freduce,
                   (start, end, from_end, initial_value, key),
                   (start = Qzero, initial_value = Qunbound));
+
+  GCPRO1 (accum);
 
   CHECK_SEQUENCE (sequence);
   CHECK_NATNUM (start);
@@ -5366,13 +5369,9 @@ arguments: (FUNCTION SEQUENCE &key (START 0) (END (length SEQUENCE)) FROM-END IN
   if (VECTORP (sequence))
     {
       Lisp_Vector *vv = XVECTOR (sequence);
-      struct gcpro gcpro1;
-
       check_sequence_range (sequence, start, end, make_fixnum (vv->size));
 
       ending = min (ending, vv->size);
-
-      GCPRO1 (accum);
 
       if (!UNBOUNDP (initial_value))
         {
@@ -5406,18 +5405,13 @@ arguments: (FUNCTION SEQUENCE &key (START 0) (END (length SEQUENCE)) FROM-END IN
               accum = CALL2 (function, KEY (key, vv->contents[ii]), accum);
             }
         }
-
-      UNGCPRO;
     }
   else if (BIT_VECTORP (sequence))
     {
       Lisp_Bit_Vector *bv = XBIT_VECTOR (sequence);
-      struct gcpro gcpro1;
 
       check_sequence_range (sequence, start, end, make_fixnum (bv->size));
       ending = min (ending, bv->size);
-
-      GCPRO1 (accum);
 
       if (!UNBOUNDP (initial_value))
         {
@@ -5455,16 +5449,9 @@ arguments: (FUNCTION SEQUENCE &key (START 0) (END (length SEQUENCE)) FROM-END IN
                              accum);
             }
         }
-
-      UNGCPRO;
-
     }
   else if (STRINGP (sequence))
     {
-      struct gcpro gcpro1;
-
-      GCPRO1 (accum);
-
       if (NILP (from_end))
         {
           Bytecount byte_len = XSTRING_LENGTH (sequence);
@@ -5579,17 +5566,11 @@ arguments: (FUNCTION SEQUENCE &key (START 0) (END (length SEQUENCE)) FROM-END IN
                 }
             }
         }
-
-      UNGCPRO;
     }
   else if (LISTP (sequence))
     {
       if (NILP (from_end))
         {
-	  struct gcpro gcpro1;
-
-	  GCPRO1 (accum);
-
           if (!UNBOUNDP (initial_value))
             {
               accum = initial_value;
@@ -5630,9 +5611,6 @@ arguments: (FUNCTION SEQUENCE &key (START 0) (END (length SEQUENCE)) FROM-END IN
                 }
 	      END_GC_EXTERNAL_LIST_LOOP (elt);
             }
-
-	  UNGCPRO;
-
 	  if (ii < starting || (ii < ending && !NILP (end)))
 	    {
 	      check_sequence_range (sequence, start, end, Flength (sequence));
@@ -5643,7 +5621,6 @@ arguments: (FUNCTION SEQUENCE &key (START 0) (END (length SEQUENCE)) FROM-END IN
           Boolint need_accum = 0;
           Lisp_Object *subsequence = NULL;
           Elemcount counting = 0, len = 0;
-	  struct gcpro gcpro1;
 
 	  len = XFIXNUM (Flength (sequence));
 	  check_sequence_range (sequence, start, end, make_fixnum (len));
@@ -5686,13 +5663,14 @@ arguments: (FUNCTION SEQUENCE &key (START 0) (END (length SEQUENCE)) FROM-END IN
 
 	  if (subsequence != NULL)
 	    {
+	      struct gcpro ngcpro1;
 	      len = ending - starting;
 	      /* If we could be sure that neither FUNCTION nor KEY modify
 		 SEQUENCE, this wouldn't be necessary, since all the
 		 elements of SUBSEQUENCE would definitely always be
 		 reachable via SEQUENCE.  */
-	      GCPRO1 (subsequence[0]);
-	      gcpro1.nvars = len;
+	      NGCPRO1 (subsequence[0]);
+	      ngcpro1.nvars = len;
 
               if (need_accum)
                 {
@@ -5706,7 +5684,7 @@ arguments: (FUNCTION SEQUENCE &key (START 0) (END (length SEQUENCE)) FROM-END IN
                   accum = CALL2 (function, KEY (key, subsequence[ii]), accum);
                 }
 
-	      UNGCPRO;
+	      NUNGCPRO;
 	    }
         }
     }
@@ -5718,6 +5696,8 @@ arguments: (FUNCTION SEQUENCE &key (START 0) (END (length SEQUENCE)) FROM-END IN
     {
       accum = IGNORE_MULTIPLE_VALUES (call0 (function));
     }
+
+  UNGCPRO;
 
   return accum;
 }

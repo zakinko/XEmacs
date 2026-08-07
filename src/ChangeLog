@@ -1,3 +1,8 @@
+2026-08-07  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* sequence.c (Freduce):
+	Always GCPRO accum in this function, avoid a crash I just provoked.
+
 2026-08-06  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* specifier.c (setup_charset_initial_specifier_tags):
