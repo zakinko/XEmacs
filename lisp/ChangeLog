@@ -1,3 +1,16 @@
+2026-08-07  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Minor further work, gutter-items.el.
+	* gutter-items.el (buffers-tab-omit-some-buffers):
+	Buffer names can never be non-zero in length, no need to check
+	with this.
+	No need for a #'load-time-value for the cache, the cache will
+	never be initialized in normal runtime, and defvar will not set
+	the value if it is currently bound.
+	* gutter-items.el (update-tab-in-gutter):
+	When calling #'set-glyph-image, pass a copy of INSTANTIATOR, which
+	is a dumped constant that we shortly clear.
+
 2026-07-25  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* gutter-items.el (buffers-tab-omit-some-buffers):

@@ -190,10 +190,9 @@ Omit buffers based on the value of `buffers-tab-omit-list', which
 see."
   (let ((buffer-name (buffer-name buf)))
     (if (equal buffers-tab-omit-list '("\\` "))
-	(and (> (length buffer-name) 0)
-	     (eql ?\x20 (aref buffer-name 0)))
+	(eql ?\x20 (aref buffer-name 0))
       (symbol-macrolet ((cache #:buffers-tab-omit-some-buffers-cache))
-	(defvar cache (load-time-value (make-weak-list 'key-assoc)))
+	(defvar cache (make-weak-list 'key-assoc))
 	(not
 	 (null
 	  (string-match-p
@@ -410,7 +409,7 @@ Optional FORCE-SELECTION makes the currently selected window first in list."
 				 (specifier-instantiator
 				  (glyph-image gutter-buffers-tab)
 				  (frame-selected-window frame)))))
-	    (set-glyph-image gutter-buffers-tab instantiator
+	    (set-glyph-image gutter-buffers-tab (copy-sequence instantiator)
 			     frame)
 	    ;; set-glyph-image will not make the gutter dirty
 	    (set-gutter-dirty-p gutter-buffers-tab-orientation))
