@@ -1,3 +1,10 @@
+2026-08-12  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* automated/symbol-tests.el:
+	Check that the names of dumped, interned symbols cannot be
+	modified from Lisp. Check that the name of a non-dumped interned
+	symbol can be modified from Lisp.
+
 2026-06-03  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* automated/lisp-tests.el:

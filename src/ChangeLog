@@ -1,3 +1,18 @@
+2026-08-12  Aidan Kehoe  <kehoea@parhasard.net>
+
+	Mark the names of dumped, interned symbols Lisp-readonly. 
+
+	* alloc.c:
+	* alloc.c (finalize_obarray_mapper): Rename
+	finalize_functions_in_obarray() to this. Mark it with
+	ATTRIBUTE_COLD.
+	As well as marking subrs and prompts C-readonly, mark the names of
+	interned symbols as Lisp-readonly, reducing run-time corruption if
+	Lisp attempts to modify them.
+	* alloc.c (disksave_object_finalization):
+	Call the function with its new name. No need for a local variable
+	to store the hash table for interned prompts.
+
 2026-08-07  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* sequence.c (Freduce):

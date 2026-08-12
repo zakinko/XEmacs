@@ -516,6 +516,19 @@ make-docfile.el"))
 	      (format "count of entries in doc file %d, matched entries %d, \
 combination not plausible" count match)))))
 
+;; The names of interned dumped symbols are marked read-only, check this:
+
+(Check-Error setting-constant (aset (symbol-name t) 0 ?T))
+(Check-Error setting-constant (aset (symbol-name nil) 0 ?N))
+(Check-Error setting-constant (aset (symbol-name nil) 0 ?N))
+(Check-Error setting-constant (aset (symbol-name 'execute-extended-command) 0 ?E))
+
+;; We don't currently enforce this restriction on interned symbols.
+(let ((symbol (intern (format "8zThuXlN%x" (random)))))
+  (Assert (equal (concat "9" (subseq (symbol-name symbol) 1))
+		 (prog2 (aset (symbol-name symbol) 0 ?9) (symbol-name symbol)))
+	  "checking can modify names of interned non-dumped symbols"))
+
 ;; #### we should handle symbols defined in Lisp, dumped, autoloaded,
 ;; and required, too.
 

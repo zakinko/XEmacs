@@ -5729,10 +5729,15 @@ disksave_object_finalization_1 (void)
 #endif
 }
 
-/* Previously (with unexec) the subr objects were in the data segment and
-   marked C-readonly. Now they are in the dump file and given no code modifies
-   them it is helpful at GC after pdump_load() to decrease the number of
-   objects traversed by marking them C-readonly once more.
+static int finalize_obarray_mapper (Lisp_Object, Lisp_Object ,
+				    void *) ATTRIBUTE_COLD;
+
+/* Mark the string names of the interned symbols readonly to Lisp, avoiding the
+   possibility of corrupting obarray by (aset (symbol-name t) 0 ?\u2012).
+
+   Also mark the dumped subr objects C-readonly. Given no code modifies them it
+   is helpful for GC after pdump_load() to decrease the number of objects
+   traversed.
 
    The string interactive specs do not vary much, there is a lot of "_p", "",
    "p", "r" and this is equally true for the dumped compiled
@@ -5742,11 +5747,13 @@ disksave_object_finalization_1 (void)
    identical to the subr interactive strings (which were previously not Lisp
    strings), do the de-duplication on both. */
 static int
-finalize_functions_in_obarray (Lisp_Object UNUSED (key), Lisp_Object value,
-			       void* prompt_hash)
+finalize_obarray_mapper (Lisp_Object key, Lisp_Object value,
+			 void* prompt_hash)
 {
-  Lisp_Object Vprompt_hash = *((Lisp_Object *) prompt_hash);
+  Lisp_Object Vprompt_hash = GET_LISP_FROM_VOID (prompt_hash);
   Lisp_Object interned_prompt;
+
+  SET_LISP_READONLY (key);
 
   if (SUBRP (XSYMBOL_FUNCTION (value)))
     {
@@ -5826,13 +5833,11 @@ disksave_object_finalization (void)
   clear_default_devices ();
   disksave_clear_unicode_precedence ();
 
-  {
-    Lisp_Object Vprompt_hash = make_lisp_hash_table
-      (1000, HASH_TABLE_NON_WEAK, Qequal);
-    /* This cannot GC, no need to GCPRO Vprompt_hash. */
-    elisp_maphash_unsafe (finalize_functions_in_obarray, Vobarray,
-			  (void *) (&Vprompt_hash));
-  }
+  /* This cannot GC, no need to GCPRO the prompt hash. */
+  elisp_maphash_unsafe (finalize_obarray_mapper, Vobarray,
+			STORE_LISP_IN_VOID (make_lisp_hash_table
+					    (1000, HASH_TABLE_NON_WEAK,
+					     Qequal)));
 
   /* Initialize Vcharset_latin_iso8859_2 and friends, now they are available
      after creation in Lisp. */
