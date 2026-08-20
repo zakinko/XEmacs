@@ -75,7 +75,7 @@
 
 ;; Basic tests from Alan Mackenzie, 2025-05-25.
 
-(Assert (equal (regexp-opt '("foo" "bar")) "bar\\|foo"))
+(Assert (equal (regexp-opt '("foo" "bar")) "\\(?:bar\\|foo\\)"))
 (Assert (equal (regexp-opt '("foo" "bar") t) "\\(bar\\|foo\\)"))
 (Assert (equal (regexp-opt '("foo" "bar") 'words) "\\<\\(bar\\|foo\\)\\>"))
 (Assert (equal (regexp-opt '("foo" "bar") 'symbols) "\\_<\\(bar\\|foo\\)\\_>"))

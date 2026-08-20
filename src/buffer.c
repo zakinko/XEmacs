@@ -533,9 +533,8 @@ the search will still be done on `buffer-file-name'.
   return Qnil;
 }
 
-
 static void
-push_buffer_list (Lisp_Object name, Lisp_Object buf)
+push_buffer_list (Lisp_Object buf)
 {
   Lisp_Object frmcons, devcons, concons;
 
@@ -611,7 +610,7 @@ finish_init_buffer (struct buffer *b, Lisp_Object name)
   b->extent_info = allocate_extent_info ();
 
   /* Put this in the list of all live buffers.  */
-  push_buffer_list (name, buf);
+  push_buffer_list (buf);
   note_object_created (buf);
 
   init_buffer_markers (b);
@@ -848,8 +847,6 @@ is first appended to NAME, to speed up finding a non-existent buffer.
                   break;
                 }
             }
-
-          USED (bufobj); /* Silence warning for this. */
 
           if (!seen)
             {

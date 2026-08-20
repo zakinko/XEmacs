@@ -1,3 +1,10 @@
+2026-08-20  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* automated/regexp-opt-tests.el:
+	Update a test here to reflect current reality, which always
+	creates shy groups if PAREN is unspecified (now that shy groups
+	have no regexp run-time cost under XEmacs).
+
 2026-08-12  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* automated/symbol-tests.el:

@@ -1,3 +1,9 @@
+2026-08-20  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* gnuslib.c (read_line):
+	Fix a bug in this regarding DESTSIZE and where to put the zero
+	termination, thank you GCC.
+
 2026-04-12  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* pop.c:

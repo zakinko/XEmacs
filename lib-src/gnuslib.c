@@ -280,9 +280,9 @@ read_line (int s, char *dest, size_t destsize)
   }
   buffer[offset] = '\0';
   snprintf (dest, destsize, "%s", buffer);
-  if ((size_t) offset > destsize)
+  if ((size_t) offset >= destsize)
     {
-      dest[destsize] = '\0';
+      dest[destsize - 1] = '\0';
     }
   return 1;
 } /* read_line */
