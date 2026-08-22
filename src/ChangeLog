@@ -1,3 +1,9 @@
+2026-08-22  Aidan Kehoe  <kehoea@parhasard.net>
+
+	* Makefile.in.in ($(RAW_EXE)):
+	Look for xemacs.dmp.in in the source tree, not the build tree,
+	thank you Stephen Turnbull. Fixes out-of-tree builds.
+
 2026-08-20  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* buffer.c (push_buffer_list):
