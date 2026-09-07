@@ -1,3 +1,16 @@
+2026-09-06  Showta Ishizaki  <zakinko@snowrabbit.org>
+
+	* elhash.c (free_hentries):
+	Return early on a null HENTRIES.  finalize_hash_table() zeroes the
+	slot after freeing it, so a second run of the finaliser arrives with
+	nothing to free; xfree() takes a null pointer but deadbeef_memory()
+	writes through it, and the dump died with SIGSEGV there.
+	* elhash.c (free_hentries):
+	Check DUMPEDP before poisoning rather than only before freeing.
+	Dumped storage is still live, and writing 0xDEADBEEF over it left a
+	neighbouring lcrecord header with a bogus type, which the next sweep
+	caught as an assertion failure in GC_CHECK_LCHEADER_INVARIANTS.
+
 2026-08-22  Aidan Kehoe  <kehoea@parhasard.net>
 
 	* Makefile.in.in ($(RAW_EXE)):

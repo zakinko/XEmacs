@@ -739,14 +739,30 @@ static void
 free_hentries (htentry *hentries,
 	       Elemcount USED_IF_ERROR_CHECK_STRUCTURES (size))
 {
+  /* HENTRIES can be null: finalize_hash_table() zeroes the slot once it
+     has freed it, and a table whose finaliser runs a second time -- as
+     happens in the sweep after a table has been finalised at dump time --
+     arrives here with nothing to free.  xfree() takes a null pointer, but
+     deadbeef_memory() writes through it, so it took the dump down with
+     SIGSEGV on this path.  */
+  if (hentries == NULL)
+    return;
+
+  /* Dumped storage is not ours: it is neither freed here nor, which used
+     to be done regardless, scribbled over.  Poisoning it wrote 0xDEADBEEF
+     through memory that is still live, and the next sweep died on
+     GC_CHECK_LCHEADER_INVARIANTS with a header whose type field had been
+     overwritten.  */
+  if (DUMPEDP (hentries))
+    return;
+
 #ifdef ERROR_CHECK_STRUCTURES
   /* Ensure a crash if other code uses the discarded entries afterwards. */
   deadbeef_memory (hentries,
 		   (Rawbyte *) (hentries + size) - (Rawbyte *) hentries);
 #endif
 
-  if (!DUMPEDP (hentries))
-    xfree (hentries);
+  xfree (hentries);
 }
 
 static void
